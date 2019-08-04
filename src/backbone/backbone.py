@@ -4,7 +4,7 @@ TODO: Make it usable for RetinaNet
 '''
 
 import torch
-import torchvision.models as model
+import torchvision
 import torch.nn as nn
 
 
@@ -12,9 +12,10 @@ import torch.nn as nn
 
 class Backbone(object):
 	"""docstring for Backbone"""
-	def __init__(self):
+	def __init__(self, stop_layer = None):
 		super(Backbone, self).__init__()
-		## Do nothing for now! 
+		
+		self.stop_layer = stop_layer
 
 	def VGG16_backbone(self, image):
 		
@@ -30,7 +31,7 @@ class Backbone(object):
 
 
 		## Using models from pytorch vision repository, more to come! 
-		vgg16 = model.vgg16(pretrained=True)
+		vgg16 = torchvision.models.vgg16(pretrained=True)
 
 		fake_input = image.clone()
 		im_height = image.size()[2] ## 0: Batch size, 1: image channels, 2: image height, 3: image width
@@ -56,15 +57,34 @@ class Backbone(object):
 	## TODO: Implement for various different BACKBONES like VGG one! 
 	def resnet18_backbone(self, image):
 
-		raise NotImplementedError
+		## Loading resnet model
+		resnet18 = torchvision.models.resnet18(pretrained=True):
+		return self.resnet_forward_pass(image, resnet18)
 
 	def resnet34_backbone(self, image):
 
-		raise NotImplementedError
+		## Loading resnet model
+		resnet34 = torchvision.models.resnet34(pretrained=True):
+		return self.resnet_forward_pass(image, resnet34)
 
 	def resnet50_backbone(self, image):
 
-		raise NotImplementedError
+		## Loading resnet model
+		resnet50 = torchvision.models.resnet50(pretrained=True):
+		return self.resnet_forward_pass(image, resnet50)
+
+	def resnet101_backbone(self, image):
+
+		## Loading resnet model
+		resnet101 = torchvision.models.resnet101(pretrained=True):
+		return self.resnet_forward_pass(image, resnet101)
+
+	def resnet152_backbone(self, image):
+
+		## Loading resnet model
+		resnet152 = torchvision.models.resnet152(pretrained=True):
+		return self.resnet_forward_pass(image, resnet152)
+
 
 	def VGG11_backbone(self, image):
 
@@ -73,3 +93,43 @@ class Backbone(object):
 	def VGG19_backbone(self, image):
 
 		raise NotImplementedError	
+
+	def resnet_forward_pass(self, image, model):
+
+
+		## resnet forward pass until intermediate layer only!
+		## Check resnet.py in torchvision/models/ to understand this implementation
+
+		## TODO: Give options to stop forward pass at layer of choice!
+		## Just pass a single integer, layer number, where we wish to stop. 
+		x = model.conv1(image)
+		x = model.bn1(x)
+		x = model.relu(x)
+		x = model.maxpool(x)
+
+		## If we wish to pass through all the layers
+		if self.stop_layer is None:
+			x = model.layer1(x)
+			x = model.layer2(x)
+			x = model.layer3(x)
+			x = model.layer4(x)
+			return x 
+
+		## If we wish to stop at first major layer
+		if self.stop_layer is 1:
+			x = model.layer1(x)
+			return x
+
+		## If we wish to stop at second major layer
+		if self.stop_layer is 2:
+			x = model.layer1(x)
+			x = model.layer2(x)
+			return x
+		
+		## If we wish to stop at third major layer
+		if self.stop_layer is 3:
+			x = model.layer1(x)
+			x = model.layer2(x)
+			x = model.layer3(x)
+			return x
+		
