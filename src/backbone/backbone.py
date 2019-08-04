@@ -7,8 +7,12 @@ import torch
 import torchvision
 import torch.nn as nn
 
+__all__ = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
 
 ## TODO: Make it GPU compatible later! .cuda() and .parallel() and so on. 
+## TODO: Test them properly. Add initial image transforms for data normalization. 
+## TODO: Automate the function calling just based on model name
+
 
 class Backbone(object):
 	"""docstring for Backbone"""
@@ -54,35 +58,86 @@ class Backbone(object):
 		feature_map = frcnn_backbone(image)
 		return feature_map
 
-	## TODO: Implement for various different BACKBONES like VGG one! 
 	def resnet18_backbone(self, image):
 
+		'''
+		It's a resnet18() backbone. 
+		Inputs:
+		image: A single image-batch(torch tensor) of size BZxCxHxW, BS = batchsize, C = channels, H = height, W = width
+
+		Output:
+		feature_map: Torch tensor of size BSxFcxFhxFw, BS = batchsize, Fc = feature map channels, Fh = feature map height, Fw = feature map width
+
+		'''
+
+		"""  image = normalize(image) """ ## TO be done
+
 		## Loading resnet model
-		resnet18 = torchvision.models.resnet18(pretrained=True):
+		resnet18 = torchvision.models.resnet18(pretrained=True)
 		return self.resnet_forward_pass(image, resnet18)
 
 	def resnet34_backbone(self, image):
+		'''
+		It's a resnet34() backbone. 
+		Inputs:
+		image: A single image-batch(torch tensor) of size BZxCxHxW, BS = batchsize, C = channels, H = height, W = width
 
+		Output:
+		feature_map: Torch tensor of size BSxFcxFhxFw, BS = batchsize, Fc = feature map channels, Fh = feature map height, Fw = feature map width
+
+		'''
+
+		"""  image = normalize(image) """ ## TO be done
 		## Loading resnet model
-		resnet34 = torchvision.models.resnet34(pretrained=True):
+		resnet34 = torchvision.models.resnet34(pretrained=True)
 		return self.resnet_forward_pass(image, resnet34)
 
 	def resnet50_backbone(self, image):
+		'''
+		It's a resnet50() backbone. 
+		Inputs:
+		image: A single image-batch(torch tensor) of size BZxCxHxW, BS = batchsize, C = channels, H = height, W = width
 
+		Output:
+		feature_map: Torch tensor of size BSxFcxFhxFw, BS = batchsize, Fc = feature map channels, Fh = feature map height, Fw = feature map width
+
+		'''
+
+		"""  image = normalize(image) """ ## TO be done
 		## Loading resnet model
-		resnet50 = torchvision.models.resnet50(pretrained=True):
+		resnet50 = torchvision.models.resnet50(pretrained=True)
 		return self.resnet_forward_pass(image, resnet50)
 
 	def resnet101_backbone(self, image):
+		'''
+		It's a resnet101() backbone. 
+		Inputs:
+		image: A single image-batch(torch tensor) of size BZxCxHxW, BS = batchsize, C = channels, H = height, W = width
 
+		Output:
+		feature_map: Torch tensor of size BSxFcxFhxFw, BS = batchsize, Fc = feature map channels, Fh = feature map height, Fw = feature map width
+
+		'''
+
+		"""  image = normalize(image) """ ## TO be done
 		## Loading resnet model
-		resnet101 = torchvision.models.resnet101(pretrained=True):
+		resnet101 = torchvision.models.resnet101(pretrained=True)
 		return self.resnet_forward_pass(image, resnet101)
 
 	def resnet152_backbone(self, image):
+		'''
+		It's a resnet152() backbone. 
+		Inputs:
+		image: A single image-batch(torch tensor) of size BZxCxHxW, BS = batchsize, C = channels, H = height, W = width
 
+		Output:
+		feature_map: Torch tensor of size BSxFcxFhxFw, BS = batchsize, Fc = feature map channels, Fh = feature map height, Fw = feature map width
+
+		'''
+
+		"""  image = normalize(image) """ ## TO be done
 		## Loading resnet model
-		resnet152 = torchvision.models.resnet152(pretrained=True):
+		resnet152 = torchvision.models.resnet152(pretrained=True)
 		return self.resnet_forward_pass(image, resnet152)
 
 
@@ -112,24 +167,24 @@ class Backbone(object):
 			x = model.layer1(x)
 			x = model.layer2(x)
 			x = model.layer3(x)
-			x = model.layer4(x)
-			return x 
+			feature_map = model.layer4(x)
+			return feature_map 
 
 		## If we wish to stop at first major layer
 		if self.stop_layer is 1:
-			x = model.layer1(x)
-			return x
+			feature_map = model.layer1(x)
+			return feature_map
 
 		## If we wish to stop at second major layer
 		if self.stop_layer is 2:
 			x = model.layer1(x)
-			x = model.layer2(x)
-			return x
+			feature_map = model.layer2(x)
+			return feature_map
 		
 		## If we wish to stop at third major layer
 		if self.stop_layer is 3:
 			x = model.layer1(x)
 			x = model.layer2(x)
-			x = model.layer3(x)
-			return x
+			feature_map = model.layer3(x)
+			return feature_map
 		
