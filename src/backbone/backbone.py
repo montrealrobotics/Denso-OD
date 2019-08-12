@@ -11,15 +11,38 @@ __all__ = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
 
 ## TODO: Make it GPU compatible later! .cuda() and .parallel() and so on. 
 ## TODO: Test them properly. Add initial image transforms for data normalization. 
-## TODO: Automate the function calling just based on model name
+## DONE: Automate the function calling just based on model name
 
 
 class Backbone(object):
 	"""docstring for Backbone"""
-	def __init__(self, stop_layer = None):
+	def __init__(self, stop_layer = None, model_name = 'resnet18'):
 		super(Backbone, self).__init__()
 		
-		self.stop_layer = stop_layer
+		self.stop_layer = stop_layer ## used for resnets only
+		self.default_model = 'resnet18'
+
+		## Used for calling appropriate function based on backbone model name
+		self.model_options = {
+								'resnet18': self.resnet18_backbone,
+								'resnet34': self.resnet34_backbone,
+								'resnet50': self.resnet50_backbone,
+								'resnet101': self.resnet101_backbone,
+								'resnet152': self.resnet152_backbone,
+								'VGG16': self.VGG16_backbone
+							}
+
+		if model_name in __all__:
+			self.model_name = model_name
+			print('Using ', self.model_name, ' as backbone.')
+
+		else:
+			print("No such backbone found, using", self.default_model)
+			self.model_name = self.default_model
+
+	def forward_pass(self, image):
+
+		return self.model_options[self.model_name](image)
 
 	def VGG16_backbone(self, image):
 		
@@ -155,7 +178,7 @@ class Backbone(object):
 		## resnet forward pass until intermediate layer only!
 		## Check resnet.py in torchvision/models/ to understand this implementation
 
-		## TODO: Give options to stop forward pass at layer of choice!
+		## DONE: Give options to stop forward pass at layer of choice!
 		## Just pass a single integer, layer number, where we wish to stop. 
 		x = model.conv1(image)
 		x = model.bn1(x)
