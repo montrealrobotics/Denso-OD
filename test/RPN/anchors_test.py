@@ -1,5 +1,5 @@
 '''
-Program to test backbone network.
+Program to test anchor generation.
 '''
 
 import torch
@@ -16,7 +16,7 @@ from src.RPN import anchor_generator
 input_image = torch.randn(1,3,600,600)
 
 backbone_obj = Backbone(model_name = 'resnet101')
-out = backbone_obj.forward_pass(input_image)
+out = backbone_obj.forward(input_image)
 
 anchor_generator_obj = anchor_generator()
 
