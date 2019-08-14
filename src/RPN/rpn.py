@@ -7,6 +7,11 @@ import torch.nn as nn
 
 class RPN(nn.Module):
 	"""docstring for RPN"""
+
+	'''
+	TODO: Could add more layers and experiment around as and when required. Just pass the config for all this.
+	'''
+
 	def __init__(self, in_channels, n_anchors):
 		super(RPN, self).__init__()
 		self.in_channels = in_channels  ## Number of channels in feature map
@@ -15,12 +20,18 @@ class RPN(nn.Module):
 
 		## Layer 1
 		self.conv1 = nn.Conv2d(self.in_channels, self.out_channels, 3, 1, 1)
+		# self.conv1.weight.data.normal(0, 0.01)
+		# self.conv1.bias.data.zero_()
 		
 		## Regression layer
 		self.reg_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0)
+		# self.reg_layer.weight.data.normal(0,0.01)
+		# self.reg_layer.bias.data.zero_()
 
 		## classification layer
 		self.classification_layer = nn.Conv2d(self.out_channels, self.n_anchors*2, 1, 1, 0)
+		# self.classification_layer.weight.data.normal(0, 0.01)
+		# self.classification_layer.bias.data.zero_()
 
 		## Uncertainty layer
 		self.uncertain_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0)
