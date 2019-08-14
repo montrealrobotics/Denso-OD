@@ -14,7 +14,7 @@ __all__ = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
 ## DONE: Automate the function calling just based on model name
 
 
-class Backbone(object):
+class Backbone(nn.Module):
 	"""docstring for Backbone"""
 	def __init__(self, stop_layer = None, model_name = 'resnet18'):
 		super(Backbone, self).__init__()
@@ -37,11 +37,13 @@ class Backbone(object):
 			print('Using ', self.model_name, ' as backbone.')
 
 		else:
-			print("No such backbone found, using", self.default_model)
+			print("No such backbone found, using", self.default_model, '...')
 			self.model_name = self.default_model
 
-	def forward_pass(self, image):
+	## Forward pass 
+	def forward(self, image):
 
+		## call appropriate function based on model name. 
 		return self.model_options[self.model_name](image)
 
 	def VGG16_backbone(self, image):
