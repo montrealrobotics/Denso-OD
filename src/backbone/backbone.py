@@ -16,12 +16,12 @@ __all__ = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
 
 class Backbone(nn.Module):
 	"""docstring for Backbone"""
-	def __init__(self, stop_layer = None, model_name = 'resnet18'):
+	def __init__(self, cfg):
 		super(Backbone, self).__init__()
 		
-		self.stop_layer = stop_layer ## used for resnets only
+		self.stop_layer = cfg.BACKBONE.RESNET_STOP_LAYER ## used for resnets only
 		self.default_model = 'resnet18'
-
+		model_name = cfg.BACKBONE.MODEL_NAME
 		## Used for calling appropriate function based on backbone model name
 		self.model_options = {
 								'resnet18': self.resnet18_backbone,
@@ -188,7 +188,7 @@ class Backbone(nn.Module):
 		x = model.maxpool(x)
 
 		## If we wish to pass through all the layers
-		if self.stop_layer is None:
+		if self.stop_layer is 4:
 			x = model.layer1(x)
 			x = model.layer2(x)
 			x = model.layer3(x)
