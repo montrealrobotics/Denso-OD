@@ -16,7 +16,7 @@ from src.RPN import *
 # Generate random input
 # TODO: replace with actual image later,with vision tranforms(normalization)
 input_image = torch.randn(1,3,800,800)
-bbox = np.array([[20,30,400,500], [300,400,500,600]]) ## y1, x1, y2, x2 format!
+bbox = np.array([[20,30,400,500], [300,400,500,600], [100,200,500,600], [400,400,500,500]]) ## y1, x1, y2, x2 format!
 labels = np.array([2,7])
 targets = {'boxes':bbox, 'labels':labels}
 
