@@ -20,8 +20,8 @@ conf_params.BACKBONE = CN()
 ### choices = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
 conf_params.BACKBONE.MODEL_NAME = 'resnet101'
 
-### choices = [1,2,3,None]
-conf_params.BACKBONE.RESNET_STOP_LAYER = None 
+### choices = [1,2,3,4]
+conf_params.BACKBONE.RESNET_STOP_LAYER = 4 
 
 
 ##### ANCHOR CONFIG #####
@@ -41,6 +41,8 @@ Used for defining region proposal network
 conf_params.RPN = CN()
 conf_params.RPN.OUT_CHANNELS = 512
 conf_params.RPN.N_ANCHORS_PER_LOCATION = 9
+
+
 
 
 
