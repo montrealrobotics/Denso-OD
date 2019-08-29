@@ -15,7 +15,7 @@ class anchor_generator(object):
 	
 	## TODO: Automate the process of getting these inputs. Make the inputs configuration parameters.
 
-	def get_anchors(self, image, feature_map, aspect_ratios = [0.5, 1, 2], anchor_scales = [8, 16, 32]):
+	def get_anchors(self, image, feature_map, cfg):
 		
 		'''
 
@@ -32,8 +32,8 @@ class anchor_generator(object):
 		self.image = image
 		self.feature_map = feature_map
 		self.subsample = self.image.size()[2]//self.feature_map.size()[2] ## Subsampling ratio. 
-		self.aspect_ratios = aspect_ratios
-		self.anchor_scales = anchor_scales
+		self.aspect_ratios = list(cfg.ANCHORS.ASPECT_RATIOS)
+		self.anchor_scales = list(cfg.ANCHORS.ANCHOR_SCALES)
 
 		## Let's get anchor centres(wrt original image)
 		return self.get_all_anchors(im_height = self.image.size()[2], 
