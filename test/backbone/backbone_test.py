@@ -7,14 +7,15 @@ import sys
 
 ## Inserting path of src directory
 sys.path.insert(1, '../..')
-from src.config import Cfg
+from src.config import Cfg as cfg
 from src.backbone import Backbone
 
 # Generate random input
 # TODO: replace with actual image later,with vision tranforms(normalization)
 input_image = torch.randn(1,3,600,600)
-
-backbone_obj = Backbone(Cfg)
+cfg.BACKBONE.RESNET_STOP_LAYER = 2
+cfg.BACKBONE.MODEL_NAME = 'resnet101'
+backbone_obj = Backbone(cfg)
 out = backbone_obj(input_image)
 
 ## Test resnet-101
