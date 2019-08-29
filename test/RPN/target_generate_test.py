@@ -34,6 +34,9 @@ rpn_target = RPN_targets(cfg)
 valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
 print("Shape of target output is: ", valid_anchors.shape, valid_labels.shape)
 
+print(np.where(valid_labels==1)[0][31])
+print(valid_anchors[3258,:])
+
 ## Test resnet-101
 # out = backbone_obj.resnet101_backbone(input_image)
 print(out.shape) 
