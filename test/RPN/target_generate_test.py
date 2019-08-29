@@ -9,6 +9,7 @@ import numpy as np
 ## Inserting path of src directory
 sys.path.insert(1, '../..')
 from src.backbone import Backbone
+from src.config import Cfg as cfg
 from src.RPN import *
 # from src.RPN import RPN
 
@@ -20,16 +21,16 @@ bbox = np.array([[20,30,400,500], [300,400,500,600], [100,200,500,600], [400,400
 labels = np.array([2,7])
 targets = {'boxes':bbox, 'labels':labels}
 
-backbone_obj = Backbone(model_name = 'resnet101')
+backbone_obj = Backbone(cfg)
 out = backbone_obj.forward(input_image)
 
 in_channels = out.size()[1]
 
-rpn_model = RPN(in_channels, n_anchors = 9)
+rpn_model = RPN(in_channels, cfg)
 rpn_output = rpn_model.forward(out)
 print("shape of rpn_output is: ", rpn_output['regression'].size(), rpn_output['classification'].size())
 
-rpn_target = RPN_targets()
+rpn_target = RPN_targets(cfg)
 valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
 print("Shape of target output is: ", valid_anchors.shape, valid_labels.shape)
 

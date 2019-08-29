@@ -12,11 +12,11 @@ class RPN(nn.Module):
 	TODO: Could add more layers and experiment around as and when required. Just pass the config for all this.
 	'''
 
-	def __init__(self, in_channels, out_channels = 512, n_anchors):
+	def __init__(self, in_channels, cfg):
 		super(RPN, self).__init__()
 		self.in_channels = in_channels  ## Number of channels in feature map
-		self.out_channels = out_channels 		## Number of output channels from first layer of RPN
-		self.n_anchors = n_anchors		## Number of anchors per location
+		self.out_channels = cfg.RPN.OUT_CHANNELS  		## Number of output channels from first layer of RPN
+		self.n_anchors = cfg.RPN.N_ANCHORS_PER_LOCATION		## Number of anchors per location
 
 		## Layer 1
 		self.conv1 = nn.Conv2d(self.in_channels, self.out_channels, 3, 1, 1)

@@ -14,9 +14,10 @@ from .anchors import anchor_generator
 
 class RPN_targets(object):
 	"""Generates target for region proposal network.(Useful for training)"""
-	def __init__(self):
+	def __init__(self, cfg):
 		super(RPN_targets, self).__init__()
 		self.anchor_generator_obj = anchor_generator()
+		self.cfg = cfg
 
 	def get_targets(self, image, feature_map, targets):
 
@@ -29,7 +30,7 @@ class RPN_targets(object):
 
 		"""
 	
-		anchors = self.anchor_generator_obj.get_anchors(image, feature_map) ## Nx4 numpy array
+		anchors = self.anchor_generator_obj.get_anchors(image, feature_map, self.cfg) ## Nx4 numpy array
 
 
 		## Some of these anchors may not be valid
