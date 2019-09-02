@@ -5,16 +5,23 @@ Program to test anchor generation.
 import torch
 import sys
 import numpy as np
+import matplotlib.image as mpimg ## To load the image
 
 ## Inserting path of src directory
 sys.path.insert(1, '../..')
 from src.backbone import Backbone
 from src.config import Cfg as cfg
 from src.RPN import anchor_generator
+from src.preprocess import preprocess_image ## It's a function, not a class. 
+
 
 # Generate random input
 # TODO: replace with actual image later,with vision tranforms(normalization)
-input_image = torch.randn(1,3,600,600)
+
+
+img = mpimg.imread('../preprocess/test.jpg')		## Gives RGB image of dimension H x W x C with inten values between 0-255
+
+input_image = preprocess_image(cfg, img)
 
 backbone_obj = Backbone(cfg)
 out = backbone_obj.forward(input_image)
