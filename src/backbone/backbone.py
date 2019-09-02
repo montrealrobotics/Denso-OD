@@ -7,7 +7,7 @@ import torch
 import torchvision
 import torch.nn as nn
 
-__all__ = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
+__all__ = ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
 
 ## TODO: Make it GPU compatible later! .cuda() and .parallel() and so on. 
 ## TODO: Test them properly. Add initial image transforms for data normalization. 
@@ -40,11 +40,16 @@ class Backbone(nn.Module):
 			print("No such backbone found, using", self.default_model, '...')
 			self.model_name = self.default_model
 
+
+		self.model = self.model_options[self.model_name]()
+		key =  'layer' + str(self.stop_layer) + '.1.conv1.weight'
+		self.out_channels = self.model.state_dict()[key].shape[1] ## Number of output channels, to be used for RPN
+
 	## Forward pass 
 	def forward(self, image):
 
 		## call appropriate function based on model name. 
-		return self.model_options[self.model_name](image)
+		return self.resnet_forward_pass(image, self.model)
 
 	def VGG16_backbone(self, image):
 		
@@ -83,7 +88,7 @@ class Backbone(nn.Module):
 		feature_map = frcnn_backbone(image)
 		return feature_map
 
-	def resnet18_backbone(self, image):
+	def resnet18_backbone(self):
 
 		'''
 		It's a resnet18() backbone. 
@@ -99,9 +104,10 @@ class Backbone(nn.Module):
 
 		## Loading resnet model
 		resnet18 = torchvision.models.resnet18(pretrained=True)
-		return self.resnet_forward_pass(image, resnet18)
+		return resnet18
+		# return self.resnet_forward_pass(image, resnet18)
 
-	def resnet34_backbone(self, image):
+	def resnet34_backbone(self):
 		'''
 		It's a resnet34() backbone. 
 		Inputs:
@@ -115,9 +121,10 @@ class Backbone(nn.Module):
 		"""  image = normalize(image) """ ## TO be done
 		## Loading resnet model
 		resnet34 = torchvision.models.resnet34(pretrained=True)
-		return self.resnet_forward_pass(image, resnet34)
+		return resnet34
+		# return self.resnet_forward_pass(image, resnet34)
 
-	def resnet50_backbone(self, image):
+	def resnet50_backbone(self):
 		'''
 		It's a resnet50() backbone. 
 		Inputs:
@@ -131,9 +138,10 @@ class Backbone(nn.Module):
 		"""  image = normalize(image) """ ## TO be done
 		## Loading resnet model
 		resnet50 = torchvision.models.resnet50(pretrained=True)
-		return self.resnet_forward_pass(image, resnet50)
+		return resnet50
+		# return self.resnet_forward_pass(image, resnet50)
 
-	def resnet101_backbone(self, image):
+	def resnet101_backbone(self):
 		'''
 		It's a resnet101() backbone. 
 		Inputs:
@@ -147,9 +155,10 @@ class Backbone(nn.Module):
 		"""  image = normalize(image) """ ## TO be done
 		## Loading resnet model
 		resnet101 = torchvision.models.resnet101(pretrained=True)
-		return self.resnet_forward_pass(image, resnet101)
+		return resnet101
+		# return self.resnet_forward_pass(image, resnet101)
 
-	def resnet152_backbone(self, image):
+	def resnet152_backbone(self):
 		'''
 		It's a resnet152() backbone. 
 		Inputs:
@@ -163,7 +172,8 @@ class Backbone(nn.Module):
 		"""  image = normalize(image) """ ## TO be done
 		## Loading resnet model
 		resnet152 = torchvision.models.resnet152(pretrained=True)
-		return self.resnet_forward_pass(image, resnet152)
+		return resnet152
+		# return self.resnet_forward_pass(image, resnet152)
 
 
 	def VGG11_backbone(self, image):
