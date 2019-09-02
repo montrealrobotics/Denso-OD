@@ -12,10 +12,11 @@ from src.backbone import Backbone
 
 # Generate random input
 # TODO: replace with actual image later,with vision tranforms(normalization)
-input_image = torch.randn(1,3,600,600)
-cfg.BACKBONE.RESNET_STOP_LAYER = 2
-cfg.BACKBONE.MODEL_NAME = 'resnet101'
+input_image = torch.randn(1,3,800,800)
+cfg.BACKBONE.RESNET_STOP_LAYER = 1
+cfg.BACKBONE.MODEL_NAME = 'resnet152'
 backbone_obj = Backbone(cfg)
+print(backbone_obj.out_channels)
 out = backbone_obj(input_image)
 
 ## Test resnet-101
