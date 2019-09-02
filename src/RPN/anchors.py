@@ -31,7 +31,8 @@ class anchor_generator(object):
 		'''
 		self.image = image
 		self.feature_map = feature_map
-		self.subsample = self.image.size()[2]//self.feature_map.size()[2] ## Subsampling ratio. 
+		self.subsample = [self.image.size()[2]//self.feature_map.size()[2],
+							self.image.size()[3]//self.feature_map.size()[3]] ## Subsampling ratio. 
 		self.aspect_ratios = list(cfg.ANCHORS.ASPECT_RATIOS)
 		self.anchor_scales = list(cfg.ANCHORS.ANCHOR_SCALES)
 
@@ -46,7 +47,7 @@ class anchor_generator(object):
 
 
 	def get_valid_anchors(self):
-		self.anchor_data = self.get_all_anchors() ## TODO: Get all the necessary arguments
+		# self.anchor_data = self.get_all_anchors() ## TODO: Get all the necessary arguments
 		valid_anchor_indices = np.where((self.anchor_data[:,0] >= 0) &
 							 (self.anchor_data[:,1] >= 0) &
 							 (self.anchor_data[:,2] <= im_height) &
@@ -87,8 +88,8 @@ class anchor_generator(object):
 			for j in range(len(aspect_ratios)):
 		   
 				## height and width should be such that h/w = aspect_ratios[j]
-				anchor_height = sub_sample*anchor_scales[i]*np.sqrt(aspect_ratios[j])
-				anchor_width = sub_sample*anchor_scales[i]*np.sqrt(1.0/aspect_ratios[j])
+				anchor_height = sub_sample[0]*anchor_scales[i]*np.sqrt(aspect_ratios[j])
+				anchor_width = sub_sample[1]*anchor_scales[i]*np.sqrt(1.0/aspect_ratios[j])
 				
 				anchor_index = i*len(anchor_scales) + j 
 				
@@ -125,12 +126,12 @@ class anchor_generator(object):
 		
 		'''
 
-		num_of_y_pixels = im_height//sub_sample
-		num_of_x_pixels = im_width//sub_sample
+		num_of_y_pixels = im_height//sub_sample[0]
+		num_of_x_pixels = im_width//sub_sample[1]
 
 		## let's get anchor centers!
-		ctr_x = np.arange(sub_sample/2, (num_of_x_pixels)*sub_sample, sub_sample)
-		ctr_y = np.arange(sub_sample/2, (num_of_y_pixels)*sub_sample, sub_sample)
+		ctr_x = np.arange(sub_sample[0]/2, (num_of_x_pixels)*sub_sample[0], sub_sample[0])
+		ctr_y = np.arange(sub_sample[1]/2, (num_of_y_pixels)*sub_sample[1], sub_sample[1])
 
 		return ctr_y, ctr_x
 
@@ -150,12 +151,13 @@ class anchor_generator(object):
 		
 		'''
 		
+		## getting anchor centers with respect to original image
 		ctr_y, ctr_x = self.get_anchor_centers(im_height=im_height, im_width = im_width, sub_sample = sub_sample)
 		
 		## At each pixel, we will have 9 anchors, total number of pixels in convolutional 
 		## feature map are (im_height*im_width)//(sub_sample*sub_sample). Hence,
 		## total number of anchors are,
-		num_of_pixels = (im_height//sub_sample)*(im_width//sub_sample)
+		num_of_pixels = (im_height//sub_sample[0])*(im_width//sub_sample[1])
 		anchors_per_pixel = len(aspect_ratios)*len(anchor_scales)
 		
 		## Each anchor has 4 points(y1, x1, y2, x2)
@@ -163,8 +165,6 @@ class anchor_generator(object):
 		## defined in the original image
 		anchor_data = np.zeros((num_of_pixels, anchors_per_pixel, 4), dtype=np.float32)
 		
-		## Let's get all anchor centers
-		ctr_y, ctr_x = self.get_anchor_centers(im_height=im_height, im_width = im_width, sub_sample = sub_sample)
 		
 		## Let's iterate through all anchor centers and get their corresponding anchor co-ordinates
 		index = 0
