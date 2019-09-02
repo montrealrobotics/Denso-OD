@@ -42,6 +42,13 @@ class Backbone(nn.Module):
 
 
 		self.model = self.model_options[self.model_name]()
+
+		"""
+		This is important. 
+		get number of output channels from model as below.
+		Number of output channels in final layer will determine 
+		our RPN module. 
+		"""
 		key =  'layer' + str(self.stop_layer) + '.1.conv1.weight'
 		self.out_channels = self.model.state_dict()[key].shape[1] ## Number of output channels, to be used for RPN
 
