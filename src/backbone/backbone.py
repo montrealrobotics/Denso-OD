@@ -43,8 +43,9 @@ class Backbone(nn.Module):
 	## Forward pass 
 	def forward(self, image):
 
-		## call appropriate function based on model name. 
-		return self.model_options[self.model_name](image)
+		## call appropriate function based on model name.
+		model = self.model_options[self.model_name] 
+		return model(image)
 
 	def VGG16_backbone(self, image):
 		
@@ -69,8 +70,10 @@ class Backbone(nn.Module):
 		sub_sample = 16
 		req_features = []
 
-		## TODO: Freeze the layers
-		for layer in list(vgg16.features):
+		## TODO: Freeze the layers - 
+		# Dishank: This code is to stop at subsampling 16, runs for every batch. We need to make it run on at starting only. If dataset have 
+		# images of different dimension, then this can be useful (May be not even useful in this case also, have to check) 
+ 		for layer in list(vgg16.features):
 		    fake_input = layer(fake_input)
 		    # print(fake_input.size())		## For debugging! To be removed later.
 		    if fake_input.size()[2] < im_height//sub_sample: ## Because final Convolutional feature map size should be less than this

@@ -150,7 +150,7 @@ class anchor_generator(object):
 		
 		'''
 		
-		ctr_y, ctr_x = self.get_anchor_centers(im_height=im_height, im_width = im_width, sub_sample = sub_sample)
+		# ctr_y, ctr_x = self.get_anchor_centers(im_height=im_height, im_width = im_width, sub_sample = sub_sample)
 		
 		## At each pixel, we will have 9 anchors, total number of pixels in convolutional 
 		## feature map are (im_height*im_width)//(sub_sample*sub_sample). Hence,
@@ -167,6 +167,7 @@ class anchor_generator(object):
 		ctr_y, ctr_x = self.get_anchor_centers(im_height=im_height, im_width = im_width, sub_sample = sub_sample)
 		
 		## Let's iterate through all anchor centers and get their corresponding anchor co-ordinates
+		# Dishank: Double for loop is slow
 		index = 0
 		for i in range(len(ctr_y)):
 			for j in range(len(ctr_x)):
