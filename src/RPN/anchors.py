@@ -125,7 +125,7 @@ class anchor_generator(object):
 		ctr_y, ctr_x = get_anchor_centers(im_height = 800, im_width = 450, sub_sample = 16)
 		
 		'''
-
+		## Here x is facing towards the right, y is facing downwards
 		num_of_y_pixels = im_height//sub_sample[0]
 		num_of_x_pixels = im_width//sub_sample[1]
 
