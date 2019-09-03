@@ -17,6 +17,8 @@ from src.loss import RPNLoss
 # from src.RPN import RPN
 torch.manual_seed(1)
 np.random.seed(1)
+torch.set_default_tensor_type('torch.FloatTensor') 
+torch.set_default_dtype(torch.float32)
 
 
 # Generate random input
@@ -32,10 +34,10 @@ backbone_obj = Backbone(cfg)
 rpn_model = RPN(backbone_obj.out_channels, cfg)
 loss_object = RPNLoss()
 out = backbone_obj.forward(input_image)
-rpn_output = rpn_model.forward(out)
+prediction = rpn_model.forward(out)
 
 
-print("shape of rpn_output is: ", rpn_output['bbox_pred'].size(), rpn_output['bbox_class'].size())
+print("shape of rpn_output is: ", prediction['bbox_pred'].size(), prediction['bbox_class'].size())
 
 rpn_target = RPN_targets(cfg)
 valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
@@ -49,7 +51,15 @@ print("Shape of target output is: ", target['gt_bbox'].shape, target['gt_anchor_
 ## Test resnet-101
 print(out.shape) 
 
+prediction['bbox_pred'] = prediction['bbox_pred'].type('torch.FloatTensor')
+prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type('torch.FloatTensor')
+prediction['bbox_class'] = prediction['bbox_class'].type('torch.FloatTensor')
+target['gt_bbox'] = target['gt_bbox'].type('torch.FloatTensor')
+target['gt_anchor_label'] = target['gt_anchor_label'].type('torch.LongTensor')
+
 ## Test loss
-loss = loss_object.compute_loss(rpn_output, target, valid_indices)
-print(loss.item(), loss)
+loss = loss_object.compute_loss(prediction, target, valid_indices)
+print(loss.item(), loss, loss.type())
 print(loss_object.pos_anchors, loss_object.neg_anchors)
+loss.backward()
+print('loss backward successful!')

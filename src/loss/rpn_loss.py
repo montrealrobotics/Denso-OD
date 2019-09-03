@@ -16,6 +16,8 @@ class RPNLoss(object):
 		self.class_loss = None
 		self.reg_loss = None
 
+
+	## TODO: get it to work for a batch. 
 	def compute_loss(self, prediction, target, valid_indices):
 
 		"""
@@ -35,8 +37,8 @@ class RPNLoss(object):
 
 		self.total_anchors = prediction['bbox_pred'].shape[1]
 
-		return self.get_classification_loss(prediction, target, valid_indices).double() + \
-				self.get_regression_loss(prediction, target, valid_indices).double()
+		return self.get_classification_loss(prediction, target, valid_indices) + \
+				self.get_regression_loss(prediction, target, valid_indices)
 
 	
 	def get_classification_loss(self, prediction, target, valid_indices):
@@ -46,7 +48,7 @@ class RPNLoss(object):
 			Compute classification loss for RPN, between +ve and -ve anchor
 		'''
 
-		return self.class_criterion(prediction['bbox_class'][0][valid_indices], target['gt_anchor_label'][0][valid_indices].long())
+		return self.class_criterion(prediction['bbox_class'][0][valid_indices], target['gt_anchor_label'][0][valid_indices])
 
 	def get_regression_loss(self, prediction, target, valid_indices):
 
@@ -55,18 +57,18 @@ class RPNLoss(object):
 
 		'''
 
-		self.reg_loss = torch.zeros(1)
-		self.pos_anchor_loss = torch.zeros(1).double()
-		self.neg_anchor_loss = torch.zeros(1).double()
-		self.pos_anchors = torch.zeros(1).double()
-		self.neg_anchors = torch.zeros(1).double()
+		self.reg_loss = torch.zeros(1).type('torch.FloatTensor')
+		self.pos_anchor_loss = torch.zeros(1).type('torch.FloatTensor')
+		self.neg_anchor_loss = torch.zeros(1).type('torch.FloatTensor')
+		self.pos_anchors = torch.zeros(1).type('torch.FloatTensor')
+		self.neg_anchors = torch.zeros(1).type('torch.FloatTensor')
 
 		for valid_index in valid_indices[0]:
 
 			## if anchor is positive, compute intelligent robust regression loss
 			if target['gt_anchor_label'][0][valid_index].item() == 1:
-				self.pos_anchor_loss +=  (0.5*(((prediction['bbox_pred'][0][valid_index].double() - target['gt_bbox'][0][valid_index].double()).pow(2))/(prediction['bbox_uncertainty_pred'][0][valid_index].double().pow(2))) + \
-											0.5*torch.log(prediction['bbox_uncertainty_pred'][0][valid_index].double().pow(2))).sum()
+				self.pos_anchor_loss +=  (0.5*(((prediction['bbox_pred'][0][valid_index] - target['gt_bbox'][0][valid_index]).pow(2))/(prediction['bbox_uncertainty_pred'][0][valid_index].pow(2))) + \
+											0.5*torch.log(prediction['bbox_uncertainty_pred'][0][valid_index].pow(2))).sum()
 				self.pos_anchors += 1
 			## Encourage high uncertainty for negative anchors
 			else: 
