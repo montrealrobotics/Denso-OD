@@ -1,0 +1,79 @@
+"""
+Compute loss for Region proposal networks(Not supported for RetinaNet yet)
+"""
+
+import torch
+
+
+class RPNLoss(object):
+	"""docstring for RPNLoss"""
+	def __init__(self):
+		super(RPNLoss, self).__init__()
+
+		## Criterion for classification
+		self.class_criterion =  torch.nn.CrossEntropyLoss()
+		self.total_anchors = None
+		self.class_loss = None
+		self.reg_loss = None
+
+	def compute_loss(self, prediction, target, valid_indices):
+
+		"""
+		Input: 
+		prediction: A dictionary with three keys("bbox_pred", "bbox_uncertainty_pred", "bbox_class")
+		target: A dictionary with two keys("gt_bbox", "gt_anchor_label")
+		valid_indices: A set of valid indices for valid anchors, python list
+
+		If there are N anchors, then,
+			1. Shape of prediction['bbox_pred'] = Bs x N x 4
+			2. Shape of prediction['bbox_uncertainty_pred'] = Bs x N x 4
+			3. Shape of prediction['bbox_class'] = Bs x N x 2
+			4. Shape of target['gt_bbox'] = Bs x N x 4
+			5. Shape of target['gt_anchor_label'] = Bs x N 
+
+		"""
+
+		self.total_anchors = prediction['bbox_pred'].shape[1]
+
+		return self.get_classification_loss(prediction, target, valid_indices).double() + \
+				self.get_regression_loss(prediction, target, valid_indices).double()
+
+	
+	def get_classification_loss(self, prediction, target, valid_indices):
+
+
+		'''
+			Compute classification loss for RPN, between +ve and -ve anchor
+		'''
+
+		return self.class_criterion(prediction['bbox_class'][0][valid_indices], target['gt_anchor_label'][0][valid_indices].long())
+
+	def get_regression_loss(self, prediction, target, valid_indices):
+
+		'''	
+			Compute regression loss using loss attenuation formulation
+
+		'''
+
+		self.reg_loss = torch.zeros(1)
+		self.pos_anchor_loss = torch.zeros(1).double()
+		self.neg_anchor_loss = torch.zeros(1).double()
+		self.pos_anchors = torch.zeros(1).double()
+		self.neg_anchors = torch.zeros(1).double()
+
+		for valid_index in valid_indices[0]:
+
+			## if anchor is positive, compute intelligent robust regression loss
+			if target['gt_anchor_label'][0][valid_index].item() == 1:
+				self.pos_anchor_loss +=  (0.5*(((prediction['bbox_pred'][0][valid_index].double() - target['gt_bbox'][0][valid_index].double()).pow(2))/(prediction['bbox_uncertainty_pred'][0][valid_index].double().pow(2))) + \
+											0.5*torch.log(prediction['bbox_uncertainty_pred'][0][valid_index].double().pow(2))).sum()
+				self.pos_anchors += 1
+			## Encourage high uncertainty for negative anchors
+			else: 
+				self.neg_anchor_loss += 1.0/(prediction['bbox_uncertainty_pred'][0][valid_index].pow(2)).sum()
+				self.neg_anchors += 1
+
+
+		self.reg_loss = (self.pos_anchor_loss/self.pos_anchors)+ (self.neg_anchor_loss/self.neg_anchors)
+
+		return self.reg_loss
