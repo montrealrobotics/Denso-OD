@@ -71,15 +71,15 @@ class RPN(nn.Module):
 
 		final_output = {}
 
-		final_output['regression'] = result['regression'].view((result['regression'].size()[0],
+		final_output['bbox_pred'] = result['regression'].view((result['regression'].size()[0],
 															int(result['regression'].size()[1]*result['regression'].size()[2]*result['regression'].size()[3]/4),
 															4))
 
-		final_output['uncertainty'] = result['uncertainty'].view((result['uncertainty'].size()[0],
+		final_output['bbox_uncertainty_pred'] = result['uncertainty'].view((result['uncertainty'].size()[0],
 															int(result['uncertainty'].size()[1]*result['uncertainty'].size()[2]*result['uncertainty'].size()[3]/4),
 															4))
 
-		final_output['classification'] = result['classification'].view((result['classification'].size()[0],
+		final_output['bbox_class'] = result['classification'].view((result['classification'].size()[0],
 															int(result['classification'].size()[1]*result['classification'].size()[2]*result['classification'].size()[3]/2),
 															2))
 		return final_output
