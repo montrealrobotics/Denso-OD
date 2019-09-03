@@ -48,6 +48,10 @@ conf_params.INPUT = CN()
 conf_params.INPUT.MEAN = 0.485, 0.456, 0.406
 conf_params.INPUT.STD = 0.229, 0.224, 0.225
 
+##### Datatypes #####
+conf_params.DTYPE = CN()
+conf_params.DTYPE.FLOAT = "torch.FloatTensor"
+conf_params.DTYPE.LONG = "torch.LongTensor"
 
 ##### ANCHOR CONFIG #####
 """
