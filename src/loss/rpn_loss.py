@@ -5,9 +5,9 @@ Compute loss for Region proposal networks(Not supported for RetinaNet yet)
 import torch
 
 
-class RPNLoss(object):
+class RPNLoss(torch.nn.Module):
 	"""docstring for RPNLoss"""
-	def __init__(self):
+	def __init__(self, cfg):
 		super(RPNLoss, self).__init__()
 
 		## Criterion for classification
@@ -15,10 +15,10 @@ class RPNLoss(object):
 		self.total_anchors = None
 		self.class_loss = None
 		self.reg_loss = None
-
+		self.cfg = cfg
 
 	## TODO: get it to work for a batch. 
-	def compute_loss(self, prediction, target, valid_indices):
+	def forward(self, prediction, target, valid_indices):
 
 		"""
 		Input: 
@@ -57,11 +57,11 @@ class RPNLoss(object):
 
 		'''
 
-		self.reg_loss = torch.zeros(1).type('torch.FloatTensor')
-		self.pos_anchor_loss = torch.zeros(1).type('torch.FloatTensor')
-		self.neg_anchor_loss = torch.zeros(1).type('torch.FloatTensor')
-		self.pos_anchors = torch.zeros(1).type('torch.FloatTensor')
-		self.neg_anchors = torch.zeros(1).type('torch.FloatTensor')
+		self.reg_loss = torch.zeros(1).type(self.cfg.DTYPE.FLOAT)
+		self.pos_anchor_loss = torch.zeros(1).type(self.cfg.DTYPE.FLOAT)
+		self.neg_anchor_loss = torch.zeros(1).type(self.cfg.DTYPE.FLOAT)
+		self.pos_anchors = torch.zeros(1).type(self.cfg.DTYPE.FLOAT)
+		self.neg_anchors = torch.zeros(1).type('torch.cuda.FloatTensor')
 
 		for valid_index in valid_indices[0]:
 
