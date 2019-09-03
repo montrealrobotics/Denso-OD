@@ -30,7 +30,7 @@ rpn_model = RPN(backbone_obj.out_channels, cfg)
 out = backbone_obj.forward(input_image)
 rpn_output = rpn_model.forward(out)
 
-print("shape of rpn_output is: ", rpn_output['regression'].size(), rpn_output['classification'].size())
+print("shape of rpn_output is: ", rpn_output['bbox_pred'].size(), rpn_output['bbox_class'].size())
 
 rpn_target = RPN_targets(cfg)
 valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
