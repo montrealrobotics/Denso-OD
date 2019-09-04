@@ -9,6 +9,14 @@ from yacs.config import CfgNode as CN
 ## Intiailizing..
 conf_params = CN()
 
+##### Whether to use cuda or not #####
+conf_params.USE_CUDA = False ## False by default, to be changed to True in the code if cuda is available
+
+#### IF True, we won't use GPU even if it would be available
+#### IF False, we will use GPU only if available	
+conf_params.NO_GPU = False	
+
+
 ##### BACKBONE CONFIG #####
 """
 Contains all the params that defines 
