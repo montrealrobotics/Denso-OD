@@ -20,12 +20,14 @@ np.random.seed(1)
 torch.set_default_tensor_type('torch.FloatTensor') 
 torch.set_default_dtype(torch.float32)
 
+if torch.cuda.is_available() and not cfg.NO_GPU:
+	cfg.USE_CUDA = True
 
 # Generate random input
 # TODO: replace with actual image later,with vision tranforms(normalization)
 img = mpimg.imread('../preprocess/test.jpg')		## Gives RGB image of dimension H x W x C with inten values between 0-255
 
-
+input_image = preprocess_image(cfg, img)
 print(img.shape)
 bbox = np.array([[20,30,400,500], [300,400,500,600], [100,200,500,600], [400,400,500,500]]) ## y1, x1, y2, x2 format!
 labels = np.array([2,7,3,2])
@@ -35,16 +37,16 @@ backbone_obj = Backbone(cfg)
 rpn_model = RPN(backbone_obj.out_channels, cfg)
 loss_object = RPNLoss(cfg)
 
-if torch.cuda.is_available():
+if cfg.USE_CUDA:
 	backbone_obj = backbone_obj.cuda()
 	rpn_model = rpn_model.cuda()
 	loss_object = loss_object.cuda()
-	input_image = preprocess_image(cfg, img).cuda()
+	input_image = input_image.cuda()
 
 out = backbone_obj.forward(input_image)
 prediction = rpn_model.forward(out)
 
-if torch.cuda.is_available():
+if cfg.USE_CUDA:
 	cfg.DTYPE.FLOAT = 'torch.cuda.FloatTensor'
 	cfg.DTYPE.LONG = 'torch.cuda.LongTensor'
 

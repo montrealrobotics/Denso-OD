@@ -61,7 +61,7 @@ class RPNLoss(torch.nn.Module):
 		self.pos_anchor_loss = torch.zeros(1).type(self.cfg.DTYPE.FLOAT)
 		self.neg_anchor_loss = torch.zeros(1).type(self.cfg.DTYPE.FLOAT)
 		self.pos_anchors = torch.zeros(1).type(self.cfg.DTYPE.FLOAT)
-		self.neg_anchors = torch.zeros(1).type('torch.cuda.FloatTensor')
+		self.neg_anchors = torch.zeros(1).type(self.cfg.DTYPE.FLOAT)
 
 		for valid_index in valid_indices[0]:
 
