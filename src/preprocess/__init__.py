@@ -1,1 +1,1 @@
-from .preprocess import preprocess_image
+from .preprocess import image_transform

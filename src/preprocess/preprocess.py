@@ -5,7 +5,7 @@ Preprocessing the image before passing as input
 from torchvision import transforms as T
 import torch
 
-def preprocess_image(cfg,img):
+def image_transform(cfg):
 
 	"""
 	Input: 
@@ -30,6 +30,6 @@ def preprocess_image(cfg,img):
 		std=list(cfg.INPUT.STD)
 		)])
 
-	return torch.unsqueeze(transform(img), 0) ## Appends additional dimension to convert into batch format.
+	return transform ## Appends additional dimension to convert into batch format.
 
 
