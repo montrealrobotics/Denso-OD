@@ -27,15 +27,26 @@ targets = {'boxes':bbox, 'labels':labels}
 
 backbone_obj = Backbone(cfg)
 rpn_model = RPN(backbone_obj.out_channels, cfg)
-out = backbone_obj.forward(input_image)
-rpn_output = rpn_model.forward(out)
 
-print("shape of rpn_output is: ", rpn_output['bbox_pred'].size(), rpn_output['bbox_class'].size())
+heights = [550,650,734,616,734,892,581,520]
+widths = [635,724,519,643,829,871,757,420]
 
-rpn_target = RPN_targets(cfg)
-valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
-print("Shape of target output is: ", valid_anchors.shape, valid_labels.shape)
+for h in heights:
+    for w in widths:
+        input_image = torch.randn(1,3,h,w)
+
+        out = backbone_obj.forward(input_image)
+        rpn_output = rpn_model.forward(out)
+
+        print("shape of rpn_output is: ", rpn_output['bbox_pred'].size(), rpn_output['bbox_class'].size())
+
+        rpn_target = RPN_targets(cfg)
+        valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
+        print("Shape of target output is: ", valid_anchors.shape, valid_labels.shape)
 
 ## Test resnet-101
 # out = backbone_obj.resnet101_backbone(input_image)
 print(out.shape) 
+
+
+
