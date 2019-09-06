@@ -117,7 +117,7 @@ class RPN_targets(object):
 		pos_to_neg_ratio = 0.5
 		num_of_anchor_samples = 256 ## Total number of anchors
 
-		n_pos = num_of_anchor_samples*pos_to_neg_ratio ## Number of positive anchors
+		n_pos = int(num_of_anchor_samples*pos_to_neg_ratio) ## Number of positive anchors
 		n_neg = num_of_anchor_samples - n_pos          ## Number of negative anchors
 
 		'''
@@ -136,8 +136,8 @@ class RPN_targets(object):
 
 
 		if len(pos_anchor_indices) > n_pos:
-		    disable_index = np.random.choice(pos_anchor_indices, size=(len(pos_anchor_indices) - n_pos), replace=False)
-		    anchor_labels[disable_index] = -1
+			disable_index = np.random.choice(pos_anchor_indices, size=(len(pos_anchor_indices) - n_pos), replace=False)
+			anchor_labels[disable_index] = -1
 
 		### Important!!! ###
 		'''
