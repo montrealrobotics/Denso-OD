@@ -32,5 +32,4 @@ class generalized_faster_rcnn(nn.Module):
 
 		## From feature maps to RPN output
 		rpn_output = self.rpn_model(feature_map)
-
-		return rpn_output
+		return rpn_output, feature_map
