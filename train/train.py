@@ -5,6 +5,7 @@ Training RPNs.
 import torch
 import sys
 import numpy as np
+import math
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
 ## Inserting path of src directory
@@ -84,6 +85,9 @@ for e in range(epochs):
 		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 		loss = loss_object(prediction, target, valid_indices)
+		if math.isnan(loss.item()):
+			print("NaN detected.")
+			continue
 		# print(loss.item(), loss, loss.type(), targets)
 		# print(loss_object.pos_anchors, loss_object.neg_anchors)
 		loss.backward()
