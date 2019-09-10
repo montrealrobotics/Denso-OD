@@ -20,21 +20,27 @@ class RPN(nn.Module):
 
 		## Layer 1
 		self.conv1 = nn.Conv2d(self.in_channels, self.out_channels, 3, 1, 1)
-		# self.conv1.weight.data.normal(0, 0.01)
-		# self.conv1.bias.data.zero_()
+		# self.conv1.weight.data.normal_(0, 0.01)
+		# self.conv1.bias.data.fill_(100)
 		
 		## Regression layer
 		self.reg_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0)
-		# self.reg_layer.weight.data.normal(0,0.01)
-		# self.reg_layer.bias.data.zero_()
+		# self.reg_layer.weight.data.normal_(0,0.01)
+		# self.reg_layer.bias.data.fill_(100)
 
 		## classification layer
 		self.classification_layer = nn.Conv2d(self.out_channels, self.n_anchors*2, 1, 1, 0)
-		# self.classification_layer.weight.data.normal(0, 0.01)
-		# self.classification_layer.bias.data.zero_()
+		# self.classification_layer.weight.data.normal_(0, 0.01)
+		# self.classification_layer.bias.data.fill_(100)
 
 		## Uncertainty layer
 		self.uncertain_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0)
+		self.uncertain_layer.weight.data.normal_(0, 0.01)
+		self.uncertain_layer.bias.data.fill_(100)
+
+
+		## Softplus for uncertainty
+		self.softplus =  nn.Softplus(beta = cfg.RPN.SOFTPLUS_BETA, threshold = cfg.RPN.SOFTPLUS_THRESH)
 
 	def forward(self, feature_map):
 
@@ -51,8 +57,8 @@ class RPN(nn.Module):
 		result['classification'] = self.classification_layer(x)
 
 		## Output of uncertainty layer
-		result['uncertainty'] = self.uncertain_layer(x)
-
+		result['uncertainty'] = self.softplus(self.uncertain_layer(x))
+		# print(result['uncertainty'])
 		return self.reshape_output(result)
 
 	def reshape_output(self, result):
