@@ -78,8 +78,8 @@ Used for defining region proposal network
 conf_params.RPN = CN()
 conf_params.RPN.OUT_CHANNELS = 512
 conf_params.RPN.N_ANCHORS_PER_LOCATION = 9
-
-
+conf_params.RPN.SOFTPLUS_BETA = 1
+conf_params.RPN.SOFTPLUS_THRESH = 20
 
 
 
