@@ -30,6 +30,5 @@ def image_transform(cfg):
 		std=list(cfg.INPUT.STD)
 		)])
 
-	return transform ## Appends additional dimension to convert into batch format.
-
+	return transform 
 

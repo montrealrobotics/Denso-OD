@@ -12,7 +12,7 @@ sys.path.insert(1, '../..')
 from src.backbone import Backbone
 from src.config import Cfg as cfg
 from src.RPN import anchor_generator
-from src.preprocess import preprocess_image ## It's a function, not a class. 
+from src.preprocess import image_transform ## It's a function, not a class. 
 
 
 # Generate random input
@@ -21,7 +21,9 @@ from src.preprocess import preprocess_image ## It's a function, not a class.
 
 img = mpimg.imread('../preprocess/test.jpg')		## Gives RGB image of dimension H x W x C with inten values between 0-255
 
-input_image = preprocess_image(cfg, img)
+transform = image_transform(cfg)
+input_image = transform(img)
+input_image = torch.unsqueeze(input_image, dim=0)
 
 backbone_obj = Backbone(cfg)
 out = backbone_obj.forward(input_image)

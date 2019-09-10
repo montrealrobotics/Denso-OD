@@ -12,14 +12,19 @@ sys.path.insert(1, '../..')
 from src.backbone import Backbone
 from src.config import Cfg as cfg
 from src.RPN import *
-from src.preprocess import preprocess_image ## It's a function, not a class. 
+from src.preprocess import image_transform ## It's a function, not a class. 
+from PIL import Image
 # from src.RPN import RPN
 
 
 # Generate random input
 # TODO: replace with actual image later,with vision tranforms(normalization)
-img = mpimg.imread('../preprocess/test.jpg')		## Gives RGB image of dimension H x W x C with inten values between 0-255
-input_image = preprocess_image(cfg, img)
+img = mpimg.imread('test.jpg')		## Gives RGB image of dimension H x W x C with inten values between 0-255
+print(img.shape)
+tranform = image_transform(cfg)
+# print(list(cfg.INPUT.MEAN))
+input_image = tranform(img)
+input_image = torch.unsqueeze(input_image, dim=0)
 print(input_image.shape)
 bbox = np.array([[20,30,400,500], [300,400,500,600], [100,200,500,600], [400,400,500,500]]) ## y1, x1, y2, x2 format!
 labels = np.array([2,7,3,2])
