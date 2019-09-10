@@ -8,6 +8,7 @@ import numpy as np
 import math
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
+import os.path as path
 ## Inserting path of src directory
 sys.path.insert(1, '../')
 from src.architecture import FRCNN
@@ -19,8 +20,8 @@ from src.loss import RPNLoss
 from torchvision import datasets as dset
 
 # Setting the seeds
-# torch.manual_seed(1)
-# np.random.seed(1)
+torch.manual_seed(5)
+np.random.seed(5)
 
 ## setting default variable types
 torch.set_default_tensor_type('torch.FloatTensor') 
@@ -48,15 +49,40 @@ for params in frcnn.backbone_obj.parameters():
 	params.requires_grad = False
 
 ## Initialize RPN params
-# frcnn.rpn_model.conv1.weight.data.normal(0, 0.01)
-# print(frcnn.rpn_model.conv1.bias)
 
+optimizer = optim.Adam(frcnn.parameters(), lr=1e-5)
 
+model_dir_path = '/home/Denso_models/'
+
+checkpoint_path = model_dir_path + 'checkpoint.txt'
+
+if path.exists(checkpoint_path):
+	with open(checkpoint_path, "r") as f: 
+		model_path = f.readline().strip('\n')
+
+	## Only load if such a model exists
+	if path.exists(model_path):
+
+		checkpoint = torch.load(model_path)
+		frcnn.load_state_dict(checkpoint['model_state_dict'])
+		optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+		epoch = checkpoint['epoch']
+		loss = checkpoint['loss']
+
+	else:
+		epoch = 0
+		loss = 0
+else:
+	# ## When you are running for the first time.
+	# with open(checkpoint_path, 'w') as f:
+	# 	f.writelines('')
+	epoch = 0
+	loss = 0
 
 ## Initializing RPN biases
 
 loss_object = RPNLoss(cfg)
-optimizer = optim.Adam(frcnn.parameters(), lr=1e-5)
+
 rpn_target = RPN_targets(cfg)
 if cfg.USE_CUDA:
 	frcnn = frcnn.cuda()
@@ -66,10 +92,13 @@ if cfg.USE_CUDA:
 	cfg.DTYPE.LONG = 'torch.cuda.LongTensor'
 
 
-epochs = 5
-for e in range(epochs):
+epochs = 50
+frcnn.train()
+while epoch <= epochs:
+	epoch += 1
 	running_loss = 0
 	for images, labels in trainloader:
+		break
 		# get ground truth in correct format
 		if cfg.USE_CUDA:
 			input_image = images.cuda()
@@ -82,7 +111,12 @@ for e in range(epochs):
 		# TODO: Training pass
 		optimizer.zero_grad()
 		prediction, out = frcnn.forward(input_image)
-		valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
+		# print(targets['boxes'])
+		try:
+			valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
+		except:
+			print("Inside exception!")
+			continue
 		target = {}
 		target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
 		target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
@@ -101,6 +135,19 @@ for e in range(epochs):
 		loss.backward()
 		optimizer.step()
 		running_loss += loss.item()
-	else:
 		print(f"Training loss: {running_loss/len(trainloader)}")
+
+
+	### Save model!
+	model_path = model_dir_path + str(epoch).zfill(5) + '.model'
+	torch.save({
+			'epoch': epoch,
+			'model_state_dict': frcnn.state_dict(),
+			'optimizer_state_dict': optimizer.state_dict(),
+			'loss': loss,
+			'cfg': cfg
+			 }, model_path)
+
+	with open(checkpoint_path, 'w') as f:
+		f.writelines(model_path)
 
