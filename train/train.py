@@ -47,8 +47,16 @@ frcnn = FRCNN(cfg)
 for params in frcnn.backbone_obj.parameters():
 	params.requires_grad = False
 
+## Initialize RPN params
+# frcnn.rpn_model.conv1.weight.data.normal(0, 0.01)
+# print(frcnn.rpn_model.conv1.bias)
+
+
+
+## Initializing RPN biases
+
 loss_object = RPNLoss(cfg)
-optimizer = optim.SGD(frcnn.parameters(), lr=0.003)
+optimizer = optim.Adam(frcnn.parameters(), lr=1e-5)
 rpn_target = RPN_targets(cfg)
 if cfg.USE_CUDA:
 	frcnn = frcnn.cuda()
