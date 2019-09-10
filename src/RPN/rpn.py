@@ -20,23 +20,23 @@ class RPN(nn.Module):
 
 		## Layer 1
 		self.conv1 = nn.Conv2d(self.in_channels, self.out_channels, 3, 1, 1)
-		# self.conv1.weight.data.normal_(0, 0.01)
-		# self.conv1.bias.data.fill_(100)
+		self.conv1.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
+		self.conv1.bias.data.fill_(cfg.RPN.BIAS)
 		
 		## Regression layer
 		self.reg_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0)
-		# self.reg_layer.weight.data.normal_(0,0.01)
-		# self.reg_layer.bias.data.fill_(100)
+		self.reg_layer.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
+		self.reg_layer.bias.data.fill_(cfg.RPN.BIAS)
 
 		## classification layer
 		self.classification_layer = nn.Conv2d(self.out_channels, self.n_anchors*2, 1, 1, 0)
-		# self.classification_layer.weight.data.normal_(0, 0.01)
-		# self.classification_layer.bias.data.fill_(100)
+		self.classification_layer.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
+		self.classification_layer.bias.data.fill_(cfg.RPN.BIAS)
 
 		## Uncertainty layer
 		self.uncertain_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0)
-		self.uncertain_layer.weight.data.normal_(0, 0.01)
-		self.uncertain_layer.bias.data.fill_(100)
+		self.uncertain_layer.weight.data.normal_(cfg.RPN.UNCERTAIN_MEAN, cfg.RPN.UNCERTAIN_VAR)
+		self.uncertain_layer.bias.data.fill_(cfg.RPN.UNCERTAIN_BIAS)	## Initialize with high values to avoid NaNs
 
 
 		## Softplus for uncertainty

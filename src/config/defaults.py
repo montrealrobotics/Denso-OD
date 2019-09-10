@@ -81,6 +81,15 @@ conf_params.RPN.N_ANCHORS_PER_LOCATION = 9
 conf_params.RPN.SOFTPLUS_BETA = 1
 conf_params.RPN.SOFTPLUS_THRESH = 20
 
+"""
+To be used for initilizing RPN weights
+"""
+conf_params.RPN.CONV_MEAN = 0
+conf_params.RPN.CONV_VAR = 0.01
+conf_params.RPN.BIAS = 0
+conf_params.RPN.UNCERTAIN_MEAN = 0
+conf_params.RPN.UNCERTAIN_VAR = 0.01
+conf_params.RPN.UNCERTAIN_BIAS = 300 ## Keeping it high to avoid running into NaN losses
 
 
 
