@@ -93,3 +93,11 @@ conf_params.RPN.UNCERTAIN_BIAS = 300 ## Keeping it high to avoid running into Na
 
 
 
+"""
+For training
+"""
+conf_params.TRAIN = CN()
+conf_params.TRAIN.ADAM_LR = 1e-4
+conf_params.TRAIN.EPOCHS = 50
+conf_params.TRAIN.DSET_SHUFFLE = True
+conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
