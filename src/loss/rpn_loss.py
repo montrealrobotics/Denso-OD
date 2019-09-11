@@ -67,15 +67,18 @@ class RPNLoss(torch.nn.Module):
 
 			## if anchor is positive, compute intelligent robust regression loss
 			if target['gt_anchor_label'][0][valid_index].item() == 1:
-				self.pos_anchor_loss +=  (0.5*(((prediction['bbox_pred'][0][valid_index] - target['gt_bbox'][0][valid_index]).pow(2))/(prediction['bbox_uncertainty_pred'][0][valid_index].pow(2))) + \
-											0.5*torch.log(prediction['bbox_uncertainty_pred'][0][valid_index].pow(2))).sum()
+				self.pos_anchor_loss +=  (0.5*(((prediction['bbox_pred'][0][valid_index] - target['gt_bbox'][0][valid_index]).pow(2))/(1e-3 + prediction['bbox_uncertainty_pred'][0][valid_index].pow(2))) + \
+											0.5*torch.log(1e-3 + prediction['bbox_uncertainty_pred'][0][valid_index].pow(2))).sum()
 				self.pos_anchors += 1
 			## Encourage high uncertainty for negative anchors
 			else: 
-				self.neg_anchor_loss += 1.0/(prediction['bbox_uncertainty_pred'][0][valid_index].pow(2)).sum()
+				self.neg_anchor_loss += (1.0/(1e-3 + prediction['bbox_uncertainty_pred'][0][valid_index].pow(2))).sum()
 				self.neg_anchors += 1
 
+		if self.pos_anchors == 0 or self.neg_anchors == 0:
+			return self.reg_loss ## when you can't compute regression loss, let it go as 0
 
-		self.reg_loss = (self.pos_anchor_loss/self.pos_anchors)+ (self.neg_anchor_loss/self.neg_anchors)
+		else:
+			self.reg_loss = (self.pos_anchor_loss/self.pos_anchors)+ (self.neg_anchor_loss/self.neg_anchors)
 
 		return self.reg_loss

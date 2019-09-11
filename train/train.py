@@ -33,11 +33,11 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 
 ### let's generate the dataset
 tranform = image_transform(cfg)
-coco_dataset = dset.CocoDetection('/home/coco_dataset_new/train2017_modified/', '/home/coco_dataset_new/instances_train2017_modified.json', transform= tranform) 
+coco_dataset = dset.CocoDetection('/home/dhai1729/scratch/MILA_cluster/coco_dataset_new/train2017_modified', '/home/dhai1729/scratch/MILA_cluster/coco_dataset_new/annotations_modified/instances_train2017_modified.json', transform= tranform) 
 trainloader = torch.utils.data.DataLoader(coco_dataset, batch_size=1, shuffle=True)
 
 # Generate random input
-# TODO: replace with actual image later,with vision tranforms(normalization)
+# DONE: replace with actual image later,with vision tranforms(normalization)
 # input_image, labels = iter(trainloader).next()
 # targets = process_coco_labels(labels)
 # print(targets)
@@ -50,9 +50,9 @@ for params in frcnn.backbone_obj.parameters():
 
 ## Initialize RPN params
 
-optimizer = optim.Adam(frcnn.parameters(), lr=1e-5)
+optimizer = optim.Adam(frcnn.parameters(), lr=1e-6)
 
-model_dir_path = '/home/Denso_models/'
+model_dir_path = '/home/dhai1729/scratch/denso_models/'
 
 checkpoint_path = model_dir_path + 'checkpoint.txt'
 
@@ -98,7 +98,7 @@ while epoch <= epochs:
 	epoch += 1
 	running_loss = 0
 	for images, labels in trainloader:
-		break
+		
 		# get ground truth in correct format
 		if cfg.USE_CUDA:
 			input_image = images.cuda()
@@ -135,8 +135,9 @@ while epoch <= epochs:
 		loss.backward()
 		optimizer.step()
 		running_loss += loss.item()
-		print(f"Training loss: {running_loss/len(trainloader)}")
-
+		print(f"Training loss: {loss.item()/len(trainloader)}")
+	
+	print(f"Running loss: {running_loss/len(trainloader)}")
 
 	### Save model!
 	model_path = model_dir_path + str(epoch).zfill(5) + '.model'
