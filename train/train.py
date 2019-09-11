@@ -61,7 +61,7 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 ### let's generate the dataset
 tranform = image_transform(cfg)
 coco_dataset = dset.CocoDetection(dset_path, ann_path, transform= tranform) 
-trainloader = torch.utils.data.DataLoader(coco_dataset, batch_size=1, shuffle=True)
+trainloader = torch.utils.data.DataLoader(coco_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE)
 
 # Generate random input
 # DONE: replace with actual image later,with vision tranforms(normalization)
@@ -77,7 +77,7 @@ for params in frcnn.backbone_obj.parameters():
 
 ## Initialize RPN params
 
-optimizer = optim.Adam(frcnn.parameters(), lr=1e-6)
+optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR)
 
 checkpoint_path = model_dir_path + 'checkpoint.txt'
 
@@ -117,7 +117,7 @@ if cfg.USE_CUDA:
 	cfg.DTYPE.LONG = 'torch.cuda.LongTensor'
 
 
-epochs = 50
+epochs = cfg.TRAIN.EPOCHS
 frcnn.train()
 
 while epoch <= epochs:
@@ -185,14 +185,14 @@ while epoch <= epochs:
 	print(f"Running loss: {running_loss/len(trainloader)}")
 
 	## Saving at the end of the epoch
-	model_path = model_dir_path + "end_of_epoch_" str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
-			torch.save({
-					'epoch': epoch,
-					'model_state_dict': frcnn.state_dict(),
-					'optimizer_state_dict': optimizer.state_dict(),
-					'loss': loss,
-					'cfg': cfg
-					 }, model_path)
+	model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+	torch.save({
+			'epoch': epoch,
+			'model_state_dict': frcnn.state_dict(),
+			'optimizer_state_dict': optimizer.state_dict(),
+			'loss': loss,
+			'cfg': cfg
+			 }, model_path)
 
 	with open(checkpoint_path, 'w') as f:
 		f.writelines(model_path)
