@@ -2,6 +2,10 @@
 Transform ground truth loaded through 
 pytorch dataloader as arrays.
 
+To understand coco annotation, watch this
+
+https://www.youtube.com/watch?v=h6s61a_pqfM
+
 """
 
 
