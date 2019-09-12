@@ -72,8 +72,9 @@ trainloader = torch.utils.data.DataLoader(coco_dataset, batch_size=cfg.TRAIN.BAT
 
 
 frcnn = FRCNN(cfg)
-for params in frcnn.backbone_obj.parameters():
-	params.requires_grad = False
+if cfg.TRAIN.FREEZE_BACKBONE:
+	for params in frcnn.backbone_obj.parameters():
+		params.requires_grad = False
 
 ## Initialize RPN params
 
@@ -90,7 +91,7 @@ if path.exists(checkpoint_path):
 
 		checkpoint = torch.load(model_path)
 		frcnn.load_state_dict(checkpoint['model_state_dict'])
-		optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+		#optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 		epoch = checkpoint['epoch']
 		loss = checkpoint['loss']
 
@@ -168,7 +169,7 @@ while epoch <= epochs:
 		### Save model and other things at every 10000 images.
 		### TODO: Make this number a variable for config file
 
-		if image_number%10000 == 0:
+		if image_number%25000 == 0:
 			### Save model!
 			model_path = model_dir_path + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
 			torch.save({
@@ -190,7 +191,7 @@ while epoch <= epochs:
 			'epoch': epoch,
 			'model_state_dict': frcnn.state_dict(),
 			'optimizer_state_dict': optimizer.state_dict(),
-			'loss': loss,
+			'loss': running_loss,
 			'cfg': cfg
 			 }, model_path)
 
