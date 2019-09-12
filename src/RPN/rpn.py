@@ -41,6 +41,7 @@ class RPN(nn.Module):
 
 		## Softplus for uncertainty
 		self.softplus =  nn.Softplus(beta = cfg.RPN.SOFTPLUS_BETA, threshold = cfg.RPN.SOFTPLUS_THRESH)
+		self.eLU = nn.ELU(alpha = cfg.RPN.ACTIVATION_ALPHA)
 
 	def forward(self, feature_map):
 
@@ -48,16 +49,16 @@ class RPN(nn.Module):
 		result = {}
 
 		## Layer 1 forward pass
-		x = self.conv1(feature_map)
+		x = self.eLU(self.conv1(feature_map))
 
 		## Output of regression layer 
-		result['regression'] = self.reg_layer(x)
+		result['regression'] = self.eLU(self.reg_layer(x))
 
 		## Output of classification layer
-		result['classification'] = self.classification_layer(x)
+		result['classification'] = self.eLU(self.classification_layer(x))
 
 		## Output of uncertainty layer
-		result['uncertainty'] = self.softplus(self.uncertain_layer(x))
+		result['uncertainty'] = self.softplus(self.eLU(self.uncertain_layer(x)))
 		# print(result['uncertainty'])
 		return self.reshape_output(result)
 
