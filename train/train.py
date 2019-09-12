@@ -164,7 +164,7 @@ while epoch <= epochs:
 		loss.backward()
 		optimizer.step()
 		running_loss += loss.item()
-		print(f"Training loss: {loss.item()/len(trainloader)}", " epoch and image_number: ", epoch, image_number)
+		print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
 
 		### Save model and other things at every 10000 images.
 		### TODO: Make this number a variable for config file

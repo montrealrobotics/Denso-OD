@@ -90,6 +90,7 @@ conf_params.RPN.BIAS = 0
 conf_params.RPN.UNCERTAIN_MEAN = 0
 conf_params.RPN.UNCERTAIN_VAR = 0.01
 conf_params.RPN.UNCERTAIN_BIAS = 300 ## Keeping it high to avoid running into NaN losses
+conf_params.RPN.ACTIVATION_ALPHA = 1
 
 
 
