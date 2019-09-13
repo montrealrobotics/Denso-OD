@@ -62,20 +62,24 @@ torch.set_default_dtype(torch.float32)
 if torch.cuda.is_available() and not cfg.NO_GPU:
 	cfg.USE_CUDA = True
 
+minibatch_size = 10
 ### let's generate the dataset
-cfg.TRAIN.DSET_SHUFFLE = False
 tranform = image_transform(cfg)
 coco_dataset = dset.CocoDetection(dset_path, ann_path, transform= tranform) 
-trainloader = torch.utils.data.DataLoader(coco_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE)
 
-
+## We are getting only a smaller dataset as we don't needs a full-fledged training
+coco_part_tr = torch.utils.data.random_split(coco_dataset, [minibatch_size, len(coco_dataset)-minibatch_size])[0] ## Sampling a small minibatch
+trainloader = torch.utils.data.DataLoader(coco_part_tr, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE)
+print("Length of train set is: ", len(coco_part_tr), len(trainloader))
+cfg.TRAIN.ADAM_LR=1e-4
+cfg.TRAIN.FREEZE_BACKBONE = True
 ## The model
 frcnn = FRCNN(cfg)
 if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
 
-minibatch_size = 500
+
 optimizer = optim.Adam(frcnn.parameters())
 
 checkpoint_path = model_dir_path + 'checkpoint.txt'
@@ -92,11 +96,12 @@ if path.exists(checkpoint_path):
 
 
 		## TO load the optimizer state with cuda
-		optimizer.load_state_dict(checkpoint['optimizer'])
-		for state in optimizer.state.values():
-			for k, v in state.items():
-				if isinstance(v, torch.Tensor):
-					state[k] = v.cuda() 
+		optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+		if cfg.USE_CUDA:
+			for state in optimizer.state.values():
+				for k, v in state.items():
+					if isinstance(v, torch.Tensor):
+						state[k] = v.cuda() 
 		epoch = checkpoint['epoch']
 		loss = checkpoint['loss']
 
@@ -134,9 +139,9 @@ while epoch <= epochs:
 	running_loss = 0
 	for images, labels in trainloader:
 		
-		## Start new epoch 
-		if image_number > minibatch_size: 
-			break
+		# ## Start new epoch 
+		# if image_number > minibatch_size: 
+		# 	break
 
 		# get ground truth in correct format
 		image_number += 1

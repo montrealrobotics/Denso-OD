@@ -94,7 +94,7 @@ if path.exists(checkpoint_path):
 
 
 		## TO load the optimizer state with cuda
-		optimizer.load_state_dict(checkpoint['optimizer'])
+		optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 		for state in optimizer.state.values():
 			for k, v in state.items():
 				if isinstance(v, torch.Tensor):
