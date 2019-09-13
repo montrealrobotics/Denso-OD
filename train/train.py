@@ -78,7 +78,7 @@ if cfg.TRAIN.FREEZE_BACKBONE:
 
 ## Initialize RPN params
 
-optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR)
+optimizer = optim.Adam(frcnn.parameters())
 
 checkpoint_path = model_dir_path + 'checkpoint.txt'
 
@@ -91,17 +91,26 @@ if path.exists(checkpoint_path):
 
 		checkpoint = torch.load(model_path)
 		frcnn.load_state_dict(checkpoint['model_state_dict'])
-		#optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+
+		## TO load the optimizer state with cuda
+		optimizer.load_state_dict(checkpoint['optimizer'])
+		for state in optimizer.state.values():
+			for k, v in state.items():
+				if isinstance(v, torch.Tensor):
+					state[k] = v.cuda() 
 		epoch = checkpoint['epoch']
 		loss = checkpoint['loss']
 
 	else:
+		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR)
 		epoch = 0
 		loss = 0
 else:
 	# ## When you are running for the first time.
 	# with open(checkpoint_path, 'w') as f:
 	# 	f.writelines('')
+	optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR)
 	epoch = 0
 	loss = 0
 
