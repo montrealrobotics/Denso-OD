@@ -37,6 +37,8 @@ class RPNLoss(torch.nn.Module):
 
 		self.total_anchors = prediction['bbox_pred'].shape[1]
 
+		self.class_loss = self.get_classification_loss(prediction, target, valid_indices)
+
 		return self.get_classification_loss(prediction, target, valid_indices) + \
 				self.get_regression_loss(prediction, target, valid_indices)
 
