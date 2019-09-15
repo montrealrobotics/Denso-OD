@@ -62,7 +62,7 @@ torch.set_default_dtype(torch.float32)
 if torch.cuda.is_available() and not cfg.NO_GPU:
 	cfg.USE_CUDA = True
 
-minibatch_size = 10
+minibatch_size = 50
 ### let's generate the dataset
 tranform = image_transform(cfg)
 coco_dataset = dset.CocoDetection(dset_path, ann_path, transform= tranform) 
@@ -72,7 +72,7 @@ coco_part_tr = torch.utils.data.random_split(coco_dataset, [minibatch_size, len(
 trainloader = torch.utils.data.DataLoader(coco_part_tr, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE)
 print("Length of train set is: ", len(coco_part_tr), len(trainloader))
 cfg.TRAIN.ADAM_LR=1e-4
-cfg.TRAIN.FREEZE_BACKBONE = True
+cfg.TRAIN.FREEZE_BACKBONE = False
 ## The model
 frcnn = FRCNN(cfg)
 if cfg.TRAIN.FREEZE_BACKBONE:
@@ -129,9 +129,11 @@ if cfg.USE_CUDA:
 	cfg.DTYPE.FLOAT = 'torch.cuda.FloatTensor'
 	cfg.DTYPE.LONG = 'torch.cuda.LongTensor'
 
-cfg.TRAIN.EPOCHS = 500
+cfg.TRAIN.EPOCHS = 4000
 epochs = cfg.TRAIN.EPOCHS
 frcnn.train()
+
+lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
 while epoch <= epochs:
 	epoch += 1
@@ -180,7 +182,7 @@ while epoch <= epochs:
 		loss.backward()
 		optimizer.step()
 		running_loss += loss.item()
-		print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
+		# print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
 
 		### Save model and other things at every 10000 images.
 		### TODO: Make this number a variable for config file
@@ -199,17 +201,19 @@ while epoch <= epochs:
 			with open(checkpoint_path, 'w') as f:
 				f.writelines(model_path)		
 
+	lr_scheduler.step()
 	print(f"Running loss: {running_loss/len(trainloader)}")
 
-	## Saving at the end of the epoch
-	model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
-	torch.save({
-			'epoch': epoch,
-			'model_state_dict': frcnn.state_dict(),
-			'optimizer_state_dict': optimizer.state_dict(),
-			'loss': running_loss/len(trainloader),
-			'cfg': cfg
-			 }, model_path)
+	#### No needs to save! ####
+	# ## Saving at the end of the epoch
+	# model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+	# torch.save({
+	# 		'epoch': epoch,
+	# 		'model_state_dict': frcnn.state_dict(),
+	# 		'optimizer_state_dict': optimizer.state_dict(),
+	# 		'loss': running_loss/len(trainloader),
+	# 			'cfg': cfg
+	# 		 }, model_path)
 
-	with open(checkpoint_path, 'w') as f:
-		f.writelines(model_path)
+	# with open(checkpoint_path, 'w') as f:
+	# 	f.writelines(model_path)

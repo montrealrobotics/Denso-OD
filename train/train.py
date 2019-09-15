@@ -128,12 +128,16 @@ if cfg.USE_CUDA:
 
 
 epochs = cfg.TRAIN.EPOCHS
+## Learning rate scheduler
+lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg.TRAIN.LR_DECAY_EPOCHS, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
+
 frcnn.train()
 
 while epoch <= epochs:
 	epoch += 1
 	image_number = 0
 	running_loss = 0
+
 	for images, labels in trainloader:
 		
 		# get ground truth in correct format
@@ -165,15 +169,18 @@ while epoch <= epochs:
 		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 		loss = loss_object(prediction, target, valid_indices)
+
 		if math.isnan(loss.item()):
 			print("NaN detected.")
 			continue
 		# print(loss.item(), loss, loss.type(), targets)
 		# print(loss_object.pos_anchors, loss_object.neg_anchors)
+		
 		loss.backward()
 		optimizer.step()
 		running_loss += loss.item()
-		print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
+		print("Classification loss is:", loss_object.class_loss.item(), " and regression loss is:", loss_object.reg_loss.item())
+		# print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
 
 		### Save model and other things at every 10000 images.
 		### TODO: Make this number a variable for config file
@@ -193,6 +200,9 @@ while epoch <= epochs:
 				f.writelines(model_path)		
 
 	print(f"Running loss: {running_loss/len(trainloader)}")
+
+	## For learing rate decay
+	lr_scheduler.step()
 
 	## Saving at the end of the epoch
 	model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
