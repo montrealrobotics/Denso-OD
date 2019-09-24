@@ -71,7 +71,7 @@ coco_dataset = dset.CocoDetection(dset_path, ann_path, transform= tranform)
 coco_part_tr = torch.utils.data.random_split(coco_dataset, [minibatch_size, len(coco_dataset)-minibatch_size])[0] ## Sampling a small minibatch
 trainloader = torch.utils.data.DataLoader(coco_part_tr, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE)
 print("Length of train set is: ", len(coco_part_tr), len(trainloader))
-cfg.TRAIN.ADAM_LR=1e-4
+cfg.TRAIN.ADAM_LR=1e-3
 cfg.TRAIN.FREEZE_BACKBONE = False
 ## The model
 frcnn = FRCNN(cfg)
@@ -133,7 +133,7 @@ cfg.TRAIN.EPOCHS = 4000
 epochs = cfg.TRAIN.EPOCHS
 frcnn.train()
 
-lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
+lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
 while epoch <= epochs:
 	epoch += 1
@@ -182,7 +182,7 @@ while epoch <= epochs:
 		loss.backward()
 		optimizer.step()
 		running_loss += loss.item()
-		# print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
+		print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
 
 		### Save model and other things at every 10000 images.
 		### TODO: Make this number a variable for config file
