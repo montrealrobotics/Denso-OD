@@ -1,0 +1,1 @@
+from .nms import NMS as nms_class
