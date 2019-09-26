@@ -62,12 +62,12 @@ class RPN_targets(object):
 		Now comes the part where we assign labels to anchors. 
 
 		Positive anchors: 
-		    1. The anchors with highest IoU with the ground truth objects
-		    2. Anchor with IoU > 0.7 with the ground truth object.
+			1. The anchors with highest IoU with the ground truth objects
+			2. Anchor with IoU > 0.7 with the ground truth object.
 
 		Negative anchors:
-		    1. All the anchors whose IoU with all the ground truth objects is lesser than 0.3,
-		       are negative anchors. 
+			1. All the anchors whose IoU with all the ground truth objects is lesser than 0.3,
+			   are negative anchors. 
 		'''
 
 
@@ -133,7 +133,7 @@ class RPN_targets(object):
 
 		pos_anchor_indices = np.where(anchor_labels == 1)[0] ## Indices with positive label
 		neg_anchor_indices = np.where(anchor_labels == 0)[0] ## Indices with negaitve label
-
+		# print("Number of negative anchors are: ", len(neg_anchor_indices))
 
 		if len(pos_anchor_indices) > n_pos:
 			disable_index = np.random.choice(pos_anchor_indices, size=(len(pos_anchor_indices) - n_pos), replace=False)
@@ -147,11 +147,11 @@ class RPN_targets(object):
 		'''
 
 		if len(pos_anchor_indices) < n_pos:
-		    n_neg = len(pos_anchor_indices)
-		    
+			n_neg = len(pos_anchor_indices)
+			
 		if len(neg_anchor_indices) > n_neg:
-		    disable_index = np.random.choice(neg_anchor_indices, size=(len(neg_anchor_indices) - n_neg), replace=False)
-		    anchor_labels[disable_index] = -1
+			disable_index = np.random.choice(neg_anchor_indices, size=(len(neg_anchor_indices) - n_neg), replace=False)
+			anchor_labels[disable_index] = -1
 
 		'''
 		Labels have already been assigned to the anchors, now we need to

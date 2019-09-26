@@ -67,7 +67,7 @@ Necessary params to define anchors
 """
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = 0.5, 1, 2
-conf_params.ANCHORS.ANCHOR_SCALES = 8, 16, 32
+conf_params.ANCHORS.ANCHOR_SCALES = 4, 8, 16
 conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 
 
@@ -105,3 +105,4 @@ conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different size
 conf_params.TRAIN.FREEZE_BACKBONE = False
 conf_params.TRAIN.LR_DECAY = 0.1 ## Decay learning rate by this factor every certain epochs
 conf_params.TRAIN.LR_DECAY_EPOCHS = 5	## Epochs after which we should act upon learning rate
+conf_params.TRAIN.TRAIN_TYPE = 'deterministic' ### could be ['deterministic', 'probabilistic']

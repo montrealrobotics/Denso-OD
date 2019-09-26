@@ -90,7 +90,7 @@ class anchor_generator(object):
 				## height and width should be such that h/w = aspect_ratios[j]
 				anchor_height = sub_sample[0]*anchor_scales[i]*np.sqrt(aspect_ratios[j])
 				anchor_width = sub_sample[1]*anchor_scales[i]*np.sqrt(1.0/aspect_ratios[j])
-				
+				# print("Anchor height and anchor widths are: ", anchor_height, anchor_width)
 				anchor_index = i*len(anchor_scales) + j 
 				
 				## y co-ordinate of top left corner
@@ -103,7 +103,7 @@ class anchor_generator(object):
 				## x co-ordinate of bottom right corner
 				anchor_base[anchor_index, 3] = anchor_center[1] + anchor_width/2.0
 				
-				
+		# print("Anchor base!!!!", anchor_base)		
 		return anchor_base
 
 	## TODO: Automate the process of getting these inputs. Make the inputs configuration parameters.
