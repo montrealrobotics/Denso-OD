@@ -6,7 +6,7 @@ Testing RPNs.
 """
 How to run on MILA cluster?
 
-python test.py -dp "/network/tmp1/bhattdha/coco_dataset_new/val2017_modified/" -ap "/network/tmp1/bhattdha/coco_dataset_new/annotations_modified/val_train2017_modified.json" -mp "/network/tmp1/bhattdha/Denso-models/000005000000013.model"
+python test.py -dp "/network/tmp1/bhattdha/coco_dataset_new/val2017_modified/" -ap "/network/tmp1/bhattdha/coco_dataset_new/annotations_modified/val_train2017_modified.json" -mp "/home/Denso_models/000005000000013.model"
 
 """
 
@@ -28,7 +28,7 @@ from src.preprocess import image_transform ## It's a function, not a class.
 from src.datasets import process_coco_labels
 from src.loss import RPNLoss
 from torchvision import datasets as dset
-# from src.NMS import nms_class
+from src.NMS import nms_class
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-dp", "--datasetpath", required = True, help="give dataset path")
@@ -101,13 +101,23 @@ if cfg.USE_CUDA:
 
 ## let's do the forward pass!!! :D :D :D 
 prediction, out = frcnn.forward(input_image)
+print("forward pass successful.")
 
+nms_object = nms_class(nms_thres = 0.6)
+prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
+prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
+print(prediction['bbox_class'])
+prediction['bbox_class'] = torch.nn.functional.softmax(prediction['bbox_class'].type(cfg.DTYPE.FLOAT), dim=2)
+print("Shapes are", prediction['bbox_pred'].shape, prediction['bbox_uncertainty_pred'].shape, prediction['bbox_class'].shape)
 
+for i in np.arange(prediction['bbox_class'].size()[1]):
+	if prediction['bbox_class'][0,i,0] == 0.5:
+		print(prediction['bbox_uncertainty_pred'][0,i,:])
+
+# prediction['bbox_uncertainty_pred'].size(), prediction['bbox_class'])
 
 # 		valid_indices = np.where(valid_labels != -1)
-# 		prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
-# 		prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
-# 		prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
+
 # 		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 # 		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 # 		loss = loss_object(prediction, target, valid_indices)
