@@ -7,7 +7,7 @@ nms_thres = 0.7
 
 class NMS(object):
     """docstring for NMS"""
-    def __init__(self, nms_thres):
+    def __init__(self, nms_thres = 0.7):
         super(NMS, self).__init__()
         self.thres = nms_thres
     
