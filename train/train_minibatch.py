@@ -62,7 +62,7 @@ torch.set_default_dtype(torch.float32)
 if torch.cuda.is_available() and not cfg.NO_GPU:
 	cfg.USE_CUDA = True
 
-minibatch_size = 50
+minibatch_size = 10
 ### let's generate the dataset
 tranform = image_transform(cfg)
 coco_dataset = dset.CocoDetection(dset_path, ann_path, transform= tranform) 
@@ -71,6 +71,7 @@ coco_dataset = dset.CocoDetection(dset_path, ann_path, transform= tranform)
 coco_part_tr = torch.utils.data.random_split(coco_dataset, [minibatch_size, len(coco_dataset)-minibatch_size])[0] ## Sampling a small minibatch
 trainloader = torch.utils.data.DataLoader(coco_part_tr, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE)
 print("Length of train set is: ", len(coco_part_tr), len(trainloader))
+
 cfg.TRAIN.ADAM_LR=1e-3
 cfg.TRAIN.FREEZE_BACKBONE = False
 ## The model
@@ -139,8 +140,11 @@ while epoch <= epochs:
 	epoch += 1
 	image_number = 0
 	running_loss = 0
+
+	fake_batch = 0
 	for images, labels in trainloader:
 		
+		# fake_batch += 1
 		# ## Start new epoch 
 		# if image_number > minibatch_size: 
 		# 	break
@@ -156,7 +160,7 @@ while epoch <= epochs:
 
 		targets = process_coco_labels(labels)
 		# TODO: Training pass
-		optimizer.zero_grad()
+		# optimizer.zero_grad()
 		prediction, out = frcnn.forward(input_image)
 		# print(targets['boxes'])
 		try:
@@ -177,12 +181,28 @@ while epoch <= epochs:
 		if math.isnan(loss.item()):
 			print("NaN detected.")
 			continue
-		# print(loss.item(), loss, loss.type(), targets)
-		# print(loss_object.pos_anchors, loss_object.neg_anchors)
 		loss.backward()
 		optimizer.step()
+		optimizer.zero_grad()
+		# print(loss.item(), loss, loss.type(), targets)
+		# print(loss_object.pos_anchors, loss_object.neg_anchors)
+		# print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
+		# if fake_batch == 13:
+		# 	print("inside backward")
+		# 	loss.backward()
+		# 	optimizer.step()
+		# 	optimizer.zero_grad()
+		# 	# fake_batch = 0
+
+
 		running_loss += loss.item()
-		print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
+		
+
+		# if fake_batch == 13:
+		# 	fake_batch = 0
+		# 	loss = 0
+
+		
 
 		### Save model and other things at every 10000 images.
 		### TODO: Make this number a variable for config file
@@ -202,18 +222,19 @@ while epoch <= epochs:
 				f.writelines(model_path)		
 
 	lr_scheduler.step()
-	print(f"Running loss: {running_loss/len(trainloader)}")
+	print(f"Running loss: {running_loss}")
 
-	#### No needs to save! ####
-	# ## Saving at the end of the epoch
-	# model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
-	# torch.save({
-	# 		'epoch': epoch,
-	# 		'model_state_dict': frcnn.state_dict(),
-	# 		'optimizer_state_dict': optimizer.state_dict(),
-	# 		'loss': running_loss/len(trainloader),
-	# 			'cfg': cfg
-	# 		 }, model_path)
+	
+	## Saving at the end of the 50 epochs
+	if epoch % 1000 == 0:
+		model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+		torch.save({
+				'epoch': epoch,
+				'model_state_dict': frcnn.state_dict(),
+				'optimizer_state_dict': optimizer.state_dict(),
+				'loss': running_loss/len(trainloader),
+					'cfg': cfg
+				 }, model_path)
 
-	# with open(checkpoint_path, 'w') as f:
-	# 	f.writelines(model_path)
+		with open(checkpoint_path, 'w') as f:
+			f.writelines(model_path)
