@@ -99,10 +99,10 @@ For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.ADAM_LR = 1e-3
-conf_params.TRAIN.EPOCHS = 50
+conf_params.TRAIN.EPOCHS = 60
 conf_params.TRAIN.DSET_SHUFFLE = True
 conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
 conf_params.TRAIN.FREEZE_BACKBONE = False
 conf_params.TRAIN.LR_DECAY = 0.1 ## Decay learning rate by this factor every certain epochs
-conf_params.TRAIN.LR_DECAY_EPOCHS = 5	## Epochs after which we should act upon learning rate
+conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon learning rate
 conf_params.TRAIN.TRAIN_TYPE = 'deterministic' ### could be ['deterministic', 'probabilistic']

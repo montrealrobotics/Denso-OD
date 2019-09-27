@@ -57,7 +57,7 @@ torch.set_default_tensor_type('torch.FloatTensor')
 torch.set_default_dtype(torch.float32)
 
 ### use cuda only if it's available and permitted
-cfg.NO_GPU = True
+
 if torch.cuda.is_available() and not cfg.NO_GPU:
 	cfg.USE_CUDA = True
 
@@ -157,7 +157,7 @@ while epoch <= epochs:
 		targets = process_nuscenes_labels(labels)
 		optimizer.zero_grad()
 		prediction, out = frcnn.forward(input_image)
-		print(targets['boxes'])
+		# print(targets['boxes'])
 		try:
 			valid_anchors, valid_labels, xx = rpn_target.get_targets(input_image, out, targets)
 		except:
@@ -182,13 +182,13 @@ while epoch <= epochs:
 		loss.backward()
 		optimizer.step()
 		running_loss += loss.item()
-		print("Classification loss is:", loss_object.class_loss.item(), " and regression loss is:", loss_object.reg_loss.item())
-		print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
+		print("Classification loss is:", loss_object.class_loss.item(), " and regression loss is:", loss_object.reg_loss.item(), " epoch and image_number: ", epoch, image_number)
+		# print(f"Training loss: {loss.item()}", " epoch and image_number: ", epoch, image_number)
 
 		### Save model and other things at every 10000 images.
 		### TODO: Make this number a variable for config file
 
-		if image_number%25000 == 0:
+		if image_number%1000 == 0:
 			### Save model!
 			model_path = model_dir_path + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
 			torch.save({
