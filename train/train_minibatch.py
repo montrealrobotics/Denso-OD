@@ -164,7 +164,7 @@ while epoch <= epochs:
 		prediction, out = frcnn.forward(input_image)
 		# print(targets['boxes'])
 		try:
-			valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
+			valid_anchors, valid_labels, _ = rpn_target.get_targets(input_image, out, targets)
 		except:
 			print("Inside exception!")
 			continue
