@@ -30,6 +30,12 @@ from src.loss import RPNLoss
 from src.datasets import CocoDetection_modified
 from torchvision import datasets as dset
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from PIL import Image
+import numpy as np
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument("-dp", "--datasetpath", required = True, help="give dataset path")
 ap.add_argument("-ap", "--annotationpath", required = True, help="give annotation file path")
@@ -88,13 +94,37 @@ if cfg.USE_CUDA:
 
 frcnn.eval()
 
+def get_actual_coords(prediction, anchors):
+	prediction = prediction.detach().cpu().numpy()
+	prediction = prediction.reshape([prediction.shape[1], prediction.shape[2]])
+
+
+	y_c = prediction[:,0]*(anchors[:,2] - anchors[:,0]) + anchors[:,0] + 0.5*(anchors[:,2] - anchors[:,0])
+	x_c = prediction[:,1]*(anchors[:,3] - anchors[:,1]) + anchors[:,1] + 0.5*(anchors[:,3] - anchors[:,1])
+	h = np.exp(prediction[:,2])*(anchors[:,2] - anchors[:,0])
+	w = np.exp(prediction[:,3])*(anchors[:,3] - anchors[:,1])
+
+	x1 = x_c - w/2.0
+	y1 = y_c - h/2.0
+
+	bbox_locs = np.vstack((x1, y1, w, h)).transpose() ## Final locations of the anchors
+
+	# print(type(prediction), prediction.shape, anchors.shape)
+	return bbox_locs
+
+image_number = 0
 
 for images, labels, img_name in trainloader:
 	
+	image_number += 1
+
+	# if image_number < 7:
+	# 	continue
+
 	if cfg.USE_CUDA:
 		input_image = images.cuda()
 
-	print(img_name)
+	print(img_name[0])
 
 	## If there are no ground truth objects in an image, we do this to not run into an error
 	if len(labels) is 0:
@@ -106,7 +136,7 @@ for images, labels, img_name in trainloader:
 	prediction, out = frcnn.forward(input_image)
 	# print(targets['boxes'])
 	try:
-		valid_anchors, valid_labels = rpn_target.get_targets(input_image, out, targets)
+		valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, out, targets)
 	except:
 		print("Inside exception!")
 		continue
@@ -120,9 +150,52 @@ for images, labels, img_name in trainloader:
 	prediction['bbox_class'] = torch.nn.functional.softmax(prediction['bbox_class'].type(cfg.DTYPE.FLOAT), dim=2)
 	target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 	target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
+
+	## To avoid overflow?
+	for i in np.arange(prediction['bbox_class'].size()[1]):
+		if prediction['bbox_class'][0,i,:][1].item() < 0.8:
+			prediction['bbox_pred'][0,i,:] = 0
+
+
+
+	bbox_locs = get_actual_coords(prediction['bbox_pred'], orig_anchors)
+
+	im = np.array(Image.open(img_name[0]), dtype=np.uint8)
+
+	# Create figure and axes
+	fig,ax = plt.subplots(1)
+
+	# Display the image
+	ax.imshow(im)
+
+	for i in np.arange(prediction['bbox_class'].size()[1]):
+		if prediction['bbox_class'][0,i,:][1].item() > 0.999:
+			rect = patches.Rectangle((bbox_locs[i][0],bbox_locs[i][1]),bbox_locs[i][2],bbox_locs[i][3],linewidth=1,edgecolor='r',facecolor='none')		
+			ax.add_patch(rect)
+
+
+	# Create a Rectangle patch
+	# rect = patches.Rectangle((50,100),100,300,linewidth=1,edgecolor='r',facecolor='none')
+
+	# Add the patch to the Axes
+
+
+	# plt.show()
+	fig.savefig('/home/dhaivat1729/temp' + str(image_number) + '.png', dpi=fig.dpi)
+	# break
 	# print("Bounding boxes are:" prediction['bbox_pred'])
 	# print("bbox_class")
 
-	# for i in np.arange(prediction['bbox_class'].size()[1]):
-	# 	if prediction['bbox_class'][0,i,:][1].item() > 0.7:
-	# 		# print("Box and coords are: ", prediction['bbox_class'][0,i,:], prediction['bbox_pred'][0,i,:])
+
+			# print("Box and coords are: ", prediction['bbox_class'][0,i,:], prediction['bbox_pred'][0,i,:])
+
+
+
+## plot and shizz
+
+
+
+
+
+
+

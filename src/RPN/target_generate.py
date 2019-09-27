@@ -32,6 +32,7 @@ class RPN_targets(object):
 	
 		anchors = self.anchor_generator_obj.get_anchors(image, feature_map, self.cfg) ## Nx4 numpy array
 
+		orig_anchors = anchors
 
 		## Some of these anchors may not be valid
 		## Let's get indices of anchors which are inside the image
@@ -209,7 +210,7 @@ class RPN_targets(object):
 		anchor_locations.fill(0)
 		anchor_locations[inside_indices, :] = anchor_locs
 
-		return anchor_locations, anchor_labels_final
+		return anchor_locations, anchor_labels_final, orig_anchors
 
 	def compute_anchor_iou(self, valid_anchor_boxes, ground_truth_objects):
 
