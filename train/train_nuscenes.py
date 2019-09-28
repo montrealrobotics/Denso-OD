@@ -16,6 +16,7 @@ import sys
 import numpy as np
 import math
 import argparse
+from PIL import Image
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
 import os.path as path
@@ -30,6 +31,7 @@ from src.datasets import nuscenes_collate_fn
 from src.datasets import NuscDataset
 from src.loss import RPNLoss
 from torchvision import datasets as dset
+from torchvision import transforms as T
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-dp", "--datasetpath", required = True, help="give dataset path")
@@ -62,13 +64,13 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 	cfg.USE_CUDA = True
 
 ### let's generate the dataset
-tranform = image_transform(cfg)
+transform = image_transform(cfg)
 
 ## With the Nuscenes dataloader
-nusc_dataset = NuscDataset(dset_path, ann_path, transform = tranform) 
+nusc_dataset = NuscDataset(dset_path, ann_path, transform = transform, cfg = cfg) 
 
 ## Split into train test
-train_len = int(0.7*len(nusc_dataset))
+train_len = int(cfg.TRAIN.DATASET_DIVIDE*len(nusc_dataset))
 test_len = len(nusc_dataset) - train_len
 nusc_train_dataset, nusc_test_dataset = torch.utils.data.random_split(nusc_dataset, [train_len, test_len])
 
@@ -154,7 +156,7 @@ while epoch <= epochs:
 		if len(labels) is 0:
 			continue
 
-		targets = process_nuscenes_labels(labels)
+		targets = process_nuscenes_labels(cfg, labels)
 		optimizer.zero_grad()
 		prediction, out = frcnn.forward(input_image)
 		# print(targets['boxes'])
@@ -188,21 +190,21 @@ while epoch <= epochs:
 		### Save model and other things at every 10000 images.
 		### TODO: Make this number a variable for config file
 
-		if image_number%1000 == 0:
-			### Save model!
-			model_path = model_dir_path + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
-			torch.save({
-					'epoch': epoch,
-					'model_state_dict': frcnn.state_dict(),
-					'optimizer_state_dict': optimizer.state_dict(),
-					'loss': loss,
-					'cfg': cfg
-					 }, model_path)
+		# if image_number%1000 == 0:
+		# 	### Save model!
+		# 	model_path = model_dir_path + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+		# 	torch.save({
+		# 			'epoch': epoch,
+		# 			'model_state_dict': frcnn.state_dict(),
+		# 			'optimizer_state_dict': optimizer.state_dict(),
+		# 			'loss': loss,
+		# 			'cfg': cfg
+		# 			 }, model_path)
 
-			with open(checkpoint_path, 'w') as f:
-				f.writelines(model_path)		
+		# 	with open(checkpoint_path, 'w') as f:
+		# 		f.writelines(model_path)		
 
-	print(f"Running loss: {running_loss/len(trainloader)}")
+	# print(f"Running loss: {running_loss/len(trainloader)}")
 
 	## For learing rate decay
 	lr_scheduler.step()
