@@ -10,7 +10,7 @@ import os
 class NuScenesDataset(Dataset):
 	"""NuScenes dataset for 2d annotations."""
 
-	def __init__(self, root_dir, annotation_path, nusc_version = 'v1.0-mini', transform=None):
+	def __init__(self, root_dir, annotation_path, nusc_version = 'v1.0-mini', transform=None, cfg = None):
 		"""
 		Args:
 			root_dir (string): Path to the dataset.
@@ -71,6 +71,7 @@ class NuScenesDataset(Dataset):
 		Each key leads to a list of annotations, corresponding to that particular image
 		'''
 		self.annotation_dict = annotation_dict
+		self.cfg = cfg
 	
 
 	def __len__(self):
@@ -86,6 +87,9 @@ class NuScenesDataset(Dataset):
 
 		## loading the image
 		img = Image.open(img_path).convert('RGB')
+		width, height = img.size
+		new_width, new_height = int(width/self.cfg.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR), int(height/self.cfg.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR)
+		img = img.resize((new_width, new_height))
 		target = self.annotation_dict[rel_image_path]
 
 		## transform the image

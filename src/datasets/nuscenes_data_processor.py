@@ -9,7 +9,7 @@ import torch
 import numpy as np 
 
 
-def process_labels(ground_truth):
+def process_labels(cfg, ground_truth):
 
 	"""
 		Processes ground truth from coco style 
@@ -24,13 +24,13 @@ def process_labels(ground_truth):
 
 	for i in range(gt_objects):
 
-		x1 = ground_truth[0][i]['bbox'][0][0]
-		y1 = ground_truth[0][i]['bbox'][0][1]
-		x2 = ground_truth[0][i]['bbox'][0][2]
-		y2 = ground_truth[0][i]['bbox'][0][3]
+		x1 = ground_truth[0][i]['bbox'][0][0]/cfg.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR
+		y1 = ground_truth[0][i]['bbox'][0][1]/cfg.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR
+		x2 = ground_truth[0][i]['bbox'][0][2]/cfg.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR
+		y2 = ground_truth[0][i]['bbox'][0][3]/cfg.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR
 
 		bbox[i,:] = get_y1x1y2x2(x1, y1, x2, y2)
-		labels[i,0] = 1 #ground_truth[0][i]['cat_id']
+		labels[i,0] = ground_truth[0][i]['cat_id']
 
 	return {'boxes':bbox, 'labels':labels}
 
