@@ -31,7 +31,7 @@ class RPN_targets(object):
 		"""
 	
 		anchors = self.anchor_generator_obj.get_anchors(image, feature_map, self.cfg) ## Nx4 numpy array
-
+		# print(anchors.shape)
 		orig_anchors = anchors
 
 		## Some of these anchors may not be valid
@@ -44,6 +44,7 @@ class RPN_targets(object):
 							 (anchors[:,2] <= im_height) &
 							 (anchors[:,3] <= im_width))[0]
 
+		# print(len(inside_indices))
 		## Constructing an array holding valid anchor boxes
 		## These anchors basically fall inside the image
 		inside_anchors = anchors[inside_indices]
@@ -75,15 +76,29 @@ class RPN_targets(object):
 		## Finding highest IoU for each gt_box, and the corresponding anchor box
 		## Contains M indices in range [0, N], for M objects
 		gt_argmax_ious = ious.argmax(axis=0) 
+		# print(len(gt_argmax_ious))
 
 		## saving maximum ious, for all the ground truth objects, gives the maximun IoU
 		## Contains M IoUs, for M ground truth objects
 		gt_max_ious = ious[gt_argmax_ious, np.arange(ious.shape[1])] 
+		
+		"""
+			This solves a very important bug. 
+			A lot of times, it's possible that due to object's faulty
+			annotation around the corners, we may not get proper maximum
+			IoU, we may end up with 0 IoU, which can mess up the calculation
+			ahead, so we identify such a case and don't let our network train 
+			on that. Instead, we leave the function(effectively raising an exception
+			in a training script, which results in moving to the next image)
+		"""
+		if np.sum(gt_max_ious < 1e-9) > 0:
+			return
 
 		## Finding maximum IoU for each anchor and its corresponding GT box
 		## Contains object label with highest IoU
 		## Contains N indices in range [0, M]
 		argmax_ious = ious.argmax(axis=1) 
+		# print(argmax_ious)
 
 		## saving maximum IoU for each anchor 
 		## Contains N IoUs, for N anchors. Highest IoU for each anchor
@@ -92,7 +107,10 @@ class RPN_targets(object):
 		## we gotta find all the anchor indices with gt_max_ious
 		## Multiple anchors could have highest IoUs which we discovered earlier. 
 		## Contains ID of anchors with highest IoUs
+		# print(ious.shape, gt_max_ious)
+
 		gt_argmax_ious = np.where(ious == gt_max_ious)[0]
+		# print(gt_argmax_ious)
 		
 
 		'''
@@ -102,14 +120,21 @@ class RPN_targets(object):
 		pos_anchor_iou_threshold = 0.7
 		neg_anchor_iou_threshold = 0.3
 
-		## IF max_iou for and anchor is lesser than neg_anchor_iou_threshold, it's a negative anchor.
-		anchor_labels[max_ious < neg_anchor_iou_threshold] = 0
 
+		## IF max_iou for and anchor is lesser than neg_anchor_iou_threshold, it's a negative anchor.
+		anchor_labels[max_ious < neg_anchor_iou_threshold] = 0		
+
+
+		# print(np.max(max_ious))
 		## All the anchors with highest IoUs get to be positive anchors
 		anchor_labels[gt_argmax_ious] = 1
-
+		# print(len(gt_argmax_ious))
+		
+		# print(len(anchor_labels))
 		## All the anchors with iou greater than pos_anchor_iou_threshold deserve to be a positive anchor
 		anchor_labels[max_ious >= pos_anchor_iou_threshold] = 1
+
+		# print(len(anchor_labels[max_ious < neg_anchor_iou_threshold]))
 
 		## We don't use all anchors to compute loss. We sample negative and positive anchors 
 		## in 1:1 ratio to avoid domination of negative anchors.
@@ -134,6 +159,7 @@ class RPN_targets(object):
 
 		pos_anchor_indices = np.where(anchor_labels == 1)[0] ## Indices with positive label
 		neg_anchor_indices = np.where(anchor_labels == 0)[0] ## Indices with negaitve label
+		# print(len(anchor_labels), np.sum(anchor_labels == 0), np.sum(anchor_labels == 1), np.sum(anchor_labels == -1))
 		# print("Number of negative anchors are: ", len(neg_anchor_indices))
 
 		if len(pos_anchor_indices) > n_pos:
@@ -153,6 +179,8 @@ class RPN_targets(object):
 		if len(neg_anchor_indices) > n_neg:
 			disable_index = np.random.choice(neg_anchor_indices, size=(len(neg_anchor_indices) - n_neg), replace=False)
 			anchor_labels[disable_index] = -1
+
+		print( np.sum( anchor_labels == 1) , np.sum( anchor_labels == 0))
 
 		'''
 		Labels have already been assigned to the anchors, now we need to
