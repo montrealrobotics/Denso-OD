@@ -204,7 +204,7 @@ while epoch <= epochs:
 		# 	with open(checkpoint_path, 'w') as f:
 		# 		f.writelines(model_path)		
 
-	# print(f"Running loss: {running_loss/len(trainloader)}")
+	print(f"Running loss: {running_loss/len(nusc_loader)}")
 
 	## For learing rate decay
 	lr_scheduler.step()

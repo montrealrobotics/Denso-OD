@@ -180,7 +180,7 @@ class RPN_targets(object):
 			disable_index = np.random.choice(neg_anchor_indices, size=(len(neg_anchor_indices) - n_neg), replace=False)
 			anchor_labels[disable_index] = -1
 
-		print( np.sum( anchor_labels == 1) , np.sum( anchor_labels == 0))
+		# print( np.sum( anchor_labels == 1) , np.sum( anchor_labels == 0))
 
 		'''
 		Labels have already been assigned to the anchors, now we need to
