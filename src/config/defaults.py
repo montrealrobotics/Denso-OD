@@ -67,7 +67,7 @@ Necessary params to define anchors
 """
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = 0.5, 1, 2
-conf_params.ANCHORS.ANCHOR_SCALES = 4, 8, 16
+conf_params.ANCHORS.ANCHOR_SCALES = 128, 256, 512
 conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 
 
@@ -98,7 +98,7 @@ conf_params.RPN.ACTIVATION_ALPHA = 1
 For training
 """
 conf_params.TRAIN = CN()
-conf_params.TRAIN.ADAM_LR = 1e-3
+conf_params.TRAIN.ADAM_LR = 1e-4
 conf_params.TRAIN.EPOCHS = 60
 conf_params.TRAIN.DSET_SHUFFLE = True
 conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
@@ -106,3 +106,5 @@ conf_params.TRAIN.FREEZE_BACKBONE = False
 conf_params.TRAIN.LR_DECAY = 0.1 ## Decay learning rate by this factor every certain epochs
 conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon learning rate
 conf_params.TRAIN.TRAIN_TYPE = 'deterministic' ### could be ['deterministic', 'probabilistic']
+conf_params.TRAIN.DATASET_DIVIDE = 0.7 ## This fraction of dataset is for training, rest for testing.
+conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
