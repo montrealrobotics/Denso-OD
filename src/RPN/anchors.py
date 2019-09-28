@@ -33,6 +33,7 @@ class anchor_generator(object):
 		self.feature_map = feature_map
 		self.subsample = [self.image.size()[2]//self.feature_map.size()[2],
 							self.image.size()[3]//self.feature_map.size()[3]] ## Subsampling ratio. 
+		# print(self.subsample)
 		self.aspect_ratios = list(cfg.ANCHORS.ASPECT_RATIOS)
 		self.anchor_scales = list(cfg.ANCHORS.ANCHOR_SCALES)
 
@@ -74,7 +75,7 @@ class anchor_generator(object):
 
 		anchor_center = [100, 100]
 		aspect_ratios = [0.5, 1, 2]
-		anchor_scales = [8, 16, 32]
+		anchor_scales = [128, 256, 512]
 		sub_sample = 16
 		anchor_base = generate_anchors(anchor_center, aspect_ratios, anchor_scales, sub_sample)
 
@@ -88,8 +89,8 @@ class anchor_generator(object):
 			for j in range(len(aspect_ratios)):
 		   
 				## height and width should be such that h/w = aspect_ratios[j]
-				anchor_height = sub_sample[0]*anchor_scales[i]*np.sqrt(aspect_ratios[j])
-				anchor_width = sub_sample[1]*anchor_scales[i]*np.sqrt(1.0/aspect_ratios[j])
+				anchor_height = anchor_scales[i]*np.sqrt(aspect_ratios[j])
+				anchor_width = anchor_scales[i]*np.sqrt(1.0/aspect_ratios[j])
 				# print("Anchor height and anchor widths are: ", anchor_height, anchor_width)
 				anchor_index = i*len(anchor_scales) + j 
 				
