@@ -33,7 +33,6 @@ from torchvision import datasets as dset
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
-import numpy as np
 
 
 ap = argparse.ArgumentParser()
