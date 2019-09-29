@@ -75,8 +75,8 @@ test_len = len(nusc_dataset) - train_len
 nusc_train_dataset, nusc_test_dataset = torch.utils.data.random_split(nusc_dataset, [train_len, test_len])
 
 ## Dataloader for training
-nusc_loader = torch.utils.data.DataLoader(nusc_train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = nuscenes_collate_fn)
-
+nusc_train_loader = torch.utils.data.DataLoader(nusc_train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = nuscenes_collate_fn)
+nusc_test_loader = torch.utils.data.DataLoader(nusc_test_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = nuscenes_collate_fn)
 
 frcnn = FRCNN(cfg)
 if cfg.TRAIN.FREEZE_BACKBONE:
@@ -145,12 +145,13 @@ while epoch <= epochs:
 	image_number = 0
 	running_loss = 0
 
-	for images, labels, paths in nusc_loader:
+	for images, labels, paths in nusc_train_loader:
 		
 		# get ground truth in correct format
 		image_number += 1
+		input_image = images
 		if cfg.USE_CUDA:
-			input_image = images.cuda()
+			input_image = input_image.cuda()
 
 		## If there are no ground truth objects in an image, we do this to not run into an error
 		if len(labels) is 0:
@@ -204,20 +205,21 @@ while epoch <= epochs:
 		# 	with open(checkpoint_path, 'w') as f:
 		# 		f.writelines(model_path)		
 
-	print(f"Running loss: {running_loss/len(nusc_loader)}")
+	print(f"Running loss: {running_loss/len(nusc_train_loader)}")
 
 	## For learing rate decay
 	lr_scheduler.step()
 
 	## Saving at the end of the epoch
-	model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
-	torch.save({
-			'epoch': epoch,
-			'model_state_dict': frcnn.state_dict(),
-			'optimizer_state_dict': optimizer.state_dict(),
-			'loss': running_loss,
-			'cfg': cfg
-			 }, model_path)
+	if epoch % 2 == 0:
+		model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+		torch.save({
+				'epoch': epoch,
+				'model_state_dict': frcnn.state_dict(),
+				'optimizer_state_dict': optimizer.state_dict(),
+				'loss': running_loss,
+				'cfg': cfg
+				 }, model_path)
 
-	with open(checkpoint_path, 'w') as f:
-		f.writelines(model_path)
+		with open(checkpoint_path, 'w') as f:
+			f.writelines(model_path)
