@@ -108,3 +108,8 @@ conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon
 conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'probabilistic']
 conf_params.TRAIN.DATASET_DIVIDE = 0.7 ## This fraction of dataset is for training, rest for testing.
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
+
+"""
+For NMS
+"""
+conf_params.nms_thres = 0.7

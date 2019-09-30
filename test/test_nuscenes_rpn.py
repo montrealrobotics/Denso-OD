@@ -37,6 +37,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
 
+from src.NMS import NMS
+
 ap = argparse.ArgumentParser()
 ap.add_argument("-dp", "--datasetpath", required = True, help="give dataset path")
 ap.add_argument("-ap", "--annotationpath", required = True, help="give annotation file path")
@@ -181,7 +183,10 @@ for images, labels, img_name in nusc_test_loader:
 		if prediction['bbox_class'][0,i,:][1].item() < 0.8:
 			prediction['bbox_pred'][0,i,:] = 0
 
-
+	# applying NMS
+	nms = NMS(cfg.nms_thres)
+	index_to_keep = nms.apply_nms(prediction['bbox_pred'], prediction['bbox_class'])
+	index_to_keep = index_to_keep.numpy()
 
 	bbox_locs = get_actual_coords(prediction['bbox_pred'], orig_anchors)
 
@@ -197,7 +202,7 @@ for images, labels, img_name in nusc_test_loader:
 	# box_count_array = []
 	for i in np.arange(len(bbox_locs)):
 		count = 0
-		if prediction['bbox_class'][0,i,:][1].item() > 0.95:
+		if prediction['bbox_class'][0,i,:][1].item() > 0.95 and i in index_to_keep: # only boxes which predicted after nms are kept
 			# print(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3])
 			valid_box = check_validity(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3], new_width, new_height) ## throw away those boxes which are not inside the image
 			if valid_box:
