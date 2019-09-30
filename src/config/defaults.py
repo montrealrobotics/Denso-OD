@@ -89,7 +89,8 @@ conf_params.RPN.CONV_VAR = 0.01
 conf_params.RPN.BIAS = 0
 conf_params.RPN.UNCERTAIN_MEAN = 0
 conf_params.RPN.UNCERTAIN_VAR = 0.01
-conf_params.RPN.UNCERTAIN_BIAS = 300 ## Keeping it high to avoid running into NaN losses
+# conf_params.RPN.UNCERTAIN_BIAS = 30 ## Keeping it high to avoid running into NaN losses
+conf_params.RPN.UNCERTAIN_BIAS = 1.
 conf_params.RPN.ACTIVATION_ALPHA = 1
 
 
@@ -98,13 +99,17 @@ conf_params.RPN.ACTIVATION_ALPHA = 1
 For training
 """
 conf_params.TRAIN = CN()
-conf_params.TRAIN.ADAM_LR = 1e-3
-conf_params.TRAIN.EPOCHS = 60
+conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
+conf_params.TRAIN.LR = 1e-4
+conf_params.TRAIN.MOMENTUM = 0.09 # Used only when TRAIN.OPTIM is set to 'sgd'
+conf_params.TRAIN.EPOCHS = 200	
 conf_params.TRAIN.DSET_SHUFFLE = True
 conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
 conf_params.TRAIN.FREEZE_BACKBONE = False
 conf_params.TRAIN.LR_DECAY = 0.1 ## Decay learning rate by this factor every certain epochs
-conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon learning rate
+conf_params.TRAIN.LR_DECAY_EPOCHS = 50 	## Epochs after which we should act upon learning rate
 conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'probabilistic']
-conf_params.TRAIN.DATASET_DIVIDE = 0.7 ## This fraction of dataset is for training, rest for testing.
+conf_params.TRAIN.DATASET_DIVIDE = 0.01 ## This fraction of dataset is for training, rest for testing.
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
+conf_params.TRAIN.CLASS_LOSS_SCALE = 1.0 	### Scale classification loss by this amount
+conf_params.TRAIN.FAKE_BATCHSIZE = 4 ### fake batch

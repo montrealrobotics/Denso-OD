@@ -34,9 +34,9 @@ class RPN(nn.Module):
 		self.classification_layer.bias.data.fill_(cfg.RPN.BIAS)
 
 		## Uncertainty layer
-		self.uncertain_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0)
+		self.uncertain_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0, bias=False)
 		self.uncertain_layer.weight.data.normal_(cfg.RPN.UNCERTAIN_MEAN, cfg.RPN.UNCERTAIN_VAR)
-		self.uncertain_layer.bias.data.fill_(cfg.RPN.UNCERTAIN_BIAS)	## Initialize with high values to avoid NaNs
+		# self.uncertain_layer.bias.data.fill_(cfg.RPN.UNCERTAIN_BIAS)	## Initialize with high values to avoid NaNs
 
 
 		## Softplus for uncertainty
@@ -55,12 +55,32 @@ class RPN(nn.Module):
 		result['regression'] = self.eLU(self.reg_layer(x))
 
 		## Output of classification layer
-		result['classification'] = self.eLU(self.classification_layer(x))
+		result['classification'] = self.classification_layer(x)
 
 		## Output of uncertainty layer
-		result['uncertainty'] = self.softplus(self.eLU(self.uncertain_layer(x)))
+		# result['uncertainty'] = self.eLU(self.uncertain_layer(x))
+		# result['uncertainty'] = torch.sigmoid(self.uncertain_layer(x))
+		result['uncertainty'] = self.RichardCurve(self.uncertain_layer(x), low=0, high=10)
+		# print('#############', result['uncertainty'].min(), result['uncertainty'].max())
 		# print(result['uncertainty'])
 		return self.reshape_output(result)
+
+
+	def RichardCurve(self, x, low=0, high=1, sharp=0.5):
+		r"""Applies the generalized logistic function (aka Richard's curve)
+		to the input tensor x.
+
+		Args:
+			x (torch.Tensor): Input tensor over which the generalized logistic
+				function is to be applied (independently over each element)
+			low (float): Lower asymptote of the Richard's curve
+			high (float): Upper asymptote of the Richard's curve
+			sharp (float): Controls the 'sharpness' of the slope for the linear
+				region of Richard's curve
+
+		"""
+		return low + ((high - low) / (1 + torch.exp(-sharp * x)))
+
 
 	def reshape_output(self, result):
 
