@@ -143,7 +143,7 @@ epochs = cfg.TRAIN.EPOCHS
 ## Learning rate scheduler
 # lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg.TRAIN.LR_DECAY_EPOCHS, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
-lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = [100, 150, 180], gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
+lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 frcnn.train()
 
 # for n, p in frcnn.rpn_model.named_parameters():
@@ -167,7 +167,7 @@ while epoch <= epochs:
 	for idx, (images, labels, paths) in enumerate(nusc_train_loader):
 		
 		# get ground truth in correct format
-		image_number += 1
+		
 		input_image = images
 		if cfg.USE_CUDA:
 			input_image = input_image.cuda()
@@ -178,13 +178,19 @@ while epoch <= epochs:
 
 		targets = process_nuscenes_labels(cfg, labels)
 		# optimizer.zero_grad()
+
 		prediction, out = frcnn.forward(input_image)
-		# print(targets['boxes'])
+
 		try:
 			valid_anchors, valid_labels, xx = rpn_target.get_targets(input_image, out, targets)
 		except:
 			print("Inside exception!")
 			continue
+
+		
+		# print(targets['boxes'])
+		
+		image_number += 1
 		target = {}
 		target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
 		target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
@@ -207,14 +213,14 @@ while epoch <= epochs:
 		# 	print("NaN detected.")
 		# 	continue
 
-		if cfg.TRAIN.FAKE_BATCHSIZE > 0 and idx % cfg.TRAIN.FAKE_BATCHSIZE == 0 and idx > 0:
+		if cfg.TRAIN.FAKE_BATCHSIZE > 0 and image_number % cfg.TRAIN.FAKE_BATCHSIZE == 0 and idx > 0:
 			batch_loss_regress = batch_loss_regress_bbox + batch_loss_regress_sigma + batch_loss_regress_neg
-			batch_loss = 1 * batch_loss_regress + batch_loss_classify
+			batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
 			batch_loss.backward()
 			# batch_loss_classify.backward()
 			# batch_loss_regress.backward()
 			optimizer.step()
-			# print("Class/Reg loss:", batch_loss_classify.item(), " ", batch_loss_regress.item(), " epoch and image_number: ", epoch, image_number)
+			print("Class/Reg loss:", batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, " epoch and image_number: ", epoch, image_number)
 			print("only:", batch_loss_regress_bbox_only.item(), "bbox: ", batch_loss_regress_bbox.item(), 
 				"sigma:", batch_loss_regress_sigma.item(), "neg:", batch_loss_regress_neg.item())
 			# print("Class/Reg grads: ", frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item())
@@ -266,18 +272,18 @@ while epoch <= epochs:
 	print(f"Running loss (classification) {running_loss_classify/(len(nusc_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress/(len(nusc_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
 
 	# # Saving at the end of the epoch
-	# if epoch % cfg.TRAIN.LR_DECAY_EPOCHS == 0:
-	# 	model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
-	# 	torch.save({
-	# 			'epoch': epoch,
-	# 			'model_state_dict': frcnn.state_dict(),
-	# 			'optimizer_state_dict': optimizer.state_dict(),
-	# 			'loss': running_loss,
-	# 			'cfg': cfg
-	# 			 }, model_path)
+	if epoch % cfg.TRAIN.SAVE_MODEL_EPOCHS == 0:
+		model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+		torch.save({
+				'epoch': epoch,
+				'model_state_dict': frcnn.state_dict(),
+				'optimizer_state_dict': optimizer.state_dict(),
+				'loss': running_loss,
+				'cfg': cfg
+				 }, model_path)
 
-	# 	with open(checkpoint_path, 'w') as f:
-	# 		f.writelines(model_path)
+		with open(checkpoint_path, 'w') as f:
+			f.writelines(model_path)
 
 	## For learing rate decay
 	lr_scheduler.step()
