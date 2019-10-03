@@ -16,25 +16,36 @@ class RPN(nn.Module):
 		super(RPN, self).__init__()
 		self.in_channels = in_channels  ## Number of channels in feature map
 		self.out_channels = cfg.RPN.OUT_CHANNELS  		## Number of output channels from first layer of RPN
+		self.rpn_channels = cfg.RPN.LAYER_CHANNELS		## Channels in RPN layers
 		self.n_anchors = cfg.RPN.N_ANCHORS_PER_LOCATION		## Number of anchors per location
 
 		## Layer 1
-		self.conv1 = nn.Conv2d(self.in_channels, self.out_channels, 3, 1, 1)
+		self.conv1 = nn.Conv2d(self.in_channels, self.rpn_channels[0], 3, 1, 1)
 		self.conv1.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
 		self.conv1.bias.data.fill_(cfg.RPN.BIAS)
 		
+		## Layer 2
+		self.conv2 = nn.Conv2d(self.rpn_channels[0], self.rpn_channels[1], 3, 1, 1)
+		self.conv2.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
+		self.conv2.bias.data.fill_(cfg.RPN.BIAS)
+
+		## Layer 3
+		self.conv3 = nn.Conv2d(self.rpn_channels[1], self.rpn_channels[2], 3, 1, 1)
+		self.conv3.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
+		self.conv3.bias.data.fill_(cfg.RPN.BIAS)
+
 		## Regression layer
-		self.reg_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0)
+		self.reg_layer = nn.Conv2d(self.rpn_channels[2], self.n_anchors*4, 1, 1, 0)
 		self.reg_layer.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
 		self.reg_layer.bias.data.fill_(cfg.RPN.BIAS)
 
 		## classification layer
-		self.classification_layer = nn.Conv2d(self.out_channels, self.n_anchors*2, 1, 1, 0)
+		self.classification_layer = nn.Conv2d(self.rpn_channels[2], self.n_anchors*2, 1, 1, 0)
 		self.classification_layer.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
 		self.classification_layer.bias.data.fill_(cfg.RPN.BIAS)
 
 		## Uncertainty layer
-		self.uncertain_layer = nn.Conv2d(self.out_channels, self.n_anchors*4, 1, 1, 0, bias=False)
+		self.uncertain_layer = nn.Conv2d(self.rpn_channels[2], self.n_anchors*4, 1, 1, 0, bias=False)
 		self.uncertain_layer.weight.data.normal_(cfg.RPN.UNCERTAIN_MEAN, cfg.RPN.UNCERTAIN_VAR)
 		# self.uncertain_layer.bias.data.fill_(cfg.RPN.UNCERTAIN_BIAS)	## Initialize with high values to avoid NaNs
 
@@ -42,6 +53,7 @@ class RPN(nn.Module):
 		## Softplus for uncertainty
 		self.softplus =  nn.Softplus(beta = cfg.RPN.SOFTPLUS_BETA, threshold = cfg.RPN.SOFTPLUS_THRESH)
 		self.eLU = nn.ELU(alpha = cfg.RPN.ACTIVATION_ALPHA)
+
 
 	def forward(self, feature_map):
 
@@ -51,6 +63,12 @@ class RPN(nn.Module):
 		## Layer 1 forward pass
 		x = self.eLU(self.conv1(feature_map))
 
+		## Layer 2 forward pass
+		x = self.eLU(self.conv2(x))
+
+		## Layer 3 forward pass
+		x = self.eLU(self.conv3(x))
+
 		## Output of regression layer 
 		result['regression'] = self.eLU(self.reg_layer(x))
 
@@ -58,11 +76,8 @@ class RPN(nn.Module):
 		result['classification'] = self.classification_layer(x)
 
 		## Output of uncertainty layer
-		# result['uncertainty'] = self.eLU(self.uncertain_layer(x))
-		# result['uncertainty'] = torch.sigmoid(self.uncertain_layer(x))
 		result['uncertainty'] = self.RichardCurve(self.uncertain_layer(x), low=0, high=10)
-		# print('#############', result['uncertainty'].min(), result['uncertainty'].max())
-		# print(result['uncertainty'])
+		
 		return self.reshape_output(result)
 
 
