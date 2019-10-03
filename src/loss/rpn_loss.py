@@ -62,33 +62,6 @@ class RPNLoss(torch.nn.Module):
 		return self.class_criterion(prediction['bbox_class'][0][valid_indices], target['gt_anchor_label'][0][valid_indices])
 
 
-	# def regression_loss_vectorized(self, prediction, target, valid_indices):
-	# 	r"""A vectorized implementation of the regression loss (uses the
-	# 	loss-attenuation formulation)
-
-	# 	"""
-
-	# 	if self.cfg.TRAIN.TRAIN_TYPE == "deterministic":
-	# 		# # print("Calculating deterministic loss!")
-	# 		# pos_indices = []
-	# 		# ## Finding anchors with positive indices
-	# 		# # print("Length of valid_indices is: ", valid_indices.shape)
-	# 		# for valid_index in valid_indices[0]:
-	# 		# 	if target['gt_anchor_label'][0][valid_index].item() == 1:
-	# 		# 		# print(valid_index)
-	# 		# 		pos_indices.append(valid_index)
-
-	# 		# 	# sys.exit(0)
-	# 		# if len(pos_indices)*2 != len(valid_indices[0]):
-	# 		# 	print("Total and pos anchors are: ", len(valid_indices[0]), len(pos_indices))
-	# 		# # print("length of total valid anchors is: ", len(valid_indices[0]))
-	# 		# reg_loss = self.reg_criterion(prediction['bbox_pred'][0][pos_indices], target['gt_bbox'][0][pos_indices])
-
-	# 		samples = torch.index_select(prediction['bbox_pred'][0], dim=0, index=valid_indices.flatten())
-	# 		targets = torch.index_select(target['gt_bbox'][0], dim=0, index=valid_indices.flatten())
-
-
-	# 		return reg_loss
 
 	def get_regression_loss(self, prediction, target, valid_indices):
 
@@ -151,6 +124,7 @@ class RPNLoss(torch.nn.Module):
 				return None, None, None, None
 
 			# else:
+			# print("pos/neg anchors are:", self.pos_anchors.item(), self.neg_anchors.item())
 			# 	reg_loss = (self.pos_anchor_loss/self.pos_anchors)+ (self.neg_anchor_loss/self.neg_anchors)
 			reg_loss_bbox = self.loss_bbox / self.pos_anchors
 			reg_loss_sigma = self.loss_sigma / self.pos_anchors
