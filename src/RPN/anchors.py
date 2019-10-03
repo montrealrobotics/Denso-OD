@@ -89,8 +89,8 @@ class anchor_generator(object):
 			for j in range(len(aspect_ratios)):
 		   
 				## height and width should be such that h/w = aspect_ratios[j]
-				anchor_height = anchor_scales[i]*np.sqrt(aspect_ratios[j])
-				anchor_width = anchor_scales[i]*np.sqrt(1.0/aspect_ratios[j])
+				anchor_width = anchor_scales[i]*np.sqrt(aspect_ratios[j])
+				anchor_height = anchor_scales[i]*np.sqrt(1.0/aspect_ratios[j])
 				# print("Anchor height and anchor widths are: ", anchor_height, anchor_width)
 				anchor_index = i*len(anchor_scales) + j 
 				
