@@ -17,6 +17,11 @@ conf_params.USE_CUDA = False ## False by default, to be changed to True in the c
 conf_params.NO_GPU = False	
 
 
+###### Reproducibility in randomization ######
+conf_params.RANDOMIZATION = CN()
+conf_params.RANDOMIZATION.SEED = 5
+
+
 ##### BACKBONE CONFIG #####
 """
 Contains all the params that defines 
@@ -25,8 +30,9 @@ our backbone network!
 
 conf_params.BACKBONE = CN()
 
+
 ### choices = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
-conf_params.BACKBONE.MODEL_NAME = 'resnet101'
+conf_params.BACKBONE.MODEL_NAME = 'resnet50'
 
 ### choices = [1,2,3,4]
 conf_params.BACKBONE.RESNET_STOP_LAYER = 4 
@@ -66,8 +72,8 @@ conf_params.DTYPE.LONG = "torch.LongTensor"
 Necessary params to define anchors
 """
 conf_params.ANCHORS = CN()
-conf_params.ANCHORS.ASPECT_RATIOS = 0.5, 1, 2
-conf_params.ANCHORS.ANCHOR_SCALES = 128, 256, 512
+conf_params.ANCHORS.ASPECT_RATIOS = 1, 1.5, 2
+conf_params.ANCHORS.ANCHOR_SCALES = 192, 128, 256
 conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 
 
@@ -77,6 +83,7 @@ Used for defining region proposal network
 """
 conf_params.RPN = CN()
 conf_params.RPN.OUT_CHANNELS = 512
+conf_params.RPN.LAYER_CHANNELS = 512, 256, 128
 conf_params.RPN.N_ANCHORS_PER_LOCATION = 9
 conf_params.RPN.SOFTPLUS_BETA = 1
 conf_params.RPN.SOFTPLUS_THRESH = 20
@@ -102,8 +109,8 @@ conf_params.TRAIN = CN()
 conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 1e-4
 conf_params.TRAIN.MOMENTUM = 0.09 # Used only when TRAIN.OPTIM is set to 'sgd'
-conf_params.TRAIN.EPOCHS = 200
-conf_params.TRAIN.MILESTONES = 80, 140, 180	
+conf_params.TRAIN.EPOCHS = 60
+conf_params.TRAIN.MILESTONES = 15, 30, 40, 50	
 conf_params.TRAIN.DSET_SHUFFLE = True
 conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
 conf_params.TRAIN.FREEZE_BACKBONE = False
@@ -111,7 +118,9 @@ conf_params.TRAIN.LR_DECAY = 0.1 ## Decay learning rate by this factor every cer
 conf_params.TRAIN.LR_DECAY_EPOCHS = 50 	## Epochs after which we should act upon learning rate
 conf_params.TRAIN.SAVE_MODEL_EPOCHS = 10 ## save model at every certain epochs
 conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'probabilistic']
-conf_params.TRAIN.DATASET_DIVIDE = 0.7 ## This fraction of dataset is for training, rest for testing.
+conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 5.0 	### Scale classification loss by this amount
-conf_params.TRAIN.FAKE_BATCHSIZE = 12	 ### fake batch
+conf_params.TRAIN.FAKE_BATCHSIZE = 25	 ### fake batch
+# conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
+# conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
