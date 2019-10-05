@@ -110,6 +110,19 @@ if path.exists(checkpoint_path):
 				if isinstance(v, torch.Tensor):
 					state[k] = v.cuda() 
 		epoch = checkpoint['epoch']
+
+		## For multistep lr schedular
+		new_milestones = list(np.array((list(cfg.TRAIN.MILESTONES))) - epoch)
+
+		## If we have already achieved some milestones, there will be negative numbers for them
+		## Let's get rid of them
+		for i in range(len(new_milestones)):
+			if new_milestones[0] <= 0:
+				new_milestones.pop(0)
+
+		cfg.TRAIN.MILESTONES = tuple(new_milestones)
+		# print(cfg.TRAIN.MILESTONES)
+		# sys.exit()
 		loss = checkpoint['loss']
 
 	else:
