@@ -52,6 +52,7 @@ if not path.exists(model_dir_path):
 
 print("reached here!!!!")
 file = open(model_dir_path+"/train_log.txt", 'w')
+
 # Setting the seeds
 torch.manual_seed(cfg.RANDOMIZATION.SEED)
 np.random.seed(cfg.RANDOMIZATION.SEED)
@@ -78,11 +79,11 @@ print("Number of Images in Dataset: ", len(kitti_dataset))
 ## Split into train & validation
 train_len = int(cfg.TRAIN.DATASET_DIVIDE*len(kitti_dataset))
 val_len = len(kitti_dataset) - train_len
-kitti_train_dataset, kitti_test_dataset = torch.utils.data.random_split(kitti_dataset, [train_len, val_len])
+kitti_train_dataset, kitti_val_dataset = torch.utils.data.random_split(kitti_dataset, [train_len, val_len])
 
 ## Dataloader for training
 kitti_train_loader = torch.utils.data.DataLoader(kitti_train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn)
-kitti_val_loader = torch.utils.data.DataLoader(kitti_test_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn)
+kitti_val_loader = torch.utils.data.DataLoader(kitti_val_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn)
 
 #----------------------------------------------#
 
