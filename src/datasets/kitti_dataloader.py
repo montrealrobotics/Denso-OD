@@ -2,8 +2,7 @@ import torch
 from PIL import Image
 import numpy as np
 import json
-# from nuscenes.nuscenes import NuScenes ## pip install nuscenes-devkit
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset #Default dataloader class for Pytorch
 import os
 import glob
 
@@ -25,7 +24,7 @@ class KittiDataset(Dataset):
 		self.root_dir = root_dir
 
 		### loading all the annotations!!
-		annotations_dict = self.makedata(self.root_dir)
+		annotations_dict = self._makedata(self.root_dir)
 		self.transform = transform
 		
 		## has all the annotations 
@@ -37,7 +36,7 @@ class KittiDataset(Dataset):
 		self.cfg = cfg
 	
 
-	def read_label(self, file_name):
+	def _read_label(self, file_name):
 		ob_list = []
 
 		with open(file_name) as file:
@@ -52,13 +51,13 @@ class KittiDataset(Dataset):
 
 		return ob_list
 
-	def makedata(self, root_dir):
+	def _makedata(self, root_dir):
 		data_dict = {}
 		image_names = glob.glob(root_dir+"/images/training/*.png")
 
 		for name in image_names:
 			label_name = root_dir+"/labels/training/"+name[-10:-3]+"txt"
-			objects = self.read_label(label_name)
+			objects = self._read_label(label_name)
 			if len(objects)!=0:
 				# print(name[-10:], " : Yes got an Object")
 				data_dict[name] = objects
@@ -91,6 +90,8 @@ class KittiDataset(Dataset):
 
 		return img, target, img_path
 
+
+
 # A collate function to enable loading the kitti labels in batch
 def kitti_collate_fn(batch):
 
@@ -107,4 +108,3 @@ def kitti_collate_fn(batch):
 	return [data, target, paths]
 
 
-# root_dir = "/home/dishank/projects/MILA/Denso-OD/kitti_dataset"
