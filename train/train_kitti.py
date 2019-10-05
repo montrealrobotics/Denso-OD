@@ -23,15 +23,19 @@ import os.path as path
 ## Inserting path of src directory
 sys.path.insert(1, '../')
 from src.architecture import FRCNN
-from src.config import Cfg as cfg
+from src.config import Cfg as cfg # Configuration file
 from src.RPN import anchor_generator, RPN_targets
 from src.preprocess import image_transform ## It's a function, not a class.  
 from src.datasets import process_kitti_labels
 from src.datasets import kitti_collate_fn
-from src.datasets import KittiDataset
+from src.datasets import KittiDataset # Dataloader
 from src.loss import RPNLoss
 from torchvision import datasets as dset
 from torchvision import transforms as T
+from torch.utils import tensorboard 
+
+
+#----- Initial paths setup and loading config values ------ #
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-dp", "--datasetpath", required = True, help="give dataset path")
@@ -61,13 +65,17 @@ torch.set_default_dtype(torch.float32)
 if torch.cuda.is_available() and not cfg.NO_GPU:
 	cfg.USE_CUDA = True
 
-### let's generate the dataset
-transform = image_transform(cfg)
+#-----------------------------------------------#
 
-## With the Nuscenes dataloader
-kitti_dataset = KittiDataset(dset_path, transform = transform, cfg = cfg) 
-print(len(kitti_dataset))
-## Split into train validation
+
+#-------- Dataset loading and manipulation-------#
+
+transform = image_transform(cfg) # this is tranform to normalise/standardise the images
+
+kitti_dataset = KittiDataset(dset_path, transform = transform, cfg = cfg) #---- Dataloader
+print("Number of Images in Dataset: ", len(kitti_dataset))
+
+## Split into train & validation
 train_len = int(cfg.TRAIN.DATASET_DIVIDE*len(kitti_dataset))
 val_len = len(kitti_dataset) - train_len
 kitti_train_dataset, kitti_test_dataset = torch.utils.data.random_split(kitti_dataset, [train_len, val_len])
@@ -76,19 +84,43 @@ kitti_train_dataset, kitti_test_dataset = torch.utils.data.random_split(kitti_da
 kitti_train_loader = torch.utils.data.DataLoader(kitti_train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn)
 kitti_val_loader = torch.utils.data.DataLoader(kitti_test_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn)
 
+#----------------------------------------------#
+
+
+#--------- Define the model ---------------#
+
 frcnn = FRCNN(cfg)
 if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
 
-## Initialize RPN params
 
+## Initialize RPN params
 if cfg.TRAIN.OPTIM.lower() == 'adam':
 	optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.LR)
 elif cfg.TRAIN.OPTIM.lower() == 'sgd':
 	optimizer = optim.SGD(frcnn.parameters(), lr=cfg.TRAIN.LR, momentum=cfg.TRAIN.MOMENTUM)
 else:
 	raise ValueError('Optimizer must be one of \"sgd\" or \"adam\"')
+
+loss_object = RPNLoss(cfg)
+
+rpn_target = RPN_targets(cfg)
+if cfg.USE_CUDA:
+	frcnn = frcnn.cuda()
+	loss_object = loss_object.cuda()
+	# optimizer = optimizer.cuda()
+	cfg.DTYPE.FLOAT = 'torch.cuda.FloatTensor'
+	cfg.DTYPE.LONG = 'torch.cuda.LongTensor'
+#-----------------------------------------#
+
+
+
+
+
+#--------- Training Procedure -------------#
+
+#------- Loading previous point or running new----------#
 
 checkpoint_path = model_dir_path + 'checkpoint.txt'
 
@@ -134,23 +166,16 @@ else:
 	epoch = 0
 	loss = 0
 
-
-loss_object = RPNLoss(cfg)
-
-rpn_target = RPN_targets(cfg)
-if cfg.USE_CUDA:
-	frcnn = frcnn.cuda()
-	loss_object = loss_object.cuda()
-	# optimizer = optimizer.cuda()
-	cfg.DTYPE.FLOAT = 'torch.cuda.FloatTensor'
-	cfg.DTYPE.LONG = 'torch.cuda.LongTensor'
+#-----------------------------------------#
 
 
 epochs = cfg.TRAIN.EPOCHS
 
 lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
+
 frcnn.train()
 
+tb_writer = tensorboard.SummaryWriter()
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
 
@@ -221,11 +246,17 @@ while epoch <= epochs:
 			# batch_loss_classify.backward()
 			# batch_loss_regress.backward()
 			optimizer.step()
+			
 			file.write("Class/Reg loss: {} {} epoch and image_number: {} {} \n".format(batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, epoch, image_number))
 			print("Class/Reg loss:", batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, " epoch and image_number: ", epoch, image_number)
+			
+			tb_writer.add_scalar('Loss/Classification', batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, image_number/cfg.TRAIN.FAKE_BATCHSIZE)
+			tb_writer.add_scalar('Loss/Regression', batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, image_number/cfg.TRAIN.FAKE_BATCHSIZE)
+
 			file.write("only, bbox, sigma, neg: {} {} {} {} \n".format(batch_loss_regress_bbox_only.item(), batch_loss_regress_bbox.item(), batch_loss_regress_sigma.item(), batch_loss_regress_neg.item()))
 			print("only:", batch_loss_regress_bbox_only.item(), "bbox: ", batch_loss_regress_bbox.item(), 
 				"sigma:", batch_loss_regress_sigma.item(), "neg:", batch_loss_regress_neg.item())
+			
 			file.write("Class/Reg grads: {} {}  \n".format(frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item()))
 			print("Class/Reg grads: ", frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item())
 			# paramList = list(filter(lambda p : p.grad is not None, [param for param in frcnn.rpn_model.parameters()]))
