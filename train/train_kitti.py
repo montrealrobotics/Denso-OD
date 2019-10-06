@@ -98,9 +98,9 @@ if cfg.TRAIN.FREEZE_BACKBONE:
 
 ## Initialize RPN params
 if cfg.TRAIN.OPTIM.lower() == 'adam':
-	optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.LR)
+	optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.LR, weight_decay=0.01)
 elif cfg.TRAIN.OPTIM.lower() == 'sgd':
-	optimizer = optim.SGD(frcnn.parameters(), lr=cfg.TRAIN.LR, momentum=cfg.TRAIN.MOMENTUM)
+	optimizer = optim.SGD(frcnn.parameters(), lr=cfg.TRAIN.LR, momentum=cfg.TRAIN.MOMENTUM, weight_decay=0.01)
 else:
 	raise ValueError('Optimizer must be one of \"sgd\" or \"adam\"')
 
@@ -159,7 +159,7 @@ if path.exists(checkpoint_path):
 		loss = checkpoint['loss']
 
 	else:
-		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR)
+		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR, weight_decay=0.01)
 		epoch = 0
 		loss = 0
 else:
@@ -292,7 +292,7 @@ while epoch <= epochs:
 	print(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
 
 	## Decaying learning rate
-	lr_schedular.step()
+	lr_scheduler.step()
 
 	# # Saving at the end of the epoch
 	if epoch % cfg.TRAIN.SAVE_MODEL_EPOCHS == 0:

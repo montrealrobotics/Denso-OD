@@ -4,7 +4,7 @@ Contains default params for object detector
 
 import os
 from yacs.config import CfgNode as CN
-import argparser
+import argparse
 
 
 ## Intiailizing..
@@ -130,6 +130,6 @@ conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'p
 conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 5.0 	### Scale classification loss by this amount
-conf_params.TRAIN.FAKE_BATCHSIZE = 27	 ### fake batch
+conf_params.TRAIN.FAKE_BATCHSIZE = 8	 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
