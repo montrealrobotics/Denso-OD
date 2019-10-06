@@ -281,6 +281,9 @@ while epoch <= epochs:
 	file.write(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
 	print(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
 
+	## Decaying learning rate
+	lr_schedular.step()
+
 	# # Saving at the end of the epoch
 	if epoch % cfg.TRAIN.SAVE_MODEL_EPOCHS == 0:
 		model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
@@ -295,7 +298,5 @@ while epoch <= epochs:
 		with open(checkpoint_path, 'w') as f:
 			f.writelines(model_path)
 
-	## For learing rate decay
-	lr_scheduler.step()
 
 file.close()
