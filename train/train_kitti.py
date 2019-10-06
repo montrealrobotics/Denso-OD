@@ -176,7 +176,7 @@ lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.
 
 frcnn.train()
 
-tb_writer = tensorboard.SummaryWriter()
+tb_writer = tensorboard.SummaryWriter(model_dir_path)
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
 

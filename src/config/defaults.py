@@ -4,10 +4,16 @@ Contains default params for object detector
 
 import os
 from yacs.config import CfgNode as CN
+import argparser
 
 
 ## Intiailizing..
 conf_params = CN()
+
+# ## Paths config
+
+# conf_params.PATH = CN()
+# conf_params.DIRECTORY = 
 
 ##### Whether to use cuda or not #####
 conf_params.USE_CUDA = False ## False by default, to be changed to True in the code if cuda is available
@@ -36,6 +42,9 @@ conf_params.BACKBONE.MODEL_NAME = 'resnet50'
 
 ### choices = [1,2,3,4]
 conf_params.BACKBONE.RESNET_STOP_LAYER = 4 
+
+
+
 
 
 ##### Input config #####
