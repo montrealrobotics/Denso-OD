@@ -98,9 +98,9 @@ if cfg.TRAIN.FREEZE_BACKBONE:
 
 ## Initialize RPN params
 if cfg.TRAIN.OPTIM.lower() == 'adam':
-	optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.LR)
+	optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.LR, weight_decay=0.01)
 elif cfg.TRAIN.OPTIM.lower() == 'sgd':
-	optimizer = optim.SGD(frcnn.parameters(), lr=cfg.TRAIN.LR, momentum=cfg.TRAIN.MOMENTUM)
+	optimizer = optim.SGD(frcnn.parameters(), lr=cfg.TRAIN.LR, momentum=cfg.TRAIN.MOMENTUM, weight_decay=0.01)
 else:
 	raise ValueError('Optimizer must be one of \"sgd\" or \"adam\"')
 
@@ -159,7 +159,7 @@ if path.exists(checkpoint_path):
 		loss = checkpoint['loss']
 
 	else:
-		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR)
+		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR, weight_decay=0.01)
 		epoch = 0
 		loss = 0
 else:
@@ -176,7 +176,7 @@ lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.
 
 frcnn.train()
 
-tb_writer = tensorboard.SummaryWriter()
+tb_writer = tensorboard.SummaryWriter(model_dir_path)
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
 
@@ -241,18 +241,25 @@ while epoch <= epochs:
 
 
 		if cfg.TRAIN.FAKE_BATCHSIZE > 0 and image_number % cfg.TRAIN.FAKE_BATCHSIZE == 0 and idx > 0:
+			
 			batch_loss_regress = batch_loss_regress_bbox + batch_loss_regress_sigma + batch_loss_regress_neg
-			batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
+			# batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
+			batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify + batch_loss_regress_bbox_only)/cfg.TRAIN.FAKE_BATCHSIZE
 			batch_loss.backward()
 			# batch_loss_classify.backward()
 			# batch_loss_regress.backward()
-			optimizer.step()
 			
+			optimizer.step()
+
+			#------------ Logging and Printing ----------#
 			file.write("Class/Reg loss: {} {} epoch and image_number: {} {} \n".format(batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, epoch, image_number))
 			print("Class/Reg loss:", batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, " epoch and image_number: ", epoch, image_number)
 			
-			tb_writer.add_scalar('Loss/Classification', batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, image_number/cfg.TRAIN.FAKE_BATCHSIZE)
-			tb_writer.add_scalar('Loss/Regression', batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, image_number/cfg.TRAIN.FAKE_BATCHSIZE)
+			
+			itr_num  = image_number/cfg.TRAIN.FAKE_BATCHSIZE
+			tb_writer.add_scalar('Loss/Classification', batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+			tb_writer.add_scalar('Loss/Regression', batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+			tb_writer.add_scalar('Loss/Euclidean', batch_loss_regress_bbox_only.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
 
 			file.write("only, bbox, sigma, neg: {} {} {} {} \n".format(batch_loss_regress_bbox_only.item(), batch_loss_regress_bbox.item(), batch_loss_regress_sigma.item(), batch_loss_regress_neg.item()))
 			print("only:", batch_loss_regress_bbox_only.item(), "bbox: ", batch_loss_regress_bbox.item(), 
@@ -263,6 +270,9 @@ while epoch <= epochs:
 			# paramList = list(filter(lambda p : p.grad is not None, [param for param in frcnn.rpn_model.parameters()]))
 			# totalNorm = sum([(p.grad.data.norm(2.) ** 2.) for p in paramList]) ** (1. / 2)
 			# print('gradNorm: ', str(totalNorm.item()))
+
+			#------------------------------------------------#
+
 			optimizer.zero_grad()
 			running_loss_classify += batch_loss_classify
 			running_loss_regress += batch_loss_regress
@@ -282,7 +292,7 @@ while epoch <= epochs:
 	print(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
 
 	## Decaying learning rate
-	lr_schedular.step()
+	lr_scheduler.step()
 
 	# # Saving at the end of the epoch
 	if epoch % cfg.TRAIN.SAVE_MODEL_EPOCHS == 0:
