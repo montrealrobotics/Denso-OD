@@ -197,10 +197,12 @@ for images, labels, img_name in kitti_val_loader:
 	for i in np.arange(len(bbox_locs)):
 		count = 0
 		# print("Norm is: ",prediction['bbox_uncertainty_pred'][0,i,:].norm())
-		if prediction['bbox_class'][0,i,:][1].item() > 0.95 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 1.5:
+		# if prediction['bbox_class'][0,i,:][1].item() > 0.95 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 1.5:
+		if prediction['bbox_class'][0,i,:][1].item() > 0.9:
 			# print(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3])
 			print(prediction['bbox_class'][0,i,:][1].item(), prediction['bbox_uncertainty_pred'][0,i,:].norm())
-			valid_box = check_validity(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3], img.shape[1], img.shape[0]) ## throw away those boxes which are not inside the image
+			# valid_box = check_validity(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3], img.shape[1], img.shape[0]) ## throw away those boxes which are not inside the image
+			valid_box =  True
 			if valid_box:
 				# print("Trueeee")
 				count += 1

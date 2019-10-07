@@ -116,7 +116,7 @@ For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
-conf_params.TRAIN.LR = 1e-5
+conf_params.TRAIN.LR = 1e-4
 conf_params.TRAIN.MOMENTUM = 0.09 # Used only when TRAIN.OPTIM is set to 'sgd'
 conf_params.TRAIN.EPOCHS = 40
 conf_params.TRAIN.MILESTONES = 10, 20, 28, 35	
@@ -130,6 +130,7 @@ conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'p
 conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 5.0 	### Scale classification loss by this amount
-conf_params.TRAIN.FAKE_BATCHSIZE = 8	 ### fake batch
+conf_params.TRAIN.EUCLIDEAN_LOSS_SCALE = 30
+conf_params.TRAIN.FAKE_BATCHSIZE = 25	 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image

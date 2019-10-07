@@ -244,7 +244,7 @@ while epoch <= epochs:
 			
 			batch_loss_regress = batch_loss_regress_bbox + batch_loss_regress_sigma + batch_loss_regress_neg
 			# batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
-			batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify + batch_loss_regress_bbox_only)/cfg.TRAIN.FAKE_BATCHSIZE
+			batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify + cfg.TRAIN.EUCLIDEAN_LOSS_SCALE*batch_loss_regress_bbox_only)/cfg.TRAIN.FAKE_BATCHSIZE
 			batch_loss.backward()
 			# batch_loss_classify.backward()
 			# batch_loss_regress.backward()
@@ -253,19 +253,25 @@ while epoch <= epochs:
 
 			#------------ Logging and Printing ----------#
 			file.write("Class/Reg loss: {} {} epoch and image_number: {} {} \n".format(batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, epoch, image_number))
-			print("Class/Reg loss:", batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, " epoch and image_number: ", epoch, image_number)
+			print("Class/Reg/Euclidean loss:", batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_loss_regress_bbox_only.item()/cfg.TRAIN.FAKE_BATCHSIZE, " epoch and image_number: ", epoch, image_number)
 			
 			
 			itr_num  = image_number/cfg.TRAIN.FAKE_BATCHSIZE
 			tb_writer.add_scalar('Loss/Classification', batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
 			tb_writer.add_scalar('Loss/Regression', batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+			tb_writer.add_scalar('Loss/Mahalanobis', batch_loss_regress_bbox.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+			tb_writer.add_scalar('Loss/Log-sigma', batch_loss_regress_sigma.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
 			tb_writer.add_scalar('Loss/Euclidean', batch_loss_regress_bbox_only.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+			tb_writer.add_scalar('Loss/Neg anchors', batch_loss_regress_neg.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
 
 			file.write("only, bbox, sigma, neg: {} {} {} {} \n".format(batch_loss_regress_bbox_only.item(), batch_loss_regress_bbox.item(), batch_loss_regress_sigma.item(), batch_loss_regress_neg.item()))
+
 			print("only:", batch_loss_regress_bbox_only.item(), "bbox: ", batch_loss_regress_bbox.item(), 
 				"sigma:", batch_loss_regress_sigma.item(), "neg:", batch_loss_regress_neg.item())
 			
 			file.write("Class/Reg grads: {} {}  \n".format(frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item()))
+			tb_writer.add_scalar('Class/gradient', frcnn.rpn_model.classification_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+			tb_writer.add_scalar('Reg/gradient', frcnn.rpn_model.reg_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
 			print("Class/Reg grads: ", frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item())
 			# paramList = list(filter(lambda p : p.grad is not None, [param for param in frcnn.rpn_model.parameters()]))
 			# totalNorm = sum([(p.grad.data.norm(2.) ** 2.) for p in paramList]) ** (1. / 2)
