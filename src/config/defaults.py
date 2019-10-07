@@ -134,3 +134,5 @@ conf_params.TRAIN.EUCLIDEAN_LOSS_SCALE = 30
 conf_params.TRAIN.FAKE_BATCHSIZE = 25	 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
+
+conf_params.NMS_THRES = 0.1

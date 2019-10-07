@@ -1,1 +1,1 @@
-from .nms import NMS as nms_class
+from .nms import NMS as nms
