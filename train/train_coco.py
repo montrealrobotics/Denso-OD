@@ -151,6 +151,7 @@ while epoch <= epochs:
 
 		targets = process_coco_labels(labels)
 		optimizer.zero_grad()
+		
 		prediction, out = frcnn.forward(input_image)
 		# print(targets['boxes'])
 		try:

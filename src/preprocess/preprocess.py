@@ -18,17 +18,12 @@ def image_transform(cfg):
 	"""
 
 	'''
-	### ToTensor() Converts a PIL Image or numpy.ndarray (H x W x C) in the range [0, 255] to a torch.FloatTensor 
-	of shape (C x H x W) in the range [0.0, 1.0]
+	### ToTensor() Converts a PIL Image or numpy.ndarray (H x W x C) in the range [0, 255] to a torch.FloatTensor  of shape (C x H x W) in the range [0.0, 1.0]  - Does this normalise or standardise?
 
 	'''
 
-	transform = T.Compose([ 
-		T.ToTensor(),			
-		T.Normalize(
-		mean=list(cfg.INPUT.MEAN),
-		std=list(cfg.INPUT.STD)
-		)])
+	transform = T.Compose([T.ToTensor(),
+							T.Normalize(mean=list(cfg.INPUT.MEAN), std=list(cfg.INPUT.STD))])
 
 	return transform 
 
