@@ -16,12 +16,13 @@ import sys
 import numpy as np
 import math
 import argparse
-from PIL import Image
+from PIL import Image, ImageDraw
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
 import os.path as path
 ## Inserting path of src directory
 sys.path.insert(1, '../')
+
 from src.architecture import FRCNN
 from src.config import Cfg as cfg # Configuration file
 from src.RPN import anchor_generator, RPN_targets
@@ -30,9 +31,12 @@ from src.datasets import process_kitti_labels
 from src.datasets import kitti_collate_fn
 from src.datasets import KittiDataset # Dataloader
 from src.loss import RPNLoss
+from src.utils import utils
+
 from torchvision import datasets as dset
 from torchvision import transforms as T
-from torch.utils import tensorboard 
+from torch.utils import tensorboard
+
 
 
 #----- Initial paths setup and loading config values ------ #
@@ -116,9 +120,6 @@ if cfg.USE_CUDA:
 #-----------------------------------------#
 
 
-
-
-
 #--------- Training Procedure -------------#
 
 #------- Loading previous point or running new----------#
@@ -177,15 +178,19 @@ lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.
 frcnn.train()
 
 tb_writer = tensorboard.SummaryWriter(model_dir_path)
+tb_writer.add_graph(frcnn)
+
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
 
 while epoch <= epochs:
+	frcnn.train()
 	epoch += 1
 	image_number = 0
 	running_loss = 0
 	running_loss_classify = 0.
 	running_loss_regress = 0.
+	running_loss_euc = 0.0
 
 	batch_loss = 0.
 	batch_loss_regress = 0.
@@ -217,9 +222,6 @@ while epoch <= epochs:
 		except:
 			print("Inside exception!")
 			continue
-
-		
-		# print(targets['boxes'])
 		
 		image_number += 1
 		target = {}
@@ -248,7 +250,6 @@ while epoch <= epochs:
 			batch_loss.backward()
 			# batch_loss_classify.backward()
 			# batch_loss_regress.backward()
-			
 			optimizer.step()
 
 			#------------ Logging and Printing ----------#
@@ -282,9 +283,8 @@ while epoch <= epochs:
 			optimizer.zero_grad()
 			running_loss_classify += batch_loss_classify
 			running_loss_regress += batch_loss_regress
-			# batch_loss.detach()
-			# batch_loss_regress.detach()
-			# batch_loss_classify.detach()
+			running_loss_euc += batch_loss_regress_bbox_only
+
 			batch_loss = 0.
 			batch_loss_classify = 0.
 			batch_loss_regress = 0.
@@ -293,10 +293,84 @@ while epoch <= epochs:
 			batch_loss_regress_neg = 0.
 			batch_loss_regress_bbox_only = 0.
 
+	
+	frcnn.eval()
+	rnd_indxs = np.random.randint(0, val_len-1, 5)
+
+	val_loss_classify = []
+	val_loss_regress = []
+	val_loss_euclidean = []
+
+	for idx, (images, labels, paths) in enumerate(kitti_val_loader):
+
+		input_image = images
+
+		if cfg.USE_CUDA:
+			input_image = input_image.cuda()
+
+		## If there are no ground truth objects in an image, we do this to not run into an error
+		if len(labels) is 0:
+			continue
+
+		targets = process_kitti_labels(cfg, labels)
+		# optimizer.zero_grad()
+
+		prediction, out = frcnn.forward(input_image)
+		# print(out.shape)
+
+		try:
+			valid_anchors, valid_labels, xx = rpn_target.get_targets(input_image, out, targets)
+		except:
+			print("Inside exception!")
+			continue
+		
+		image_number += 1
+		target = {}
+		target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
+		target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
+		valid_indices = np.where(valid_labels != -1)
+		prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
+		prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
+		prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
+		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
+		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
+		loss_classify, loss_regress_bbox, loss_regress_sigma, loss_regress_neg, loss_regress_bbox_only = loss_object(prediction, target, valid_indices)
+		val_loss_euclidean.append(loss_regress_bbox_only.item())
+		val_loss_classify.append(loss_classify.item())
+		val_loss_regress.append(loss_regress_bbox.item())
+
+		bbox_locs = get_actual_coords(prediction, orig_anchors)	
+		
+		if cfg.NMS.USE_NMS==True:
+			nms = NMS(cfg.NMS_THRES)
+			print(prediction['bbox_class'].shape)
+			index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
+			index_to_keep = index_to_keep.numpy()
+		else:
+			index_to_keep = range(len(bbox_locs))
+
+		if idx in rnd_indxs:
+			img = np.array(Image.open(paths[0]), dtype=np.uint)
+			for i in np.arange(len(bbox_locs)):
+				count = 0
+				if prediction['bbox_class'][0,idx,:][1].item() > 0.95 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 5.0 and i in index_to_keep:
+					drawer = ImageDraw.Draw(img, mode=None)
+					drawer.rectangle(bbox_locs[idx])
+
+			tb_writer.add_image('images', img)
+
+	val_loss_classify = np.mean(val_loss_classify)
+	val_loss_regress =np.mean(val_loss_regress)
+	val_loss_euclidean = np.mean(val_loss_euclidean)
+	tb_writer.add_scalars('loss/classification', {'validation': val_loss_classify, 'train': running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
+	tb_writer.add_scalars('loss/regression', {'validation': val_loss_regress, 'train': running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
+	tb_writer.add_scalars('loss/euclidean', {'validation': val_loss_euclidean, 'train': running_loss_euc.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
 
 	file.write(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
 	print(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
+	print("Validation Loss - Classification loss: ", val_loss_classify, "Regression Loss: ", val_loss_regress, "Euclidean Loss: ", val_loss_euclidean)
 
+		
 	## Decaying learning rate
 	lr_scheduler.step()
 
