@@ -178,7 +178,7 @@ lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.
 frcnn.train()
 
 tb_writer = tensorboard.SummaryWriter(model_dir_path)
-tb_writer.add_graph(frcnn)
+# tb_writer.add_graph(frcnn)
 
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
@@ -339,7 +339,7 @@ while epoch <= epochs:
 		val_loss_classify.append(loss_classify.item())
 		val_loss_regress.append(loss_regress_bbox.item())
 
-		bbox_locs = get_actual_coords(prediction, orig_anchors)	
+		bbox_locs = utils.get_actual_coords(prediction, orig_anchors)	
 		
 		if cfg.NMS.USE_NMS==True:
 			nms = NMS(cfg.NMS_THRES)

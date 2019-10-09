@@ -131,7 +131,7 @@ conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for traini
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 5.0 	### Scale classification loss by this amount
 conf_params.TRAIN.EUCLIDEAN_LOSS_SCALE = 30
-conf_params.TRAIN.FAKE_BATCHSIZE = 25	 ### fake batch
+conf_params.TRAIN.FAKE_BATCHSIZE = 10	 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
 
