@@ -24,7 +24,7 @@ class NMS(object):
             y2 = reg[:, 3]
             scores = scores[0,:, 1]
 
-            print(x1, y1, x2, y2, scores)
+            # print(x1, y1, x2, y2, scores)
 
             areas = (x2 - x1 + 1) * (y2 - y1 + 1)
             order = scores.argsort()[::-1]

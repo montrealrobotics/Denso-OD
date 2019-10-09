@@ -12,8 +12,9 @@ conf_params = CN()
 
 # ## Paths config
 
-# conf_params.PATH = CN()
-# conf_params.DIRECTORY = 
+conf_params.PATH = CN()
+conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
+conf_params.PATH.LOGS = "/network/home/bansaldi/Denso-OD/logs"
 
 ##### Whether to use cuda or not #####
 conf_params.USE_CUDA = False ## False by default, to be changed to True in the code if cuda is available
@@ -131,7 +132,7 @@ conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for traini
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 5.0 	### Scale classification loss by this amount
 conf_params.TRAIN.EUCLIDEAN_LOSS_SCALE = 30
-conf_params.TRAIN.FAKE_BATCHSIZE = 10	 ### fake batch
+conf_params.TRAIN.FAKE_BATCHSIZE = 25 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
 

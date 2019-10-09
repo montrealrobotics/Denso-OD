@@ -32,6 +32,7 @@ from src.datasets import kitti_collate_fn
 from src.datasets import KittiDataset # Dataloader
 from src.loss import RPNLoss
 from src.utils import utils
+from src.NMS import nms as NMS
 
 from torchvision import datasets as dset
 from torchvision import transforms as T
@@ -42,12 +43,11 @@ from torch.utils import tensorboard
 #----- Initial paths setup and loading config values ------ #
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-dp", "--datasetpath", required = True, help="give dataset path")
-ap.add_argument("-mp", "--modelpath", required = True, help="give model directory path")
+ap.add_argument("-name", "--experiment_comment", required = True, help="Comments for the experiment")
 
 args = vars(ap.parse_args())
-dset_path = args["datasetpath"]
-model_dir_path = args["modelpath"]
+dset_path = cfg.PATH.DATASET
+model_dir_path = cfg.PATH.LOGS + "/" + args["experiment_comment"]
 
 if not path.exists(dset_path):
 	print("Dataset path doesn't exist")
@@ -98,6 +98,10 @@ frcnn = FRCNN(cfg)
 if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
+
+for layer in frcnn.backbone_obj.modules():
+    if isinstance(layer, torch.nn.BatchNorm2d):
+        layer.eval()
 
 
 ## Initialize RPN params
@@ -175,9 +179,8 @@ epochs = cfg.TRAIN.EPOCHS
 
 lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
-frcnn.train()
-
 tb_writer = tensorboard.SummaryWriter(model_dir_path)
+
 # tb_writer.add_graph(frcnn)
 
 # for n, p in frcnn.rpn_model.named_parameters():
@@ -218,7 +221,7 @@ while epoch <= epochs:
 		# print(out.shape)
 
 		try:
-			valid_anchors, valid_labels, xx = rpn_target.get_targets(input_image, out, targets)
+			valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, out, targets)
 		except:
 			print("Inside exception!")
 			continue
@@ -245,8 +248,8 @@ while epoch <= epochs:
 		if cfg.TRAIN.FAKE_BATCHSIZE > 0 and image_number % cfg.TRAIN.FAKE_BATCHSIZE == 0 and idx > 0:
 			
 			batch_loss_regress = batch_loss_regress_bbox + batch_loss_regress_sigma + batch_loss_regress_neg
-			# batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
-			batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify + cfg.TRAIN.EUCLIDEAN_LOSS_SCALE*batch_loss_regress_bbox_only)/cfg.TRAIN.FAKE_BATCHSIZE
+			batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
+			# batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify + cfg.TRAIN.EUCLIDEAN_LOSS_SCALE*batch_loss_regress_bbox_only)/cfg.TRAIN.FAKE_BATCHSIZE
 			batch_loss.backward()
 			# batch_loss_classify.backward()
 			# batch_loss_regress.backward()
@@ -319,7 +322,7 @@ while epoch <= epochs:
 		# print(out.shape)
 
 		try:
-			valid_anchors, valid_labels, xx = rpn_target.get_targets(input_image, out, targets)
+			valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, out, targets)
 		except:
 			print("Inside exception!")
 			continue
@@ -343,20 +346,22 @@ while epoch <= epochs:
 		
 		if cfg.NMS.USE_NMS==True:
 			nms = NMS(cfg.NMS_THRES)
-			print(prediction['bbox_class'].shape)
 			index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
 			index_to_keep = index_to_keep.numpy()
 		else:
 			index_to_keep = range(len(bbox_locs))
 
 		if idx in rnd_indxs:
-			img = np.array(Image.open(paths[0]), dtype=np.uint)
+			# img = np.array(Image.open(paths[0]), dtype=np.uint8)
+			img = Image.open(paths[0])
 			for i in np.arange(len(bbox_locs)):
 				count = 0
-				if prediction['bbox_class'][0,idx,:][1].item() > 0.95 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 5.0 and i in index_to_keep:
+				# if prediction['bbox_class'][0,idx,:][1].item() > 0.95 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 5.0 and i in index_to_keep:
+				if True:
 					drawer = ImageDraw.Draw(img, mode=None)
-					drawer.rectangle(bbox_locs[idx])
-
+					drawer.rectangle(bbox_locs[idx], outline ='red' ,width=3)
+			# img = torch.from_numpy(img).permute(2,0,1)/255
+			img = np.transpose(np.array(img, dtype=np.uint8), (2,0,1))
 			tb_writer.add_image('images', img)
 
 	val_loss_classify = np.mean(val_loss_classify)
@@ -374,6 +379,7 @@ while epoch <= epochs:
 	## Decaying learning rate
 	lr_scheduler.step()
 
+	print("Epoch Complete: ", epoch)
 	# # Saving at the end of the epoch
 	if epoch % cfg.TRAIN.SAVE_MODEL_EPOCHS == 0:
 		model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
