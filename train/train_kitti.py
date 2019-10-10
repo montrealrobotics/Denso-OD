@@ -203,10 +203,10 @@ while epoch <= epochs:
 	batch_loss_regress_neg = 0.
 	batch_loss_regress_bbox_only = 0.
 
-	for idx, (images, labels, paths) in enumerate(kitti_train_loader):
+	for idx, (image, labels, paths) in enumerate(kitti_train_loader):
 		
 		
-		input_image = images
+		input_image = image
 		if cfg.USE_CUDA:
 			input_image = input_image.cuda()
 
@@ -304,9 +304,9 @@ while epoch <= epochs:
 	val_loss_regress = []
 	val_loss_euclidean = []
 
-	for idx, (images, labels, paths) in enumerate(kitti_val_loader):
+	for idx, (image, labels, paths) in enumerate(kitti_val_loader):
 
-		input_image = images
+		input_image = image
 
 		if cfg.USE_CUDA:
 			input_image = input_image.cuda()
@@ -316,10 +316,8 @@ while epoch <= epochs:
 			continue
 
 		targets = process_kitti_labels(cfg, labels)
-		# optimizer.zero_grad()
 
 		prediction, out = frcnn.forward(input_image)
-		# print(out.shape)
 
 		try:
 			valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, out, targets)
@@ -344,24 +342,22 @@ while epoch <= epochs:
 
 		bbox_locs = utils.get_actual_coords(prediction, orig_anchors)	
 		
-		if cfg.NMS.USE_NMS==True:
+		if idx in rnd_indxs:
+
+			if cfg.NMS.USE_NMS==True:
 			nms = NMS(cfg.NMS_THRES)
 			index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
 			index_to_keep = index_to_keep.numpy()
-		else:
-			index_to_keep = range(len(bbox_locs))
+			else:
+				index_to_keep = range(len(bbox_locs)).numpy()
 
-		if idx in rnd_indxs:
-			# img = np.array(Image.open(paths[0]), dtype=np.uint8)
-			img = Image.open(paths[0])
-			for i in np.arange(len(bbox_locs)):
-				count = 0
-				# if prediction['bbox_class'][0,idx,:][1].item() > 0.95 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 5.0 and i in index_to_keep:
-				if True:
-					drawer = ImageDraw.Draw(img, mode=None)
-					drawer.rectangle(bbox_locs[idx], outline ='red' ,width=3)
-			# img = torch.from_numpy(img).permute(2,0,1)/255
-			img = np.transpose(np.array(img, dtype=np.uint8), (2,0,1))
+			for i, box_idx in enumerate(index_to_keep):
+				if prediction['bbox_class'][0,box_idx,:][1].item() <= 0.95 and prediction['bbox_uncertainty_pred'][0,box_idx,:].norm() >= 5.0:
+					np.delete(index_to_keep, i)
+
+			bbox_locs = bbox_locs[index_to_keep]
+			img = utils.draw_bbox(image, bbox_locs)
+			img = np.transpose(img, (2,0,1))
 			tb_writer.add_image('images', img)
 
 	val_loss_classify = np.mean(val_loss_classify)

@@ -48,3 +48,16 @@ def check_validity(x1,y1,w,h, img_w, img_h):
 def xy_to_wh(x1, y1, x2, y2):
 	return (x1, y1, x2-x1, y2-y1)
 
+def draw_bbox(image, bboxes):
+	image = Image.fromarray(image)
+	drawer = ImageDraw.Draw(image, mode=None)
+	
+	for i in range(len(bboxes)):
+		drawer.rectangle(bboxes[idx], outline ='red' ,width=3)
+
+	return np.asarray(image), image	
+
+
+
+
+

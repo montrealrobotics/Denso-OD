@@ -187,7 +187,7 @@ for images, labels, img_name in kitti_val_loader:
 		if prediction['bbox_class'][0,i,:][1].item() < 0.8:
 			prediction['bbox_pred'][0,i,:] = 0
 
-	bbox_locs, bbox_locs_xy = get_actual_coords(prediction['bbox_pred'], orig_anchors)
+	bbox_locs = get_actual_coords(prediction, orig_anchors)
 
 	nms = NMS(cfg.NMS_THRES)
 	print(prediction['bbox_class'].shape)
@@ -198,10 +198,7 @@ for images, labels, img_name in kitti_val_loader:
 
 	img = np.array(Image.open(img_name[0]), dtype=np.uint)
 	print(img.shape)
-	fig,ax = plt.subplots(1)
 
-	# Display the image
-	ax.imshow(img)
 	# box_count_array = []
 	for i in np.arange(len(bbox_locs)):
 		count = 0
@@ -211,28 +208,13 @@ for images, labels, img_name in kitti_val_loader:
 			# print(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3])
 			print(prediction['bbox_class'][0,i,:][1].item(), prediction['bbox_uncertainty_pred'][0,i,:].norm())
 			# valid_box = check_validity(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3], img.shape[1], img.shape[0]) ## throw away those boxes which are not inside the image
-			valid_box =  True
-			if valid_box:
-				# print("Trueeee")
-				count += 1
-				rect = patches.Rectangle((bbox_locs[i][0],bbox_locs[i][1]),bbox_locs[i][2],bbox_locs[i][3],linewidth=1,edgecolor='r',facecolor='none')		
-				ax.add_patch(rect)
-			# else:
-			# 	# print("Falseeeee")
-		# box_count_array.append(count)
+			img, img_pil = utils.draw_bbox(img, bbox_locs)
 
-	# Create a Rectangle patch
-	# rect = patches.Rectangle((50,100),100,300,linewidth=1,edgecolor='r',facecolor='none')
-
-	# Add the patch to the Axes
-
-
-	# plt.show()
-	fig.savefig('/network/tmp1/bansaldi/output/' + str(image_number).zfill(6) + '.png', dpi=fig.dpi)
-	# break
-	# print("Bounding boxes are:" prediction['bbox_pred'])
-	# print("bbox_class")
-
-
+	# plt.show()`
+	fig.savefig(`'/network/tmp1/bansaldi/output/' + str(image_number).zfill(6) + '.png', dpi=fig.dpi)
+	img_pil.save(model_dir_path+'/results/'+str(image_number).zfill(6)+'.png')
+	# break`
+	# print`("Bou`nding boxes are:" prediction['bbox_pred'])
+	# print`("bbo`x_class")
 			# print("Box and coords are: ", prediction['bbox_class'][0,i,:], prediction['bbox_pred'][0,i,:])
 
