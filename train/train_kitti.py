@@ -364,7 +364,8 @@ while epoch <= epochs:
 					np.delete(index_to_keep, i)
 
 			bbox_locs = bbox_locs[index_to_keep]
-			img = utils.draw_bbox(image, bbox_locs)
+			img, img_pil = utils.draw_bbox(image.numpy().astype('uint8'), bbox_locs)
+			
 			img = np.transpose(img, (2,0,1))
 			tb_writer.add_image('images', img)
 

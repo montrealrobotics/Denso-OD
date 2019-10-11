@@ -49,6 +49,12 @@ def xy_to_wh(x1, y1, x2, y2):
 	return (x1, y1, x2-x1, y2-y1)
 
 def draw_bbox(image, bboxes):
+
+	if len(image.shape)==4:
+		image = image[0]
+	if image.shape[2]!=3:
+		image = image.transpose((1,2,0))
+
 	image = Image.fromarray(image)
 	drawer = ImageDraw.Draw(image, mode=None)
 	
