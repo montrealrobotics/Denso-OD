@@ -16,7 +16,7 @@ import sys
 import numpy as np
 import math
 import argparse
-from PIL import Image
+from PIL import Image, ImageDraw
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
 import os.path as path
@@ -32,6 +32,7 @@ from src.datasets import KittiDataset # Dataloader
 from src.loss import RPNLoss
 from torchvision import datasets as dset
 from torchvision import transforms as T
+from src.utils import utils
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -187,32 +188,33 @@ for images, labels, img_name in kitti_val_loader:
 		if prediction['bbox_class'][0,i,:][1].item() < 0.8:
 			prediction['bbox_pred'][0,i,:] = 0
 
-	bbox_locs = get_actual_coords(prediction, orig_anchors)
+	bbox_locs = utils.get_actual_coords(prediction, orig_anchors)
 
 	nms = NMS(cfg.NMS_THRES)
 	print(prediction['bbox_class'].shape)
-	index_to_keep = nms.apply_nms(bbox_locs_xy, prediction['bbox_class'])
+	index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
 	index_to_keep = index_to_keep.numpy()
 
 	print(index_to_keep)
 
-	img = np.array(Image.open(img_name[0]), dtype=np.uint)
-	print(img.shape)
+	img = np.asarray(Image.open(img_name[0]))
 
-	# box_count_array = []
+	box_array = []
 	for i in np.arange(len(bbox_locs)):
 		count = 0
 		# print("Norm is: ",prediction['bbox_uncertainty_pred'][0,i,:].norm())
-		if prediction['bbox_class'][0,i,:][1].item() > 0.9 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 50.0 and i in index_to_keep:
+		if prediction['bbox_class'][0,i,:][1].item() > 0.99 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 50.0 and i in index_to_keep:
 		# if prediction['bbox_class'][0,i,:][1].item() > 0.95:
+			box_array.append(bbox_locs[i])
 			# print(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3])
-			print(prediction['bbox_class'][0,i,:][1].item(), prediction['bbox_uncertainty_pred'][0,i,:].norm())
+			# print(prediction['bbox_class'][0,i,:][1].item(), prediction['bbox_uncertainty_pred'][0,i,:].norm())
 			# valid_box = check_validity(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3], img.shape[1], img.shape[0]) ## throw away those boxes which are not inside the image
-			img, img_pil = utils.draw_bbox(img, bbox_locs)
+			
+	img, img_pil = utils.draw_bbox(img, box_array)
 
 	# plt.show()`
-	fig.savefig(`'/network/tmp1/bansaldi/output/' + str(image_number).zfill(6) + '.png', dpi=fig.dpi)
-	img_pil.save(model_dir_path+'/results/'+str(image_number).zfill(6)+'.png')
+	# fig.savefig(`'/network/tmp1/bansaldi/output/' + str(image_number).zfill(6) + '.png', dpi=fig.dpi)
+	img_pil.save('/network/home/bansaldi/Denso-OD/logs/batchnorm_corrected/results/'+str(image_number).zfill(6)+'.png')
 	# break`
 	# print`("Bou`nding boxes are:" prediction['bbox_pred'])
 	# print`("bbo`x_class")

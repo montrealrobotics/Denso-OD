@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import math
 import argparse
-from PIL import Image
+from PIL import Image, ImageDraw
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
 import os.path as path
@@ -52,8 +52,8 @@ def draw_bbox(image, bboxes):
 	image = Image.fromarray(image)
 	drawer = ImageDraw.Draw(image, mode=None)
 	
-	for i in range(len(bboxes)):
-		drawer.rectangle(bboxes[idx], outline ='red' ,width=3)
+	for i in bboxes:
+		drawer.rectangle(i, outline ='red' ,width=3)
 
 	return np.asarray(image), image	
 

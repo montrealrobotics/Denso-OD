@@ -46,16 +46,25 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-name", "--experiment_comment", required = True, help="Comments for the experiment")
 
 args = vars(ap.parse_args())
+
 dset_path = cfg.PATH.DATASET
-model_dir_path = cfg.PATH.LOGS + "/" + args["experiment_comment"]
+experiment_dir = cfg.PATH.LOGS + "/" + args["experiment_comment"]
+
+results_dir = experiment_dir+"/results"
+graph_dir = experiment_dir+"/tf_summary"
+model_save_dir = experiment_dir+"/models"
 
 if not path.exists(dset_path):
 	print("Dataset path doesn't exist")
-if not path.exists(model_dir_path):
-	os.mkdir(model_dir_path)
+if not path.exists(experiment_dir):
+	os.mkdir(experiment_dir)
+	ok.mkdir(experiment_dir+"/results")
+	ok.mkdir(experiment_dir+"/models")
+	ok.mkdir(experiment_dir+"/tf_summary")
+
 
 print("reached here!!!!")
-file = open(model_dir_path+"/train_log.txt", 'w')
+file = open(experiment_dir+"/train_log.txt", 'w')
 
 # Setting the seeds
 torch.manual_seed(cfg.RANDOMIZATION.SEED)
@@ -99,9 +108,9 @@ if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
 
-for layer in frcnn.backbone_obj.modules():
-    if isinstance(layer, torch.nn.BatchNorm2d):
-        layer.eval()
+# for layer in frcnn.backbone_obj.modules():
+#     if isinstance(layer, torch.nn.BatchNorm2d):
+#         layer.eval()
 
 
 ## Initialize RPN params
@@ -128,7 +137,7 @@ if cfg.USE_CUDA:
 
 #------- Loading previous point or running new----------#
 
-checkpoint_path = model_dir_path + 'checkpoint.txt'
+checkpoint_path = experiment_dir + 'checkpoint.txt'
 
 if path.exists(checkpoint_path):
 	with open(checkpoint_path, "r") as f: 
@@ -179,15 +188,15 @@ epochs = cfg.TRAIN.EPOCHS
 
 lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
-tb_writer = tensorboard.SummaryWriter(model_dir_path)
+tb_writer = tensorboard.SummaryWriter(graph_dir)
 
 # tb_writer.add_graph(frcnn)
 
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
 
+frcnn.eval()
 while epoch <= epochs:
-	frcnn.train()
 	epoch += 1
 	image_number = 0
 	running_loss = 0
@@ -297,7 +306,7 @@ while epoch <= epochs:
 			batch_loss_regress_bbox_only = 0.
 
 	
-	frcnn.eval()
+	# frcnn.eval()
 	rnd_indxs = np.random.randint(0, val_len-1, 5)
 
 	val_loss_classify = []
@@ -343,16 +352,15 @@ while epoch <= epochs:
 		bbox_locs = utils.get_actual_coords(prediction, orig_anchors)	
 		
 		if idx in rnd_indxs:
-
 			if cfg.NMS.USE_NMS==True:
-			nms = NMS(cfg.NMS_THRES)
-			index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
-			index_to_keep = index_to_keep.numpy()
+				nms = NMS(cfg.NMS_THRES)
+				index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
+				index_to_keep = index_to_keep.numpy()
 			else:
 				index_to_keep = range(len(bbox_locs)).numpy()
 
 			for i, box_idx in enumerate(index_to_keep):
-				if prediction['bbox_class'][0,box_idx,:][1].item() <= 0.95 and prediction['bbox_uncertainty_pred'][0,box_idx,:].norm() >= 5.0:
+				if prediction['bbox_class'][0,box_idx,:][1].item() <= 0.95 or prediction['bbox_uncertainty_pred'][0,box_idx,:].norm() >= 5.0:
 					np.delete(index_to_keep, i)
 
 			bbox_locs = bbox_locs[index_to_keep]
@@ -361,7 +369,7 @@ while epoch <= epochs:
 			tb_writer.add_image('images', img)
 
 	val_loss_classify = np.mean(val_loss_classify)
-	val_loss_regress =np.mean(val_loss_regress)
+	val_loss_regress = np.mean(val_loss_regress)
 	val_loss_euclidean = np.mean(val_loss_euclidean)
 	tb_writer.add_scalars('loss/classification', {'validation': val_loss_classify, 'train': running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
 	tb_writer.add_scalars('loss/regression', {'validation': val_loss_regress, 'train': running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
@@ -378,7 +386,7 @@ while epoch <= epochs:
 	print("Epoch Complete: ", epoch)
 	# # Saving at the end of the epoch
 	if epoch % cfg.TRAIN.SAVE_MODEL_EPOCHS == 0:
-		model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+		model_path = model_save_dir + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
 		torch.save({
 				'epoch': epoch,
 				'model_state_dict': frcnn.state_dict(),
