@@ -180,7 +180,7 @@ class RPN_targets(object):
 			disable_index = np.random.choice(neg_anchor_indices, size=(len(neg_anchor_indices) - n_neg), replace=False)
 			anchor_labels[disable_index] = -1
 
-		# print( np.sum( anchor_labels == 1) , np.sum( anchor_labels == 0))
+		
 
 		'''
 		Labels have already been assigned to the anchors, now we need to
@@ -233,11 +233,12 @@ class RPN_targets(object):
 		anchor_labels_final = np.empty((len(anchors), ), dtype = anchor_labels.dtype)
 		anchor_labels_final.fill(-1)
 		anchor_labels_final[inside_indices] = anchor_labels
+		# print( np.sum( anchor_labels_final == 1) , np.sum( anchor_labels_final == 0))
 
 		anchor_locations = np.empty((len(anchors),) + anchors.shape[1:], dtype=anchor_locs.dtype)
 		anchor_locations.fill(0)
 		anchor_locations[inside_indices, :] = anchor_locs
-
+		# print(orig_anchors[anchor_labels_final == 1])
 		return anchor_locations, anchor_labels_final, orig_anchors
 
 	def compute_anchor_iou(self, valid_anchor_boxes, ground_truth_objects):

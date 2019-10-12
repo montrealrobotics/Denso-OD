@@ -41,6 +41,7 @@ class RPN(nn.Module):
 
 		## classification layer
 		self.classification_layer = nn.Conv2d(self.rpn_channels[2], self.n_anchors*2, 1, 1, 0)
+		# self.softmax_classification = nn.Softmax(dim=2)
 		self.classification_layer.weight.data.normal_(cfg.RPN.CONV_MEAN, cfg.RPN.CONV_VAR)
 		self.classification_layer.bias.data.fill_(cfg.RPN.BIAS)
 
@@ -73,6 +74,7 @@ class RPN(nn.Module):
 		result['regression'] = self.eLU(self.reg_layer(x))
 
 		## Output of classification layer
+		# result['classification'] = self.softmax_classification(self.classification_layer(x))
 		result['classification'] = self.classification_layer(x)
 
 		## Output of uncertainty layer

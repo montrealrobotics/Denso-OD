@@ -42,7 +42,7 @@ conf_params.BACKBONE = CN()
 conf_params.BACKBONE.MODEL_NAME = 'resnet50'
 
 ### choices = [1,2,3,4]
-conf_params.BACKBONE.RESNET_STOP_LAYER = 4 
+conf_params.BACKBONE.RESNET_STOP_LAYER = 3 
 
 
 
@@ -83,7 +83,7 @@ Necessary params to define anchors
 """
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = 1, 1.5, 2
-conf_params.ANCHORS.ANCHOR_SCALES = 192, 128, 256
+conf_params.ANCHORS.ANCHOR_SCALES = 32, 64, 128
 conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 
 
@@ -117,10 +117,10 @@ For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
-conf_params.TRAIN.LR = 1e-4
+conf_params.TRAIN.LR = 5e-4
 conf_params.TRAIN.MOMENTUM = 0.09 # Used only when TRAIN.OPTIM is set to 'sgd'
 conf_params.TRAIN.EPOCHS = 40
-conf_params.TRAIN.MILESTONES = 10, 20, 28, 35	
+conf_params.TRAIN.MILESTONES = 20, 50	
 conf_params.TRAIN.DSET_SHUFFLE = True
 conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
 conf_params.TRAIN.FREEZE_BACKBONE = False

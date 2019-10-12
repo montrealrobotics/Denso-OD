@@ -58,9 +58,9 @@ if not path.exists(dset_path):
 	print("Dataset path doesn't exist")
 if not path.exists(experiment_dir):
 	os.mkdir(experiment_dir)
-	ok.mkdir(experiment_dir+"/results")
-	ok.mkdir(experiment_dir+"/models")
-	ok.mkdir(experiment_dir+"/tf_summary")
+	os.mkdir(experiment_dir+"/results")
+	os.mkdir(experiment_dir+"/models")
+	os.mkdir(experiment_dir+"/tf_summary")
 
 
 print("reached here!!!!")
@@ -100,10 +100,11 @@ kitti_val_loader = torch.utils.data.DataLoader(kitti_val_dataset, batch_size=cfg
 
 #----------------------------------------------#
 
+tb_writer = tensorboard.SummaryWriter(graph_dir)
 
 #--------- Define the model ---------------#
 
-frcnn = FRCNN(cfg)
+frcnn = FRCNN(cfg, tb_writer)
 if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
@@ -188,9 +189,8 @@ epochs = cfg.TRAIN.EPOCHS
 
 lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
-tb_writer = tensorboard.SummaryWriter(graph_dir)
 
-# tb_writer.add_graph(frcnn)
+# tb_writer.add_graph(frcnn, input_image)  #Give some random input here as the same size as your input to the model
 
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
@@ -214,7 +214,10 @@ while epoch <= epochs:
 
 	for idx, (image, labels, paths) in enumerate(kitti_train_loader):
 		
-		
+		if idx > 3000:
+			break
+
+
 		input_image = image
 		if cfg.USE_CUDA:
 			input_image = input_image.cuda()
@@ -226,11 +229,12 @@ while epoch <= epochs:
 		targets = process_kitti_labels(cfg, labels)
 		# optimizer.zero_grad()
 
-		prediction, out = frcnn.forward(input_image)
-		# print(out.shape)
+		prediction, feat_map = frcnn.forward(input_image)
+		# print(feat_map.shape)
 
 		try:
-			valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, out, targets)
+			valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, feat_map, targets)
+			print( np.sum( valid_labels == 1) , np.sum( valid_labels == 0))
 		except:
 			print("Inside exception!")
 			continue
@@ -313,72 +317,84 @@ while epoch <= epochs:
 	val_loss_regress = []
 	val_loss_euclidean = []
 
-	for idx, (image, labels, paths) in enumerate(kitti_val_loader):
+	with torch.no_grad():
+		for idx, (image, labels, paths) in enumerate(kitti_val_loader):
 
-		input_image = image
+			if idx > 100:
+				break
+				
+			input_image = image
 
-		if cfg.USE_CUDA:
-			input_image = input_image.cuda()
+			if cfg.USE_CUDA:
+				input_image = input_image.cuda()
 
-		## If there are no ground truth objects in an image, we do this to not run into an error
-		if len(labels) is 0:
-			continue
+			## If there are no ground truth objects in an image, we do this to not run into an error
+			if len(labels) is 0:
+				continue
 
-		targets = process_kitti_labels(cfg, labels)
+			targets = process_kitti_labels(cfg, labels)
 
-		prediction, out = frcnn.forward(input_image)
+			prediction, feat_map = frcnn.forward(input_image)
 
-		try:
-			valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, out, targets)
-		except:
-			print("Inside exception!")
-			continue
-		
-		image_number += 1
-		target = {}
-		target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
-		target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
-		valid_indices = np.where(valid_labels != -1)
-		prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
-		prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
-		prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
-		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
-		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
-		loss_classify, loss_regress_bbox, loss_regress_sigma, loss_regress_neg, loss_regress_bbox_only = loss_object(prediction, target, valid_indices)
-		val_loss_euclidean.append(loss_regress_bbox_only.item())
-		val_loss_classify.append(loss_classify.item())
-		val_loss_regress.append(loss_regress_bbox.item())
 
-		bbox_locs = utils.get_actual_coords(prediction, orig_anchors)	
-		
-		if idx in rnd_indxs:
-			if cfg.NMS.USE_NMS==True:
-				nms = NMS(cfg.NMS_THRES)
-				index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
-				index_to_keep = index_to_keep.numpy()
-			else:
-				index_to_keep = range(len(bbox_locs)).numpy()
-
-			for i, box_idx in enumerate(index_to_keep):
-				if prediction['bbox_class'][0,box_idx,:][1].item() <= 0.95 or prediction['bbox_uncertainty_pred'][0,box_idx,:].norm() >= 5.0:
-					np.delete(index_to_keep, i)
-
-			bbox_locs = bbox_locs[index_to_keep]
-			img, img_pil = utils.draw_bbox(image.numpy().astype('uint8'), bbox_locs)
+			#why is here inside exception?
+			try:
+				valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, feat_map, targets)
+			except:
+				print("Inside exception!")
+				continue
 			
-			img = np.transpose(img, (2,0,1))
-			tb_writer.add_image('images', img)
+			image_number += 1
+			target = {}
+			target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
+			target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
+			valid_indices = np.where(valid_labels != -1)
+			prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
+			prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
+			prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
+			prediction['bbox_class'] = torch.nn.functional.softmax(prediction['bbox_class'].type(cfg.DTYPE.FLOAT), dim=2)
+			target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
+			target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
+			loss_classify, loss_regress_bbox, loss_regress_sigma, loss_regress_neg, loss_regress_bbox_only = loss_object(prediction, target, valid_indices)
+			val_loss_euclidean.append(loss_regress_bbox_only.item())
+			val_loss_classify.append(loss_classify.item())
+			val_loss_regress.append(loss_regress_bbox.item())
 
-	val_loss_classify = np.mean(val_loss_classify)
-	val_loss_regress = np.mean(val_loss_regress)
-	val_loss_euclidean = np.mean(val_loss_euclidean)
-	tb_writer.add_scalars('loss/classification', {'validation': val_loss_classify, 'train': running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
-	tb_writer.add_scalars('loss/regression', {'validation': val_loss_regress, 'train': running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
-	tb_writer.add_scalars('loss/euclidean', {'validation': val_loss_euclidean, 'train': running_loss_euc.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
+			bbox_locs = utils.get_actual_coords(prediction, orig_anchors)	
 
-	file.write(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
-	print(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
-	print("Validation Loss - Classification loss: ", val_loss_classify, "Regression Loss: ", val_loss_regress, "Euclidean Loss: ", val_loss_euclidean)
+			if idx in rnd_indxs:
+				if cfg.NMS.USE_NMS==True:
+					nms = NMS(cfg.NMS_THRES)
+					index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
+					index_to_keep = index_to_keep.numpy()
+				else:
+					index_to_keep = np.arrange(len(bbox_locs))
+
+				final_indexes = []
+
+				for box_idx in index_to_keep:
+					if prediction['bbox_class'][0,box_idx,:][1].item() > 0.90 and prediction['bbox_uncertainty_pred'][0,box_idx,:].norm() < 10.0:
+						final_indexes.append(box_idx)
+
+				print("number of boxes in image: ", len(final_indexes))
+				bbox_locs = bbox_locs[final_indexes]
+
+				image = image.numpy().astype('uint8')
+				img, img_pil = utils.draw_bbox(image, bbox_locs)
+				
+				img = np.transpose(img, (2,0,1))
+				tb_writer.add_image('images', img)
+
+		val_loss_classify = np.mean(val_loss_classify)
+		val_loss_regress = np.mean(val_loss_regress)
+		val_loss_euclidean = np.mean(val_loss_euclidean)
+		tb_writer.add_scalars('loss/classification', {'validation': val_loss_classify, 'train': running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
+		tb_writer.add_scalars('loss/regression', {'validation': val_loss_regress, 'train': running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
+		tb_writer.add_scalars('loss/euclidean', {'validation': val_loss_euclidean, 'train': running_loss_euc.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, epoch)
+
+		file.write(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
+		print(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
+		print("Validation Loss - Classification loss: ", val_loss_classify, "Regression Loss: ", val_loss_regress, "Euclidean Loss: ", val_loss_euclidean)
 
 		
 	## Decaying learning rate
@@ -399,5 +415,5 @@ while epoch <= epochs:
 		with open(checkpoint_path, 'w') as f:
 			f.writelines(model_path)
 
-
+tb_writer.close()
 file.close()

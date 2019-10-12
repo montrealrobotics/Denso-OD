@@ -10,6 +10,7 @@ from torch import optim
 import os.path as path
 
 
+
 def get_actual_coords(prediction, anchors):
 
 	for i in np.arange(prediction['bbox_class'].size()[1]):
@@ -62,6 +63,9 @@ def draw_bbox(image, bboxes):
 		drawer.rectangle(i, outline ='red' ,width=3)
 
 	return np.asarray(image), image	
+
+
+
 
 
 

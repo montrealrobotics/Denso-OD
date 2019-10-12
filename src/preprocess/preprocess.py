@@ -22,8 +22,8 @@ def image_transform(cfg):
 
 	'''
 
-	transform = T.Compose([T.ToTensor(),
-							T.Normalize(mean=list(cfg.INPUT.MEAN), std=list(cfg.INPUT.STD))])
+	transform = T.Compose([T.ToTensor()])
+							# T.Normalize(mean=list(cfg.INPUT.MEAN), std=list(cfg.INPUT.STD))])
 
 	return transform 
 
