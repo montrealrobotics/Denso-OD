@@ -18,6 +18,7 @@ class generalized_faster_rcnn(nn.Module):
 		self.backbone_obj = Backbone(self.cfg)
 		self.rpn_model = RPN(self.backbone_obj.out_channels, self.cfg)
 		self.writer  = writer
+		
 	def forward(self, image):
 
 		"""
@@ -28,8 +29,6 @@ class generalized_faster_rcnn(nn.Module):
 		## Forward pass for main class
 		
 		## Forward pass through backbone. Getting feature maps
-		image_viz = image.clone()
-		self.writer.add_image('input image', image_viz[0])
 		feature_map = self.backbone_obj(image)
 		rpn_output = self.rpn_model(feature_map)
 		
