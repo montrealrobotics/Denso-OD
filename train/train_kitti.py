@@ -137,8 +137,8 @@ if cfg.USE_CUDA:
 
 #------- Loading previous point or running new----------#
 
-checkpoint_path = experiment_dir + 'checkpoint.txt'
-
+checkpoint_path = experiment_dir + '/checkpoint.txt'
+print(checkpoint_path)
 if path.exists(checkpoint_path):
 	with open(checkpoint_path, "r") as f: 
 		model_path = f.readline().strip('\n')
@@ -210,9 +210,6 @@ while epoch <= epochs:
 
 	for idx, (image, labels, paths) in enumerate(kitti_train_loader):
 		
-		if idx > 3000:
-			break
-
 
 		input_image = image
 		if cfg.USE_CUDA:
@@ -300,9 +297,6 @@ while epoch <= epochs:
 
 	with torch.no_grad():
 		for idx, (image, labels, paths) in enumerate(kitti_val_loader):
-
-			if idx > 100:
-				break
 				
 			input_image = image
 
@@ -373,7 +367,7 @@ while epoch <= epochs:
 	print("Epoch Complete: ", epoch)
 	# # Saving at the end of the epoch
 	if epoch % cfg.TRAIN.SAVE_MODEL_EPOCHS == 0:
-		model_path = model_save_dir + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+		model_path = model_save_dir + "/end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
 		torch.save({
 				'epoch': epoch,
 				'model_state_dict': frcnn.state_dict(),

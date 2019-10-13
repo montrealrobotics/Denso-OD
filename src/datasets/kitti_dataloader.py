@@ -38,13 +38,13 @@ class KittiDataset(Dataset):
 
 	def _read_label(self, file_name):
 		ob_list = []
-
+		class_list = ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
 		with open(file_name) as file:
 			objects = file.read().splitlines()
 			for obj in objects:
 				em_dict = {}
 				obj = obj.split()
-				if obj[0]=='Car':
+				if obj[0] in class_list:
 					em_dict['class'] = obj[0]
 					em_dict['bbox'] = [float(i) for i in obj[4:8]]
 					ob_list.append(em_dict)
