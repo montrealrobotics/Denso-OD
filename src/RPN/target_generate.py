@@ -117,7 +117,7 @@ class RPN_targets(object):
 		Let's assign labels! Important
 		'''
 
-		pos_anchor_iou_threshold = 0.7
+		pos_anchor_iou_threshold = 0.6
 		neg_anchor_iou_threshold = 0.3
 
 
@@ -141,7 +141,7 @@ class RPN_targets(object):
 
 		## Ratio of positive and negative anchors
 		pos_to_neg_ratio = 0.5
-		num_of_anchor_samples = 256 ## Total number of anchors
+		num_of_anchor_samples = 64 ## Total number of anchors
 
 		n_pos = int(num_of_anchor_samples*pos_to_neg_ratio) ## Number of positive anchors
 		n_neg = num_of_anchor_samples - n_pos          ## Number of negative anchors
@@ -174,7 +174,7 @@ class RPN_targets(object):
 		'''
 
 		if len(pos_anchor_indices) < n_pos:
-			n_neg = len(pos_anchor_indices)
+			n_neg = num_of_anchor_samples - len(pos_anchor_indices)
 			
 		if len(neg_anchor_indices) > n_neg:
 			disable_index = np.random.choice(neg_anchor_indices, size=(len(neg_anchor_indices) - n_neg), replace=False)
