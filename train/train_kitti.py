@@ -35,7 +35,9 @@ from src.NMS import nms as NMS
 
 from torchvision import datasets as dset
 from torchvision import transforms as T
+import torchvision
 from torch.utils import tensorboard
+
 
 
 
@@ -83,7 +85,7 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 
 #-------- Dataset loading and manipulation-------#
 
-transform = image_transform(cfg) # this is tranform to normalise/standardise the images
+transform, inv_transform = image_transform(cfg) # this is tranform to normalise/standardise the images
 
 kitti_dataset = KittiDataset(dset_path, transform = transform, cfg = cfg) #---- Dataloader
 print("Number of Images in Dataset: ", len(kitti_dataset))
@@ -103,7 +105,7 @@ tb_writer = tensorboard.SummaryWriter(graph_dir)
 
 #--------- Define the model ---------------#
 
-frcnn = FRCNN(cfg, tb_writer)
+frcnn = FRCNN(cfg)
 if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
@@ -173,7 +175,7 @@ if path.exists(checkpoint_path):
 		loss = checkpoint['loss']
 
 	else:
-		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR, weight_decay=0.01)
+		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR, weight_decay=0.0005)
 		epoch = 0
 		loss = 0
 else:
@@ -189,7 +191,7 @@ epochs = cfg.TRAIN.EPOCHS
 lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
 
-# tb_writer.add_graph(frcnn, input_image)  #Give some random input here as the same size as your input to the model
+# tb_writer.add_graph(frcnn, torch.normal(mean=1e-2, std=1.0, size=(1, 3, 345, 1242)).cuda())  #Give some random input here as the same size as your input to the model
 
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
@@ -198,18 +200,13 @@ frcnn.eval()
 while epoch <= epochs:
 	epoch += 1
 	image_number = 0
-	running_loss = 0
+	running_loss = 0.0
 	running_loss_classify = 0.
 	running_loss_regress = 0.
 	running_loss_euc = 0.0
 
-	batch_loss = 0.
-	batch_bbox_regress = 0.
-	batch_loss_classify = 0.
-	batch_error_regress = 0.
 
 	for idx, (image, labels, paths) in enumerate(kitti_train_loader):
-		
 
 		input_image = image
 		if cfg.USE_CUDA:
@@ -242,54 +239,52 @@ while epoch <= epochs:
 		prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
 		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
-		loss_classify, loss_regress_bbox, loss_error_bbox = loss_object(prediction, target, valid_indices)
 
-		batch_loss_classify += cfg.TRAIN.CLASS_LOSS_SCALE*loss_classify
-		batch_bbox_regress += cfg.TRAIN.SMOOTHL1LOSS_SCALE*loss_regress_bbox
-		batch_error_regress += loss_error_bbox
+		loss_classify, loss_regress_bbox, loss_regress_sigma, loss_regress_neg, loss_regress_bbox_only = loss_object(prediction, target, valid_indices)
+		loss_regress = loss_regress_bbox + loss_regress_sigma + loss_regress_neg
+		loss = (loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
+		
+		loss.backward()
 
-
-		if cfg.TRAIN.FAKE_BATCHSIZE > 0 and image_number % cfg.TRAIN.FAKE_BATCHSIZE == 0 and idx > 0:
-			
-			batch_loss = (batch_loss_classify + batch_bbox_regress + batch_error_regress)/cfg.TRAIN.FAKE_BATCHSIZE
-			# batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify + cfg.TRAIN.EUCLIDEAN_LOSS_SCALE*batch_loss_regress_bbox_only)/cfg.TRAIN.FAKE_BATCHSIZE
-			batch_loss.backward()
-			# batch_loss_classify.backward()
-			# batch_loss_regress.backward()
+		if (idx+1)%cfg.TRAIN.FAKE_BATCHSIZE==0: 
 			optimizer.step()
-
-			#------------ Logging and Printing ----------#
-			file.write("Class/Reg/Error loss: {} {} {} epoch and image_number: {} {} \n".format(batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, batch_bbox_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, batch_error_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, epoch, image_number))
-			print("Class/Reg/Error loss:", batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_bbox_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_error_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, " epoch and image_number: ", epoch, image_number)
-			
-			
-			itr_num  = image_number/cfg.TRAIN.FAKE_BATCHSIZE
-			tb_writer.add_scalar('Loss/Classification', batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Loss/Regression', batch_bbox_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Loss/Error', batch_error_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-
-			tb_writer.add_scalar('Class/gradient', frcnn.rpn_model.classification_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Reg/gradient', frcnn.rpn_model.reg_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			print("Class/Reg grads: ", frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item())
-			# paramList = list(filter(lambda p : p.grad is not None, [param for param in frcnn.rpn_model.parameters()]))
-			# totalNorm = sum([(p.grad.data.norm(2.) ** 2.) for p in paramList]) ** (1. / 2)
-			# print('gradNorm: ', str(totalNorm.item()))
-
-			#------------------------------------------------#
-
 			optimizer.zero_grad()
-			# running_loss_classify += batch_loss_classify
-			# running_loss_regress += batch_loss_regress
-			# running_loss_euc += batch_loss_regress_bbox_only
 
-			batch_loss = 0.
-			batch_loss_classify = 0.
-			batch_bbox_regress = 0.
-			batch_error_regress = 0.
+		#------------ Logging and Printing ----------#
+		file.write("Class/Reg loss: {} {} epoch and image_number: {} {} \n".format(loss_classify.item(), loss_regress.item(), epoch, image_number))
+		print("Class/Reg/Euclidean loss:", loss_classify.item(), " ", loss_regress.item(), " ", loss_regress_bbox_only.item(), " epoch and image_number: ", epoch, image_number)
+		
+		
+		itr_num  = image_number/cfg.TRAIN.FAKE_BATCHSIZE
+		tb_writer.add_scalar('Loss/Classification', loss_classify.item(), itr_num)
+		tb_writer.add_scalar('Loss/Regression', loss_regress.item(), itr_num)
+		tb_writer.add_scalar('Loss/Mahalanobis', loss_regress_bbox.item(), itr_num)
+		tb_writer.add_scalar('Loss/Log-sigma', loss_regress_sigma.item(), itr_num)
+		tb_writer.add_scalar('Loss/Euclidean', loss_regress_bbox_only.item(), itr_num)
+		tb_writer.add_scalar('Loss/Neg anchors', loss_regress_neg.item(), itr_num)
 
+		file.write("only, bbox, sigma, neg: {} {} {} {} \n".format(loss_regress_bbox_only.item(), loss_regress_bbox.item(), loss_regress_sigma.item(), loss_regress_neg.item()))
+
+		print("only:", loss_regress_bbox_only.item(), "bbox: ", loss_regress_bbox.item(), 
+			"sigma:", loss_regress_sigma.item(), "neg:", loss_regress_neg.item())
+		
+		# file.write("Class/Reg grads: {} {}  \n".format(frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item()))
+		# tb_writer.add_scalar('Class/gradient', frcnn.rpn_model.classification_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+		# tb_writer.add_scalar('Reg/gradient', frcnn.rpn_model.reg_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+		# print("Class/Reg grads: ", frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item())
+		# paramList = list(filter(lambda p : p.grad is not None, [param for param in frcnn.rpn_model.parameters()]))
+		# totalNorm = sum([(p.grad.data.norm(2.) ** 2.) for p in paramList]) ** (1. / 2)
+		# print('gradNorm: ', str(totalNorm.item()))
+
+		#------------------------------------------------#
+
+		running_loss += loss
+		running_loss_classify += loss_classify
+		running_loss_regress += loss_regress
+		running_loss_euc += loss_regress_bbox_only
 	
 	# frcnn.eval()
-	rnd_indxs = np.random.randint(0, val_len-1, 5)
+	rnd_indxs = np.random.randint(0, val_len-1, 100)
 
 	val_loss_classify = []
 	val_loss_regress = []
@@ -297,7 +292,7 @@ while epoch <= epochs:
 
 	with torch.no_grad():
 		for idx, (image, labels, paths) in enumerate(kitti_val_loader):
-				
+
 			input_image = image
 
 			if cfg.USE_CUDA:
@@ -308,7 +303,6 @@ while epoch <= epochs:
 				continue
 
 			targets = process_kitti_labels(cfg, labels)
-
 			prediction, feat_map = frcnn.forward(input_image)
 
 
@@ -330,12 +324,24 @@ while epoch <= epochs:
 			prediction['bbox_class'] = torch.nn.functional.softmax(prediction['bbox_class'].type(cfg.DTYPE.FLOAT), dim=2)
 			target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 			target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
+
 			loss_classify, loss_regress_bbox, loss_error_bbox = loss_object(prediction, target, valid_indices)
+
+			
+# 			loss_classify, loss_regress_bbox, loss_regress_sigma, loss_regress_neg, loss_regress_bbox_only = loss_object(prediction, target, valid_indices)
+
+# 			print("Val Loss - euc: {} class: {} regression: {}".format(loss_regress_bbox_only.item(), loss_classify.item(), loss_regress_bbox.item()))
+			
+# 			val_loss_euclidean.append(loss_regress_bbox_only.item())
+			
 			val_loss_classify.append(loss_classify.item())
 			val_loss_regress.append(loss_regress_bbox.item())
 			val_loss_error.append(loss_error_bbox.item())
 
+			target['bbox_pred'] = target['gt_bbox']
 			bbox_locs = utils.get_actual_coords(prediction, orig_anchors)	
+			# pos_bbox= utils.get_actual_coords(target, orig_anchors)	
+			pos_bbox = orig_anchors[valid_labels==1]
 
 			if idx in rnd_indxs:
 				if cfg.NMS.USE_NMS==True:
@@ -354,11 +360,33 @@ while epoch <= epochs:
 				print("number of boxes in image: ", len(final_indexes))
 				bbox_locs = bbox_locs[final_indexes]
 
-				image = image.numpy().astype('uint8')
-				img, img_pil = utils.draw_bbox(image, bbox_locs)
+				# print(image)
+				# image = inv_transform(image)
+				image = np.array(Image.open(paths[0]), dtype='uint8')
 				
-				img = np.transpose(img, (2,0,1))
-				tb_writer.add_image('images', img)
+				# input_image = image
+				pos_img, _ = utils.draw_bbox(image,utils.xy_to_wh(pos_bbox))
+				predict_img, _ = utils.draw_bbox(image, bbox_locs)				
+
+				# print(input_image.shape, pos_img.shape, predict_img.shape)
+				image_grid = np.concatenate([pos_img,predict_img], axis = 1)
+				print(image_grid.shape)
+				# image_grid = torchvision.utils.make_grid(torch.stack(image_grid), 1)
+
+				tb_writer.add_image('Image', image_grid, dataformats='HWC')
+
+
+# 		val_loss_classify = np.mean(val_loss_classify)
+# 		val_loss_regress = np.mean(val_loss_regress)
+# 		val_loss_euclidean = np.mean(val_loss_euclidean)
+
+# 		tb_writer.add_scalars('loss/classification', {'validation': val_loss_classify, 'train': running_loss_classify.item()/len(kitti_train_loader)}, epoch)
+# 		tb_writer.add_scalars('loss/regression', {'validation': val_loss_regress, 'train': running_loss_regress.item()/len(kitti_train_loader)}, epoch)
+# 		tb_writer.add_scalars('loss/euclidean', {'validation': val_loss_euclidean, 'train': running_loss_euc.item()/len(kitti_train_loader)}, epoch)
+
+# 		file.write(f"Running loss (classification) {running_loss_classify.item()/len(kitti_train_loader)}, \t Running loss (regression): {running_loss_regress.item()/len(kitti_train_loader)}")
+# 		print(f"Running loss (classification) {running_loss_classify.item()/len(kitti_train_loader)}, \t Running loss (regression): {running_loss_regress.item()/len(kitti_train_loader)}")
+# 		print("Validation Loss - Classification loss: ", val_loss_classify, "Regression Loss: ", val_loss_regress, "Euclidean Loss: ", val_loss_euclidean)
 
 		
 	## Decaying learning rate
