@@ -16,7 +16,7 @@ import sys
 import numpy as np
 import math
 import argparse
-from PIL import Image
+from PIL import Image, ImageDraw
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
 import os.path as path
@@ -32,6 +32,7 @@ from src.datasets import KittiDataset # Dataloader
 from src.loss import RPNLoss
 from torchvision import datasets as dset
 from torchvision import transforms as T
+from src.utils import utils
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -70,7 +71,7 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 #-----------------------------------------------#
 
 ### let's generate the dataset
-transform = image_transform(cfg)
+transform, inv_transform = image_transform(cfg)
 
 kitti_dataset = KittiDataset(dset_path, transform = transform, cfg = cfg) #---- Dataloader
 print("Number of Images in Dataset: ", len(kitti_dataset))
@@ -182,57 +183,35 @@ for images, labels, img_name in kitti_val_loader:
 	target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 	print(orig_anchors.shape, prediction['bbox_pred'].shape)
 
-	## To avoid overflow?
-	for i in np.arange(prediction['bbox_class'].size()[1]):
-		if prediction['bbox_class'][0,i,:][1].item() < 0.8:
-			prediction['bbox_pred'][0,i,:] = 0
-
-	bbox_locs, bbox_locs_xy = get_actual_coords(prediction['bbox_pred'], orig_anchors)
+	bbox_locs = utils.get_actual_coords(prediction, orig_anchors)
+	print(bbox_locs.shape)
 
 	nms = NMS(cfg.NMS_THRES)
-	print(prediction['bbox_class'].shape)
-	index_to_keep = nms.apply_nms(bbox_locs_xy, prediction['bbox_class'])
+	index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
 	index_to_keep = index_to_keep.numpy()
 
-	print(index_to_keep)
+	# print(index_to_keep)
 
-	img = np.array(Image.open(img_name[0]), dtype=np.uint)
-	print(img.shape)
-	fig,ax = plt.subplots(1)
+	img = np.asarray(Image.open(img_name[0]))
 
-	# Display the image
-	ax.imshow(img)
-	# box_count_array = []
+	top_10_ind = index_to_keep[:10]
+
+	box_array = []
 	for i in np.arange(len(bbox_locs)):
 		count = 0
 		# print("Norm is: ",prediction['bbox_uncertainty_pred'][0,i,:].norm())
-		if prediction['bbox_class'][0,i,:][1].item() > 0.9 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 50.0 and i in index_to_keep:
+		if prediction['bbox_class'][0,i,:][1].item() > 0.90 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 10.0 and i in index_to_keep:
 		# if prediction['bbox_class'][0,i,:][1].item() > 0.95:
+			box_array.append(bbox_locs[i])
 			# print(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3])
-			print(prediction['bbox_class'][0,i,:][1].item(), prediction['bbox_uncertainty_pred'][0,i,:].norm())
+			# print(prediction['bbox_class'][0,i,:][1].item(), prediction['bbox_uncertainty_pred'][0,i,:].norm())
 			# valid_box = check_validity(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3], img.shape[1], img.shape[0]) ## throw away those boxes which are not inside the image
-			valid_box =  True
-			if valid_box:
-				# print("Trueeee")
-				count += 1
-				rect = patches.Rectangle((bbox_locs[i][0],bbox_locs[i][1]),bbox_locs[i][2],bbox_locs[i][3],linewidth=1,edgecolor='r',facecolor='none')		
-				ax.add_patch(rect)
-			# else:
-			# 	# print("Falseeeee")
-		# box_count_array.append(count)
+			
+	img_top10, top10pil = utils.draw_bbox(img, bbox_locs[top_10_ind])
+	img, img_pil = utils.draw_bbox(img, box_array)
+	# _ , img_ok = utils.draw_bbox(img, bbox_locs[valid_labels==1])
 
-	# Create a Rectangle patch
-	# rect = patches.Rectangle((50,100),100,300,linewidth=1,edgecolor='r',facecolor='none')
-
-	# Add the patch to the Axes
-
-
-	# plt.show()
-	fig.savefig('/network/tmp1/bansaldi/output/' + str(image_number).zfill(6) + '.png', dpi=fig.dpi)
-	# break
-	# print("Bounding boxes are:" prediction['bbox_pred'])
-	# print("bbox_class")
-
-
-			# print("Box and coords are: ", prediction['bbox_class'][0,i,:], prediction['bbox_pred'][0,i,:])
+	img_pil.save('/network/home/bansaldi/Denso-OD/logs/newloss/results/'+str(image_number).zfill(6)+'.png')
+	top10pil.save('/network/home/bansaldi/Denso-OD/logs/newloss/results/'+str(image_number).zfill(6)+'_top10.png')
+	# img_ok.save('/network/home/bansaldi/Denso-OD/logs/newloss/lol/'+str(image_number).zfill(6)+'_top10.png')
 

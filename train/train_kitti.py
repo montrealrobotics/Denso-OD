@@ -16,12 +16,13 @@ import sys
 import numpy as np
 import math
 import argparse
-from PIL import Image
+from PIL import Image, ImageDraw
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
 import os.path as path
 ## Inserting path of src directory
 sys.path.insert(1, '../')
+
 from src.architecture import FRCNN
 from src.config import Cfg as cfg # Configuration file
 from src.RPN import anchor_generator, RPN_targets
@@ -30,28 +31,42 @@ from src.datasets import process_kitti_labels
 from src.datasets import kitti_collate_fn
 from src.datasets import KittiDataset # Dataloader
 from src.loss import RPNLoss
+from src.utils import utils
+from src.NMS import nms as NMS
+
 from torchvision import datasets as dset
 from torchvision import transforms as T
-from torch.utils import tensorboard 
+import torchvision
+from torch.utils import tensorboard
+
+
 
 
 #----- Initial paths setup and loading config values ------ #
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-dp", "--datasetpath", required = True, help="give dataset path")
-ap.add_argument("-mp", "--modelpath", required = True, help="give model directory path")
+ap.add_argument("-name", "--experiment_comment", required = True, help="Comments for the experiment")
 
 args = vars(ap.parse_args())
-dset_path = args["datasetpath"]
-model_dir_path = args["modelpath"]
+
+dset_path = cfg.PATH.DATASET
+experiment_dir = cfg.PATH.LOGS + "/" + args["experiment_comment"]
+
+results_dir = experiment_dir+"/results"
+graph_dir = experiment_dir+"/tf_summary"
+model_save_dir = experiment_dir+"/models"
 
 if not path.exists(dset_path):
 	print("Dataset path doesn't exist")
-if not path.exists(model_dir_path):
-	os.mkdir(model_dir_path)
+if not path.exists(experiment_dir):
+	os.mkdir(experiment_dir)
+	os.mkdir(experiment_dir+"/results")
+	os.mkdir(experiment_dir+"/models")
+	os.mkdir(experiment_dir+"/tf_summary")
+
 
 print("reached here!!!!")
-file = open(model_dir_path+"/train_log.txt", 'w')
+file = open(experiment_dir+"/train_log.txt", 'w')
 
 # Setting the seeds
 torch.manual_seed(cfg.RANDOMIZATION.SEED)
@@ -71,7 +86,7 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 
 #-------- Dataset loading and manipulation-------#
 
-transform = image_transform(cfg) # this is tranform to normalise/standardise the images
+transform, inv_transform = image_transform(cfg) # this is tranform to normalise/standardise the images
 
 kitti_dataset = KittiDataset(dset_path, transform = transform, cfg = cfg) #---- Dataloader
 print("Number of Images in Dataset: ", len(kitti_dataset))
@@ -87,6 +102,7 @@ kitti_val_loader = torch.utils.data.DataLoader(kitti_val_dataset, batch_size=cfg
 
 #----------------------------------------------#
 
+tb_writer = tensorboard.SummaryWriter(graph_dir)
 
 #--------- Define the model ---------------#
 
@@ -94,6 +110,10 @@ frcnn = FRCNN(cfg)
 if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
+
+# for layer in frcnn.backbone_obj.modules():
+#     if isinstance(layer, torch.nn.BatchNorm2d):
+#         layer.eval()
 
 
 ## Initialize RPN params
@@ -116,14 +136,11 @@ if cfg.USE_CUDA:
 #-----------------------------------------#
 
 
-
-
-
 #--------- Training Procedure -------------#
 
 #------- Loading previous point or running new----------#
 
-checkpoint_path = model_dir_path + 'checkpoint.txt'
+checkpoint_path = experiment_dir + 'checkpoint.txt'
 
 if path.exists(checkpoint_path):
 	with open(checkpoint_path, "r") as f: 
@@ -159,7 +176,7 @@ if path.exists(checkpoint_path):
 		loss = checkpoint['loss']
 
 	else:
-		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR, weight_decay=0.01)
+		optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.ADAM_LR, weight_decay=0.0005)
 		epoch = 0
 		loss = 0
 else:
@@ -174,31 +191,24 @@ epochs = cfg.TRAIN.EPOCHS
 
 lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
-frcnn.train()
 
-tb_writer = tensorboard.SummaryWriter(model_dir_path)
+# tb_writer.add_graph(frcnn, torch.normal(mean=1e-2, std=1.0, size=(1, 3, 345, 1242)).cuda())  #Give some random input here as the same size as your input to the model
+
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
 
+frcnn.eval()
 while epoch <= epochs:
 	epoch += 1
 	image_number = 0
-	running_loss = 0
+	running_loss = 0.0
 	running_loss_classify = 0.
 	running_loss_regress = 0.
+	running_loss_euc = 0.0
 
-	batch_loss = 0.
-	batch_loss_regress = 0.
-	batch_loss_classify = 0.
-	batch_loss_regress_bbox = 0.
-	batch_loss_regress_sigma = 0.
-	batch_loss_regress_neg = 0.
-	batch_loss_regress_bbox_only = 0.
+	for idx, (image, labels, paths) in enumerate(kitti_train_loader):
 
-	for idx, (images, labels, paths) in enumerate(kitti_train_loader):
-		
-		
-		input_image = images
+		input_image = image
 		if cfg.USE_CUDA:
 			input_image = input_image.cuda()
 
@@ -209,17 +219,15 @@ while epoch <= epochs:
 		targets = process_kitti_labels(cfg, labels)
 		# optimizer.zero_grad()
 
-		prediction, out = frcnn.forward(input_image)
-		# print(out.shape)
+		prediction, feat_map = frcnn.forward(input_image)
+		# print(feat_map.shape)
 
 		try:
-			valid_anchors, valid_labels, xx = rpn_target.get_targets(input_image, out, targets)
+			valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, feat_map, targets)
+			# print( np.sum( valid_labels == 1) , np.sum( valid_labels == 0))
 		except:
 			print("Inside exception!")
 			continue
-
-		
-		# print(targets['boxes'])
 		
 		image_number += 1
 		target = {}
@@ -231,78 +239,160 @@ while epoch <= epochs:
 		prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
 		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
+
 		loss_classify, loss_regress_bbox, loss_regress_sigma, loss_regress_neg, loss_regress_bbox_only = loss_object(prediction, target, valid_indices)
+		loss_regress = loss_regress_bbox + loss_regress_sigma + loss_regress_neg
+		loss = (loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
+		
+		loss.backward()
 
-		batch_loss_classify += loss_classify
-		batch_loss_regress_bbox += loss_regress_bbox
-		batch_loss_regress_sigma += loss_regress_sigma
-		batch_loss_regress_neg += loss_regress_neg
-		batch_loss_regress_bbox_only += loss_regress_bbox_only
-
-
-		if cfg.TRAIN.FAKE_BATCHSIZE > 0 and image_number % cfg.TRAIN.FAKE_BATCHSIZE == 0 and idx > 0:
-			
-			batch_loss_regress = batch_loss_regress_bbox + batch_loss_regress_sigma + batch_loss_regress_neg
-			# batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify)/cfg.TRAIN.FAKE_BATCHSIZE
-			batch_loss = (batch_loss_regress + cfg.TRAIN.CLASS_LOSS_SCALE*batch_loss_classify + cfg.TRAIN.EUCLIDEAN_LOSS_SCALE*batch_loss_regress_bbox_only)/cfg.TRAIN.FAKE_BATCHSIZE
-			batch_loss.backward()
-			# batch_loss_classify.backward()
-			# batch_loss_regress.backward()
-			
+		if (idx+1)%cfg.TRAIN.FAKE_BATCHSIZE==0: 
 			optimizer.step()
-
-			#------------ Logging and Printing ----------#
-			file.write("Class/Reg loss: {} {} epoch and image_number: {} {} \n".format(batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, epoch, image_number))
-			print("Class/Reg/Euclidean loss:", batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, " ", batch_loss_regress_bbox_only.item()/cfg.TRAIN.FAKE_BATCHSIZE, " epoch and image_number: ", epoch, image_number)
-			
-			
-			itr_num  = image_number/cfg.TRAIN.FAKE_BATCHSIZE
-			tb_writer.add_scalar('Loss/Classification', batch_loss_classify.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Loss/Regression', batch_loss_regress.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Loss/Mahalanobis', batch_loss_regress_bbox.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Loss/Log-sigma', batch_loss_regress_sigma.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Loss/Euclidean', batch_loss_regress_bbox_only.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Loss/Neg anchors', batch_loss_regress_neg.item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-
-			file.write("only, bbox, sigma, neg: {} {} {} {} \n".format(batch_loss_regress_bbox_only.item(), batch_loss_regress_bbox.item(), batch_loss_regress_sigma.item(), batch_loss_regress_neg.item()))
-
-			print("only:", batch_loss_regress_bbox_only.item(), "bbox: ", batch_loss_regress_bbox.item(), 
-				"sigma:", batch_loss_regress_sigma.item(), "neg:", batch_loss_regress_neg.item())
-			
-			file.write("Class/Reg grads: {} {}  \n".format(frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item()))
-			tb_writer.add_scalar('Class/gradient', frcnn.rpn_model.classification_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			tb_writer.add_scalar('Reg/gradient', frcnn.rpn_model.reg_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-			print("Class/Reg grads: ", frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item())
-			# paramList = list(filter(lambda p : p.grad is not None, [param for param in frcnn.rpn_model.parameters()]))
-			# totalNorm = sum([(p.grad.data.norm(2.) ** 2.) for p in paramList]) ** (1. / 2)
-			# print('gradNorm: ', str(totalNorm.item()))
-
-			#------------------------------------------------#
-
 			optimizer.zero_grad()
-			running_loss_classify += batch_loss_classify
-			running_loss_regress += batch_loss_regress
-			# batch_loss.detach()
-			# batch_loss_regress.detach()
-			# batch_loss_classify.detach()
-			batch_loss = 0.
-			batch_loss_classify = 0.
-			batch_loss_regress = 0.
-			batch_loss_regress_bbox = 0.
-			batch_loss_regress_sigma = 0.
-			batch_loss_regress_neg = 0.
-			batch_loss_regress_bbox_only = 0.
+
+		#------------ Logging and Printing ----------#
+		file.write("Class/Reg loss: {} {} epoch and image_number: {} {} \n".format(loss_classify.item(), loss_regress.item(), epoch, image_number))
+		print("Class/Reg/Euclidean loss:", loss_classify.item(), " ", loss_regress.item(), " ", loss_regress_bbox_only.item(), " epoch and image_number: ", epoch, image_number)
+		
+		
+		itr_num  = image_number/cfg.TRAIN.FAKE_BATCHSIZE
+		tb_writer.add_scalar('Loss/Classification', loss_classify.item(), itr_num)
+		tb_writer.add_scalar('Loss/Regression', loss_regress.item(), itr_num)
+		tb_writer.add_scalar('Loss/Mahalanobis', loss_regress_bbox.item(), itr_num)
+		tb_writer.add_scalar('Loss/Log-sigma', loss_regress_sigma.item(), itr_num)
+		tb_writer.add_scalar('Loss/Euclidean', loss_regress_bbox_only.item(), itr_num)
+		tb_writer.add_scalar('Loss/Neg anchors', loss_regress_neg.item(), itr_num)
+
+		file.write("only, bbox, sigma, neg: {} {} {} {} \n".format(loss_regress_bbox_only.item(), loss_regress_bbox.item(), loss_regress_sigma.item(), loss_regress_neg.item()))
+
+		print("only:", loss_regress_bbox_only.item(), "bbox: ", loss_regress_bbox.item(), 
+			"sigma:", loss_regress_sigma.item(), "neg:", loss_regress_neg.item())
+		
+		# file.write("Class/Reg grads: {} {}  \n".format(frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item()))
+		# tb_writer.add_scalar('Class/gradient', frcnn.rpn_model.classification_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+		# tb_writer.add_scalar('Reg/gradient', frcnn.rpn_model.reg_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
+		# print("Class/Reg grads: ", frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item())
+		# paramList = list(filter(lambda p : p.grad is not None, [param for param in frcnn.rpn_model.parameters()]))
+		# totalNorm = sum([(p.grad.data.norm(2.) ** 2.) for p in paramList]) ** (1. / 2)
+		# print('gradNorm: ', str(totalNorm.item()))
+
+		#------------------------------------------------#
+
+		running_loss += loss
+		running_loss_classify += loss_classify
+		running_loss_regress += loss_regress
+		running_loss_euc += loss_regress_bbox_only
+	
+	# frcnn.eval()
+	rnd_indxs = np.random.randint(0, val_len-1, 100)
+
+	val_loss_classify = []
+	val_loss_regress = []
+	val_loss_euclidean = []
+
+	with torch.no_grad():
+		for idx, (image, labels, paths) in enumerate(kitti_val_loader):
+
+			input_image = image
+
+			if cfg.USE_CUDA:
+				input_image = input_image.cuda()
+
+			## If there are no ground truth objects in an image, we do this to not run into an error
+			if len(labels) is 0:
+				continue
+
+			targets = process_kitti_labels(cfg, labels)
+			prediction, feat_map = frcnn.forward(input_image)
 
 
-	file.write(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
-	print(f"Running loss (classification) {running_loss_classify.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}, \t Running loss (regression): {running_loss_regress.item()/(len(kitti_train_loader) // cfg.TRAIN.FAKE_BATCHSIZE)}")
+			#why is here inside exception?
+			try:
+				valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, feat_map, targets)
+			except:
+				print("Inside exception!")
+				continue
+			
+			image_number += 1
+			target = {}
+			target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
+			target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
+			valid_indices = np.where(valid_labels != -1)
+			prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
+			prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
+			prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
+			prediction['bbox_class'] = torch.nn.functional.softmax(prediction['bbox_class'].type(cfg.DTYPE.FLOAT), dim=2)
+			target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
+			target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
+			
+			loss_classify, loss_regress_bbox, loss_regress_sigma, loss_regress_neg, loss_regress_bbox_only = loss_object(prediction, target, valid_indices)
 
+			print("Val Loss - euc: {} class: {} regression: {}".format(loss_regress_bbox_only.item(), loss_classify.item(), loss_regress_bbox.item()))
+			
+			val_loss_euclidean.append(loss_regress_bbox_only.item())
+			
+			val_loss_classify.append(loss_classify.item())
+			val_loss_regress.append(loss_regress_bbox.item())
+
+			target['bbox_pred'] = target['gt_bbox']
+			bbox_locs = utils.get_actual_coords(prediction, orig_anchors)	
+			# pos_bbox= utils.get_actual_coords(target, orig_anchors)	
+			pos_bbox = orig_anchors[valid_labels==1]
+
+			if idx in rnd_indxs:
+				if cfg.NMS.USE_NMS==True:
+					nms = NMS(cfg.NMS_THRES)
+					index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
+					index_to_keep = index_to_keep.numpy()
+				else:
+					index_to_keep = np.arrange(len(bbox_locs))
+
+				final_indexes = []
+
+				for box_idx in index_to_keep:
+					if prediction['bbox_class'][0,box_idx,:][1].item() > 0.90 and prediction['bbox_uncertainty_pred'][0,box_idx,:].norm() < 10.0:
+						final_indexes.append(box_idx)
+
+				print("number of boxes in image: ", len(final_indexes))
+				bbox_locs = bbox_locs[final_indexes]
+
+				# print(image)
+				# image = inv_transform(image)
+				image = np.array(Image.open(paths[0]), dtype='uint8')
+				
+				# input_image = image
+				pos_img, _ = utils.draw_bbox(image,utils.xy_to_wh(pos_bbox))
+				predict_img, _ = utils.draw_bbox(image, bbox_locs)				
+
+				# print(input_image.shape, pos_img.shape, predict_img.shape)
+				image_grid = np.concatenate([pos_img,predict_img], axis = 1)
+				print(image_grid.shape)
+				# image_grid = torchvision.utils.make_grid(torch.stack(image_grid), 1)
+
+				tb_writer.add_image('Image', image_grid, dataformats='HWC')
+
+
+
+		val_loss_classify = np.mean(val_loss_classify)
+		val_loss_regress = np.mean(val_loss_regress)
+		val_loss_euclidean = np.mean(val_loss_euclidean)
+
+		tb_writer.add_scalars('loss/classification', {'validation': val_loss_classify, 'train': running_loss_classify.item()/len(kitti_train_loader)}, epoch)
+		tb_writer.add_scalars('loss/regression', {'validation': val_loss_regress, 'train': running_loss_regress.item()/len(kitti_train_loader)}, epoch)
+		tb_writer.add_scalars('loss/euclidean', {'validation': val_loss_euclidean, 'train': running_loss_euc.item()/len(kitti_train_loader)}, epoch)
+
+		file.write(f"Running loss (classification) {running_loss_classify.item()/len(kitti_train_loader)}, \t Running loss (regression): {running_loss_regress.item()/len(kitti_train_loader)}")
+		print(f"Running loss (classification) {running_loss_classify.item()/len(kitti_train_loader)}, \t Running loss (regression): {running_loss_regress.item()/len(kitti_train_loader)}")
+		print("Validation Loss - Classification loss: ", val_loss_classify, "Regression Loss: ", val_loss_regress, "Euclidean Loss: ", val_loss_euclidean)
+
+		
 	## Decaying learning rate
 	lr_scheduler.step()
 
+	print("Epoch Complete: ", epoch)
 	# # Saving at the end of the epoch
 	if epoch % cfg.TRAIN.SAVE_MODEL_EPOCHS == 0:
-		model_path = model_dir_path + "end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
+		model_path = model_save_dir + "/end_of_epoch_" + str(image_number).zfill(10) +  str(epoch).zfill(5) + '.model'
 		torch.save({
 				'epoch': epoch,
 				'model_state_dict': frcnn.state_dict(),
@@ -314,5 +404,5 @@ while epoch <= epochs:
 		with open(checkpoint_path, 'w') as f:
 			f.writelines(model_path)
 
-
+tb_writer.close()
 file.close()

@@ -25,5 +25,7 @@ def image_transform(cfg):
 	transform = T.Compose([T.ToTensor(),
 							T.Normalize(mean=list(cfg.INPUT.MEAN), std=list(cfg.INPUT.STD))])
 
-	return transform 
+	inverse_transorf = T.Compose([T.Normalize( mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225], std=[1/0.229, 1/0.224, 1/0.225]), T.ToPILImage()])
+
+	return transform, inverse_transorf
 

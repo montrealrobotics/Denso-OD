@@ -45,7 +45,7 @@ class RPNLoss(torch.nn.Module):
 
 		self.total_anchors = prediction['bbox_pred'].shape[1]
 
-		self.class_loss = self.get_classification_loss(prediction, target, valid_indices)*self.class_loss_scale
+		self.class_loss = self.get_classification_loss(prediction, target, valid_indices)
 		self.reg_loss_bbox, self.reg_loss_sigma, self.reg_loss_neg, self.reg_loss_bbox_only = self.get_regression_loss(prediction, target, valid_indices)
 
 		# print("Classification and regression losses are: ", self.class_loss.item(), self.reg_loss.item())
@@ -132,3 +132,5 @@ class RPNLoss(torch.nn.Module):
 			reg_loss_bbox_only = self.loss_bbox_only / self.pos_anchors
 
 			return reg_loss_bbox, reg_loss_sigma, reg_loss_neg, reg_loss_bbox_only
+
+

@@ -12,8 +12,9 @@ conf_params = CN()
 
 # ## Paths config
 
-# conf_params.PATH = CN()
-# conf_params.DIRECTORY = 
+conf_params.PATH = CN()
+conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
+conf_params.PATH.LOGS = "/network/home/bansaldi/Denso-OD/logs"
 
 ##### Whether to use cuda or not #####
 conf_params.USE_CUDA = False ## False by default, to be changed to True in the code if cuda is available
@@ -41,7 +42,7 @@ conf_params.BACKBONE = CN()
 conf_params.BACKBONE.MODEL_NAME = 'resnet50'
 
 ### choices = [1,2,3,4]
-conf_params.BACKBONE.RESNET_STOP_LAYER = 4 
+conf_params.BACKBONE.RESNET_STOP_LAYER = 3 
 
 
 
@@ -82,7 +83,7 @@ Necessary params to define anchors
 """
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = 1, 1.5, 2
-conf_params.ANCHORS.ANCHOR_SCALES = 192, 128, 256
+conf_params.ANCHORS.ANCHOR_SCALES = 32, 64, 128
 conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 
 
@@ -116,10 +117,10 @@ For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
-conf_params.TRAIN.LR = 1e-4
+conf_params.TRAIN.LR = 5e-4
 conf_params.TRAIN.MOMENTUM = 0.09 # Used only when TRAIN.OPTIM is set to 'sgd'
 conf_params.TRAIN.EPOCHS = 40
-conf_params.TRAIN.MILESTONES = 10, 20, 28, 35	
+conf_params.TRAIN.MILESTONES = 20, 50	
 conf_params.TRAIN.DSET_SHUFFLE = True
 conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
 conf_params.TRAIN.FREEZE_BACKBONE = False
@@ -131,8 +132,10 @@ conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for traini
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 5.0 	### Scale classification loss by this amount
 conf_params.TRAIN.EUCLIDEAN_LOSS_SCALE = 30
-conf_params.TRAIN.FAKE_BATCHSIZE = 25	 ### fake batch
+conf_params.TRAIN.FAKE_BATCHSIZE = 25 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
 
-conf_params.NMS_THRES = 0.1
+conf_params.NMS = CN()
+conf_params.NMS.USE_NMS = True
+conf_params.NMS_THRES = 0.7

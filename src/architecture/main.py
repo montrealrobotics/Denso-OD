@@ -28,8 +28,8 @@ class generalized_faster_rcnn(nn.Module):
 		## Forward pass for main class
 		
 		## Forward pass through backbone. Getting feature maps
+		
 		feature_map = self.backbone_obj(image)
-
-		## From feature maps to RPN output
 		rpn_output = self.rpn_model(feature_map)
-		return rpn_output, feature_map
+		
+		return (rpn_output, feature_map)
