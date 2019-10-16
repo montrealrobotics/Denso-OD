@@ -44,6 +44,7 @@ class RPN_targets(object):
 							 (anchors[:,2] <= im_height) &
 							 (anchors[:,3] <= im_width))[0]
 
+		# print("Invalid anchors are:" , len(orig_anchors) - len(inside_indices))
 		# print(len(inside_indices))
 		## Constructing an array holding valid anchor boxes
 		## These anchors basically fall inside the image
@@ -117,8 +118,8 @@ class RPN_targets(object):
 		Let's assign labels! Important
 		'''
 
-		pos_anchor_iou_threshold = 0.7
-		neg_anchor_iou_threshold = 0.3
+		pos_anchor_iou_threshold = self.cfg.ANCHORS.POS_PROPOSAL_THRES
+		neg_anchor_iou_threshold = self.cfg.ANCHORS.NEG_PROPOSAL_THRES
 
 
 		## IF max_iou for and anchor is lesser than neg_anchor_iou_threshold, it's a negative anchor.
@@ -141,7 +142,7 @@ class RPN_targets(object):
 
 		## Ratio of positive and negative anchors
 		pos_to_neg_ratio = 0.5
-		num_of_anchor_samples = 256 ## Total number of anchors
+		num_of_anchor_samples = 64 ## Total number of anchors
 
 		n_pos = int(num_of_anchor_samples*pos_to_neg_ratio) ## Number of positive anchors
 		n_neg = num_of_anchor_samples - n_pos          ## Number of negative anchors
@@ -174,8 +175,9 @@ class RPN_targets(object):
 		'''
 
 		if len(pos_anchor_indices) < n_pos:
-			n_neg = len(pos_anchor_indices)
-			
+			# n_neg = len(pos_anchor_indices)
+			n_neg = num_of_anchor_samples - len(pos_anchor_indices)
+
 		if len(neg_anchor_indices) > n_neg:
 			disable_index = np.random.choice(neg_anchor_indices, size=(len(neg_anchor_indices) - n_neg), replace=False)
 			anchor_labels[disable_index] = -1

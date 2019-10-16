@@ -71,7 +71,7 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 #-----------------------------------------------#
 
 ### let's generate the dataset
-transform = image_transform(cfg)
+transform, inv_transform = image_transform(cfg)
 
 kitti_dataset = KittiDataset(dset_path, transform = transform, cfg = cfg) #---- Dataloader
 print("Number of Images in Dataset: ", len(kitti_dataset))
@@ -127,7 +127,7 @@ def get_actual_coords(prediction, anchors):
 	bbox_locs_xy = np.vstack((x1, y1, x1+w, y1+h)).transpose() ## Final locations of the anchors
 
 	# print(type(prediction), prediction.shape, anchors.shape)
-	return bbox_locs_xy
+	return bbox_locs, bbox_locs_xy
 
 def check_validity(x1,y1,w,h, img_w, img_h):
 	
@@ -183,41 +183,35 @@ for images, labels, img_name in kitti_val_loader:
 	target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 	print(orig_anchors.shape, prediction['bbox_pred'].shape)
 
-	## To avoid overflow?
-	for i in np.arange(prediction['bbox_class'].size()[1]):
-		if prediction['bbox_class'][0,i,:][1].item() < 0.8:
-			prediction['bbox_pred'][0,i,:] = 0
-
-	bbox_locs = get_actual_coords(target['gt_bbox'], orig_anchors)
+	bbox_locs = utils.get_actual_coords(prediction, orig_anchors)
+	print(bbox_locs.shape)
 
 	nms = NMS(cfg.NMS_THRES)
-	print(prediction['bbox_class'].shape)
 	index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
 	index_to_keep = index_to_keep.numpy()
 
+	# print(index_to_keep)
+
 	img = np.asarray(Image.open(img_name[0]))
+
+	top_10_ind = index_to_keep[:10]
 
 	box_array = []
 	for i in np.arange(len(bbox_locs)):
 		count = 0
 		# print("Norm is: ",prediction['bbox_uncertainty_pred'][0,i,:].norm())
-		if prediction['bbox_class'][0,i,:][0].item() > 0.95 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 10.0 and i in index_to_keep:
+		if prediction['bbox_class'][0,i,:][1].item() > 0.90 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 10.0 and i in index_to_keep:
 		# if prediction['bbox_class'][0,i,:][1].item() > 0.95:
 			box_array.append(bbox_locs[i])
 			# print(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3])
 			# print(prediction['bbox_class'][0,i,:][1].item(), prediction['bbox_uncertainty_pred'][0,i,:].norm())
 			# valid_box = check_validity(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3], img.shape[1], img.shape[0]) ## throw away those boxes which are not inside the image
-	# print("asfasd", np.sum( valid_labels == 1) , np.sum( valid_labels == 0))
-	pos_indices = np.where(valid_labels == 1)[0]
-	# print("anchors", bbox_locs[valid_labels == 1], len(pos_indices))
-	# print(len(pos_indices))
-	img, img_pil = utils.draw_bbox(img, bbox_locs[valid_labels == 1])
+			
+	img_top10, top10pil = utils.draw_bbox(img, bbox_locs[top_10_ind])
+	img, img_pil = utils.draw_bbox(img, box_array)
+	# _ , img_ok = utils.draw_bbox(img, bbox_locs[valid_labels==1])
 
-	# plt.show()`
-	# fig.savefig(`'/network/tmp1/bansaldi/output/' + str(image_number).zfill(6) + '.png', dpi=fig.dpi)
-	img_pil.save('/network/home/bansaldi/Denso-OD/logs/batchnorm_corrected/results/'+str(image_number).zfill(6)+'.png')
-	# break`
-	# print`("Bou`nding boxes are:" prediction['bbox_pred'])
-	# print`("bbo`x_class")
-			# print("Box and coords are: ", prediction['bbox_class'][0,i,:], prediction['bbox_pred'][0,i,:])
+	img_pil.save('/network/home/bansaldi/Denso-OD/logs/newloss/results/'+str(image_number).zfill(6)+'.png')
+	top10pil.save('/network/home/bansaldi/Denso-OD/logs/newloss/results/'+str(image_number).zfill(6)+'_top10.png')
+	# img_ok.save('/network/home/bansaldi/Denso-OD/logs/newloss/lol/'+str(image_number).zfill(6)+'_top10.png')
 

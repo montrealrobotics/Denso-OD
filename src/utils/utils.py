@@ -19,18 +19,19 @@ def get_actual_coords(prediction, anchors):
 
 	prediction['bbox_pred'] = prediction['bbox_pred'].detach().cpu().numpy()
 	prediction['bbox_pred'] = prediction['bbox_pred'].reshape([prediction['bbox_pred'].shape[1], prediction['bbox_pred'].shape[2]])
-
+	pred = prediction['bbox_class'].detach().cpu().numpy()
 
 	y_c = prediction['bbox_pred'][:,0]*(anchors[:,2] - anchors[:,0]) + anchors[:,0] + 0.5*(anchors[:,2] - anchors[:,0])
 	x_c = prediction['bbox_pred'][:,1]*(anchors[:,3] - anchors[:,1]) + anchors[:,1] + 0.5*(anchors[:,3] - anchors[:,1])
 	h = np.exp(prediction['bbox_pred'][:,2])*(anchors[:,2] - anchors[:,0])
 	w = np.exp(prediction['bbox_pred'][:,3])*(anchors[:,3] - anchors[:,1])
+	prob = pred[0,:,1]
+	# print(prob.shape)
 
 	x1 = x_c - w/2.0
 	y1 = y_c - h/2.0
 
-	bbox_locs_xy = np.vstack((x1, y1, x1+w, y1+h)).transpose() ## Final locations of the anchors
-
+	bbox_locs_xy = np.vstack((x1, y1, x1+w, y1+h, prob)).transpose() ## Final locations of the anchors
 	# print(type(prediction['bbox_pred']), prediction['bbox_pred'].shape, anchors.shape)
 	return bbox_locs_xy
 
@@ -46,21 +47,26 @@ def check_validity(x1,y1,w,h, img_w, img_h):
 		return False
 
 
-def xy_to_wh(x1, y1, x2, y2):
-	return (x1, y1, x2-x1, y2-y1)
+def xy_to_wh(boxes):
+	trans = []
+	for i in boxes:
+		trans.append([i[1], i[0], i[3], i[2]])
+	return trans
 
 def draw_bbox(image, bboxes):
 
 	if len(image.shape)==4:
 		image = image[0]
 	if image.shape[2]!=3:
-		image = image.transpose((1,2,0))
+
+		image = np.transpose(image, (1,2,0))
 
 	image = Image.fromarray(image)
 	drawer = ImageDraw.Draw(image, mode=None)
 	
 	for i in bboxes:
-		drawer.rectangle(i, outline ='red' ,width=3)
+		drawer.rectangle(i[:4], outline ='red' ,width=3)
+		drawer.text([i[0], i[1]-10], "{0:.3f}".format(i[4]))
 
 	return np.asarray(image), image	
 
