@@ -30,14 +30,15 @@ bbox = np.array([[20,30,200,500], [30,400,300,600], [100,200,300,600], [200,400,
 labels = np.array([2,7,3,2])
 targets = {'boxes':bbox, 'labels':labels}
 
+cfg.BACKBONE.RESNET_STOP_LAYER = 1
 backbone_obj = Backbone(cfg)
 rpn_model = RPN(backbone_obj.out_channels, cfg)
 
-# heights = [550,650,734,616,734,392,581,520]
-# widths = [635,824,519,643,829,871,757,420]
+heights = [550,650,734,616,734,392,581,520]
+widths = [635,824,519,643,829,871,757,420]
 
-heights = [375]
-widths = [1242]
+# heights = [370]
+# widths = [1242]
 
 for h in heights:
     for w in widths:
