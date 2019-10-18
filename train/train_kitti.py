@@ -110,11 +110,6 @@ if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
 
-# for layer in frcnn.backbone_obj.modules():
-#     if isinstance(layer, torch.nn.BatchNorm2d):
-#         layer.eval()
-
-
 ## Initialize RPN params
 if cfg.TRAIN.OPTIM.lower() == 'adam':
 	optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.LR, weight_decay=0.01)
@@ -193,9 +188,6 @@ lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.
 
 tb_writer.add_graph(frcnn, torch.normal(mean=1e-2, std=1.0, size=(1, 3, 345, 1242)).cuda())  #Give some random input here as the same size as your input to the model
 
-# for n, p in frcnn.rpn_model.named_parameters():
-# 	print(n)
-
 frcnn.eval()
 while epoch <= epochs:
 	epoch += 1
@@ -207,6 +199,7 @@ while epoch <= epochs:
 
 	for idx, (image, labels, paths) in enumerate(kitti_train_loader):
 
+		
 		input_image = image
 		if cfg.USE_CUDA:
 			input_image = input_image.cuda()
@@ -245,35 +238,37 @@ while epoch <= epochs:
 
 		loss_classify, loss_regress_bbox, loss_error_bbox = loss_object(prediction, target, valid_indices)
 
-		loss = (loss_error_bbox + cfg.TRAIN.CLASS_LOSS_SCALE*loss_classify + cfg.TRAIN.SMOOTHL1LOSS_SCALE*loss_regress_bbox)/cfg.TRAIN.FAKE_BATCHSIZE
+		loss = loss_error_bbox + cfg.TRAIN.CLASS_LOSS_SCALE*loss_classify + cfg.TRAIN.SMOOTHL1LOSS_SCALE*loss_regress_bbox
 		
-		loss.backward()
+		batch_loss = loss/cfg.TRAIN.FAKE_BATCHSIZE 
+		batch_loss.backward()
+
+		itr_num = idx/cfg.TRAIN.FAKE_BATCHSIZE
 
 		if (idx+1)%cfg.TRAIN.FAKE_BATCHSIZE==0: 
 			optimizer.step()
 			optimizer.zero_grad()
+			
+			#------------ Logging and Printing ----------#
+			print("Epoch: {} Iteration: {}".format(epoch, idx))
+			print("Loss: ", loss.item(), "bbox: ", loss_regress_bbox.item(), 
+				"class:", loss_classify.item(), "Error:", loss_error_bbox.item())
+			
+			tb_writer.add_scalar('Loss/Classification', loss_classify.item(), epoch+itr_num)
+			tb_writer.add_scalar('Loss/Regression', loss_regress_bbox.item(), epoch+itr_num)
+			tb_writer.add_scalar('Loss/Error', loss_error_bbox.item(), epoch+itr_num)
 
-		#------------ Logging and Printing ----------#
-		print("Loss - bbox: ", loss_regress_bbox.item(), "classification:", loss_classify.item(), "Error:", loss_error_bbox.item(), "Epoch: ", epoch)
-		
-		
-		itr_num  = image_number/cfg.TRAIN.FAKE_BATCHSIZE
-		tb_writer.add_scalar('Loss/Classification', loss_classify.item(), epoch+itr_num)
-		tb_writer.add_scalar('Loss/Regression', loss_regress_bbox.item(), epoch+itr_num)
-		tb_writer.add_scalar('Loss/Error', loss_error_bbox.item(), epoch+itr_num)
+			#------------------------------------------------#
 
-		# file.write("only, bbox, sigma, neg: {} {} {} {} \n".format(loss_regress_bbox_only.item(), loss_regress_bbox.item(), loss_regress_sigma.item(), loss_regress_neg.item()))
-
-		#------------------------------------------------#
-
-		running_loss += loss
-		running_loss_classify += loss_classify
-		running_loss_regress += loss_regress_bbox
-		running_loss_error += loss_error_bbox
+		running_loss = 0.9*running_loss + 0.1*loss
+		running_loss_classify = 0.9*running_loss_classify + 0.1*loss_classify
+		running_loss_regress = 0.9*running_loss_regress + 0.1*loss_regress_bbox
+		running_loss_error = 0.9*running_loss_error + 0.1*loss_error_bbox
 	
 	# frcnn.eval()
-	rnd_indxs = np.random.randint(0, val_len-1, 100)
+	rnd_indxs = np.random.randint(0, val_len-1, 10)
 
+	val_loss = []
 	val_loss_classify = []
 	val_loss_regress = []
 	val_loss_error = []
@@ -297,7 +292,6 @@ while epoch <= epochs:
 			class_probs = prediction[1]
 			uncertainties = prediction[2]
 
-
 			#why is here inside exception?
 			try:
 				valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, feat_map, targets)
@@ -318,9 +312,10 @@ while epoch <= epochs:
 			target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 
 			loss_classify, loss_regress_bbox, loss_error_bbox = loss_object(prediction, target, valid_indices)
+			loss = loss_error_bbox + cfg.TRAIN.CLASS_LOSS_SCALE*loss_classify + cfg.TRAIN.SMOOTHL1LOSS_SCALE*loss_regress_bbox
 
-			print("Val loss - bbox: ", loss_regress_bbox.item(), " classification: ", loss_classify.item(), " Error:", loss_error_bbox.item())
-
+			# print("Val loss - bbox: ", loss_regress_bbox.item(), " classification: ", loss_classify.item(), " Error:", loss_error_bbox.item())
+			val_loss.append(loss.item())
 			val_loss_classify.append(loss_classify.item())
 			val_loss_regress.append(loss_regress_bbox.item())
 			val_loss_error.append(loss_error_bbox.item())
@@ -365,17 +360,22 @@ while epoch <= epochs:
 
 				tb_writer.add_image('Image', image_grid, dataformats='HWC')
 
-		# val_loss_classify = np.mean(val_loss_classify)
-		# val_loss_regress = np.mean(val_loss_regress)
-		# val_loss_euclidean = np.mean(val_loss_euclidean)
+		val_loss = np.mean(val_loss)
+		print(val_loss.shape)
+		val_loss_classify = np.mean(val_loss_classify)
+		val_loss_regress = np.mean(val_loss_regress)
+		val_loss_error = np.mean(val_loss_error)
 
-		# tb_writer.add_scalars('loss/classification', {'validation': val_loss_classify, 'train': running_loss_classify.item()/len(kitti_train_loader)}, epoch)
-		# tb_writer.add_scalars('loss/regression', {'validation': val_loss_regress, 'train': running_loss_regress.item()/len(kitti_train_loader)}, epoch)
-		# tb_writer.add_scalars('loss/euclidean', {'validation': val_loss_euclidean, 'train': running_loss_euc.item()/len(kitti_train_loader)}, epoch)
+		tb_writer.add_scalars('loss/classification', {'validation': val_loss_classify, 'train': running_loss_classify.item()}, epoch)
+		tb_writer.add_scalars('loss/regression', {'validation': val_loss_regress, 'train': running_loss_regress.item()}, epoch)
+		tb_writer.add_scalars('loss/euclidean', {'validation': val_loss_error, 'train': running_loss_error.item()}, epoch)
 
-		# file.write(f"Running loss (classification) {running_loss_classify.item()/len(kitti_train_loader)}, \t Running loss (regression): {running_loss_regress.item()/len(kitti_train_loader)}")
-		# print(f"Running loss (classification) {running_loss_classify.item()/len(kitti_train_loader)}, \t Running loss (regression): {running_loss_regress.item()/len(kitti_train_loader)}")
-		# print("Validation Loss - Classification loss: ", val_loss_classify, "Regression Loss: ", val_loss_regress, "Euclidean Loss: ", val_loss_euclidean)
+
+		print("Epoch ------------- {} ".format(epoch))
+		print("Training loss: {} classification: {} Regression: {} Error: {}".format(running_loss.item(), 
+			running_loss_classify.item(), running_loss_regress.item(), running_loss_error.item()))
+		print("Validation loss: ", val_loss, "Classification loss: ", val_loss_classify, "Regression Loss: ", val_loss_regress, 
+			"Error Loss: ", val_loss_error)
 		
 	## Decaying learning rate
 	lr_scheduler.step()

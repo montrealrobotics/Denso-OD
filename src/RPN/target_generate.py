@@ -143,7 +143,7 @@ class RPN_targets(object):
 
 		## Ratio of positive and negative anchors
 		pos_to_neg_ratio = 0.5
-		num_of_anchor_samples = 64 ## Total number of anchors
+		num_of_anchor_samples = self.cfg.ANCHORS.TRAINING ## Total number of anchors
 
 		n_pos = int(num_of_anchor_samples*pos_to_neg_ratio) ## Number of positive anchors
 		n_neg = num_of_anchor_samples - n_pos          ## Number of negative anchors

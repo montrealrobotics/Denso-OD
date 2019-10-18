@@ -206,8 +206,8 @@ class RPNErrorLoss(torch.nn.Module):
 			else:
 				neg_indices.append(valid_index)
 		
-		if len(pos_indices)*2 != len(valid_indices[0]):
-			print("Total and pos anchors are: ", len(valid_indices[0]), len(pos_indices))
+		# if len(pos_indices)*2 != len(valid_indices[0]):
+			# print("Total and pos anchors are: ", len(valid_indices[0]), len(pos_indices))
 		# print("length of total valid anchors is: ", len(valid_indices[0]))
 		reg_loss = self.reg_criterion(prediction[0][0][pos_indices], target['gt_bbox'][0][pos_indices])
 		

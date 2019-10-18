@@ -136,7 +136,7 @@ class anchor_generator(object):
 		## let's get anchor centers!
 		ctr_y = np.arange(sub_sample[0]//2, (feature_height)*sub_sample[0], sub_sample[0])
 		ctr_x = np.arange(sub_sample[1]//2, (feature_width)*sub_sample[1], sub_sample[1])
-		print("shapes", ctr_x.shape, ctr_y.shape)
+		# print("shapes", ctr_x.shape, ctr_y.shape)
 		return ctr_y, ctr_x
 
 	def get_all_anchors(self,im_height, im_width, feature_height, feature_width, aspect_ratios, anchor_scales):
