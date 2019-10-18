@@ -45,8 +45,8 @@ class RPN(nn.Module):
 		self.uncertain_layer.weight.data.normal_(cfg.RPN.UNCERTAIN_MEAN, cfg.RPN.UNCERTAIN_VAR)
 		self.uncertain_layer.bias.data.fill_(cfg.RPN.UNCERTAIN_BIAS)	## Initialize with high values to avoid NaNs
 		# nn.init.xavier_uniform(self.uncertain_layer.weight)
-		self.softplus =  nn.Softplus(beta = cfg.RPN.SOFTPLUS_BETA, threshold = cfg.RPN.SOFTPLUS_THRESH)
-		# self.eLU_sigma = nn.ELU(alpha = cfg.RPN.ACTIVATION_ALPHA)
+		# self.softplus =  nn.Softplus(beta = cfg.RPN.SOFTPLUS_BETA, threshold = cfg.RPN.SOFTPLUS_THRESH)
+		self.eLU_sigma = nn.ELU(alpha = cfg.RPN.ACTIVATION_ALPHA)
 
 
 		## Softplus for uncertainty
@@ -69,7 +69,7 @@ class RPN(nn.Module):
 		## Output of regression layer 
 		regress_out = self.eLU_reg(self.reg_layer(x))
 		regress_out = regress_out.view((regress_out.shape[0], 4, -1))
-		regress_out = regress_out.permite(0, 2, 1)
+		regress_out = regress_out.permute(0, 2, 1)
 		## Output of classification layer
 		# result['classification'] = self.softmax_classification(self.classification_layer(x))
 		class_out = self.classification_layer(x)
@@ -77,11 +77,11 @@ class RPN(nn.Module):
 		class_out = class_out.permute(0, 2, 1)
 
 		## Output of uncertainty layer
-		sigma_out = self.softplus(self.uncertain_layer(x))
+		sigma_out = self.eLU_sigma(self.uncertain_layer(x))
 		sigma_out = sigma_out.view((sigma_out.shape[0], 4, -1))
 		sigma_out = sigma_out.permute(0,2,1)
 		
-		return [regress_out, class_out, sigma_out]
+		return (regress_out, class_out, sigma_out)
 
 
 	def RichardCurve(self, x, low=0, high=1, sharp=0.5):
@@ -128,3 +128,4 @@ class RPN(nn.Module):
 															int(result['classification'].size()[1]*result['classification'].size()[2]*result['classification'].size()[3]/2),
 															2))
 		return final_output
+

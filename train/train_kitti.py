@@ -191,7 +191,7 @@ epochs = cfg.TRAIN.EPOCHS
 lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
 
-# tb_writer.add_graph(frcnn, torch.normal(mean=1e-2, std=1.0, size=(1, 3, 345, 1242)).cuda())  #Give some random input here as the same size as your input to the model
+tb_writer.add_graph(frcnn, torch.normal(mean=1e-2, std=1.0, size=(1, 3, 345, 1242)).cuda())  #Give some random input here as the same size as your input to the model
 
 # for n, p in frcnn.rpn_model.named_parameters():
 # 	print(n)
@@ -203,7 +203,7 @@ while epoch <= epochs:
 	running_loss = 0.0
 	running_loss_classify = 0.
 	running_loss_regress = 0.
-	running_loss_euc = 0.0
+	running_loss_error = 0.0
 
 	for idx, (image, labels, paths) in enumerate(kitti_train_loader):
 
@@ -221,6 +221,10 @@ while epoch <= epochs:
 		prediction, feat_map = frcnn.forward(input_image)
 		# print(feat_map.shape)
 
+		bboxes = prediction[0]
+		class_probs = prediction[1]
+		uncertainties = prediction[2]
+
 		try:
 			valid_anchors, valid_labels, orig_anchors = rpn_target.get_targets(input_image, feat_map, targets)
 			# print( np.sum( valid_labels == 1) , np.sum( valid_labels == 0))
@@ -233,9 +237,9 @@ while epoch <= epochs:
 		target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
 		target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
 		valid_indices = np.where(valid_labels != -1)
-		prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
-		prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
-		prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
+		bboxes = bboxes.type(cfg.DTYPE.FLOAT)
+		uncertainties = uncertainties.type(cfg.DTYPE.FLOAT)
+		class_probs = class_probs.type(cfg.DTYPE.FLOAT)
 		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 
@@ -250,8 +254,7 @@ while epoch <= epochs:
 			optimizer.zero_grad()
 
 		#------------ Logging and Printing ----------#
-		file.write("Class/Reg loss: {} {} epoch and image_number: {} {} \n".format(loss_classify.item(), loss_regress.item(), epoch, image_number))
-		print("Class/Reg/Euclidean loss:", loss_classify.item(), " ", loss_regress.item(), " ", loss_regress_bbox_only.item(), " epoch and image_number: ", epoch, image_number)
+		print("Loss - bbox: ", loss_regress_bbox.item(), "classification:", loss_classify.item(), "Error:", loss_error_bbox.item(), "Epoch: ", epoch)
 		
 		
 		itr_num  = image_number/cfg.TRAIN.FAKE_BATCHSIZE
@@ -261,22 +264,12 @@ while epoch <= epochs:
 
 		# file.write("only, bbox, sigma, neg: {} {} {} {} \n".format(loss_regress_bbox_only.item(), loss_regress_bbox.item(), loss_regress_sigma.item(), loss_regress_neg.item()))
 
-		print("bbox: ", loss_regress_bbox.item(), "classification:", loss_classify.item(), "Error:", loss_error_bbox.item())
-		
-		# file.write("Class/Reg grads: {} {}  \n".format(frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item()))
-		# tb_writer.add_scalar('Class/gradient', frcnn.rpn_model.classification_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-		# tb_writer.add_scalar('Reg/gradient', frcnn.rpn_model.reg_layer.weight.grad.norm().item()/cfg.TRAIN.FAKE_BATCHSIZE, itr_num)
-		# print("Class/Reg grads: ", frcnn.rpn_model.classification_layer.weight.grad.norm().item(), frcnn.rpn_model.reg_layer.weight.grad.norm().item())
-		# paramList = list(filter(lambda p : p.grad is not None, [param for param in frcnn.rpn_model.parameters()]))
-		# totalNorm = sum([(p.grad.data.norm(2.) ** 2.) for p in paramList]) ** (1. / 2)
-		# print('gradNorm: ', str(totalNorm.item()))
-
 		#------------------------------------------------#
 
 		running_loss += loss
 		running_loss_classify += loss_classify
-		running_loss_regress += loss_regress
-		running_loss_euc += loss_regress_bbox_only
+		running_loss_regress += loss_regress_bbox
+		running_loss_error += loss_error_bbox
 	
 	# frcnn.eval()
 	rnd_indxs = np.random.randint(0, val_len-1, 100)
@@ -297,7 +290,12 @@ while epoch <= epochs:
 				continue
 
 			targets = process_kitti_labels(cfg, labels)
+			
 			prediction, feat_map = frcnn.forward(input_image)
+
+			bboxes = prediction[0]
+			class_probs = prediction[1]
+			uncertainties = prediction[2]
 
 
 			#why is here inside exception?
@@ -312,16 +310,15 @@ while epoch <= epochs:
 			target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
 			target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
 			valid_indices = np.where(valid_labels != -1)
-			prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
-			prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
-			prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
-			prediction['bbox_class'] = torch.nn.functional.softmax(prediction['bbox_class'].type(cfg.DTYPE.FLOAT), dim=2)
+			bboxes = bboxes.type(cfg.DTYPE.FLOAT)
+			uncertainties = uncertainties.type(cfg.DTYPE.FLOAT)
+			class_probs = class_probs.type(cfg.DTYPE.FLOAT)
+			class_probs = torch.nn.functional.softmax(class_probs.type(cfg.DTYPE.FLOAT), dim=2)
 			target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 			target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 
 			loss_classify, loss_regress_bbox, loss_error_bbox = loss_object(prediction, target, valid_indices)
 
-			print("Val Loss - euc: {} class: {} regression: {}".format(loss_regress_bbox_only.item(), loss_classify.item(), loss_regress_bbox.item()))
 			print("Val loss - bbox: ", loss_regress_bbox.item(), " classification: ", loss_classify.item(), " Error:", loss_error_bbox.item())
 
 			val_loss_classify.append(loss_classify.item())
@@ -333,10 +330,11 @@ while epoch <= epochs:
 			# pos_bbox= utils.get_actual_coords(target, orig_anchors)	
 			pos_bbox = orig_anchors[valid_labels==1]
 
+
 			if idx in rnd_indxs:
 				if cfg.NMS.USE_NMS==True:
 					nms = NMS(cfg.NMS_THRES)
-					index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
+					index_to_keep = nms.apply_nms(bbox_locs, class_probs)
 					index_to_keep = index_to_keep.numpy()
 				else:
 					index_to_keep = np.arrange(len(bbox_locs))
@@ -344,10 +342,12 @@ while epoch <= epochs:
 				final_indexes = []
 
 				for box_idx in index_to_keep:
-					if prediction['bbox_class'][0,box_idx,:][1].item() > 0.90 and prediction['bbox_uncertainty_pred'][0,box_idx,:].norm() < 10.0:
+					if class_probs[0,box_idx,:][1].item() > 0.90 and uncertainties[0,box_idx,:].norm() < 10.0:
 						final_indexes.append(box_idx)
 
-				print("number of boxes in image: ", len(final_indexes))
+					
+				print("Num detected boxes {}, Num of positive boxes {}".format(len(final_indexes), len(pos_bbox)))
+				
 				bbox_locs = bbox_locs[final_indexes]
 
 				# print(image)
@@ -356,11 +356,11 @@ while epoch <= epochs:
 				
 				# input_image = image
 				pos_img, _ = utils.draw_bbox(image,utils.xy_to_wh(pos_bbox))
-				predict_img, _ = utils.draw_bbox(image, bbox_locs)				
+				predict_img, _ = utils.draw_bbox(image, bbox_locs, show_text=True)				
 
 				# print(input_image.shape, pos_img.shape, predict_img.shape)
 				image_grid = np.concatenate([pos_img,predict_img], axis = 1)
-				print(image_grid.shape)
+				# print(image_grid.shape)
 				# image_grid = torchvision.utils.make_grid(torch.stack(image_grid), 1)
 
 				tb_writer.add_image('Image', image_grid, dataformats='HWC')

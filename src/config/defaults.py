@@ -13,8 +13,8 @@ conf_params = CN()
 # ## Paths config
 
 conf_params.PATH = CN()
-conf_params.PATH.DATASET = "/network/tmp1/bhattdha/kitti_dataset"
-conf_params.PATH.LOGS = "/network/tmp1/bhattdha/logs"
+conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
+conf_params.PATH.LOGS = "/network/home/bansaldi/Denso-OD/logs"
 
 ##### Whether to use cuda or not #####
 conf_params.USE_CUDA = False ## False by default, to be changed to True in the code if cuda is available
@@ -82,9 +82,12 @@ conf_params.DTYPE.LONG = "torch.LongTensor"
 Necessary params to define anchors
 """
 conf_params.ANCHORS = CN()
-conf_params.ANCHORS.ASPECT_RATIOS = 1, 1.5, 2
+conf_params.ANCHORS.ASPECT_RATIOS = 1, 0.5, 2
 conf_params.ANCHORS.ANCHOR_SCALES = 64, 128, 256
 conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
+conf_params.ANCHORS.POS_PROPOSAL_THRES = 0.6
+conf_params.ANCHORS.NEG_PROPOSAL_THRES = 0.3
+conf_params.ANCHORS.TRAINING = 64
 
 
 ##### REGION PROPOSAL NETWORK CONFIG #####
@@ -96,18 +99,18 @@ conf_params.RPN.OUT_CHANNELS = 512
 conf_params.RPN.LAYER_CHANNELS = 512, 256, 128
 conf_params.RPN.N_ANCHORS_PER_LOCATION = 9
 conf_params.RPN.SOFTPLUS_BETA = 1
-conf_params.RPN.SOFTPLUS_THRESH = 20
+conf_params.RPN.SOFTPLUS_THRESH = 2
 
 """
 To be used for initilizing RPN weights
 """
-conf_params.RPN.CONV_MEAN = 0
-conf_params.RPN.CONV_VAR = 0.01
-conf_params.RPN.BIAS = 0
-conf_params.RPN.UNCERTAIN_MEAN = 0
-conf_params.RPN.UNCERTAIN_VAR = 0.01
+conf_params.RPN.CONV_MEAN = 0.01
+conf_params.RPN.CONV_VAR = 0.02
+conf_params.RPN.BIAS = 0.01
+conf_params.RPN.UNCERTAIN_MEAN = 0.01
+conf_params.RPN.UNCERTAIN_VAR = 0.02
 # conf_params.RPN.UNCERTAIN_BIAS = 30 ## Keeping it high to avoid running into NaN losses
-conf_params.RPN.UNCERTAIN_BIAS = 1.
+conf_params.RPN.UNCERTAIN_BIAS = 0.01
 conf_params.RPN.ACTIVATION_ALPHA = 1
 
 
