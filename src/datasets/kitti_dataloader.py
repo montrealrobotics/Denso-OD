@@ -45,7 +45,6 @@ class KittiDataset(Dataset):
 				em_dict = {}
 				obj = obj.split()
 				if obj[0] in class_list:
-					# print(obj[0])
 					em_dict['class'] = obj[0]
 					em_dict['bbox'] = [float(i) for i in obj[4:8]]
 					ob_list.append(em_dict)

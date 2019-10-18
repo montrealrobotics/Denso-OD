@@ -41,7 +41,8 @@ class anchor_generator(object):
 		## Let's get anchor centres(wrt original image)
 		return self.get_all_anchors(im_height = self.image.size()[2], 
 									im_width = self.image.size()[3], 
-									sub_sample = self.subsample,
+									feature_height = self.feature_map.size()[2],
+									feature_width = self.feature_map.size()[3],
 									aspect_ratios = self.aspect_ratios,
 									anchor_scales = self.anchor_scales)
 
@@ -61,7 +62,7 @@ class anchor_generator(object):
 		## Constructing an array holding valid anchor boxes
 		self.valid_anchor_boxes = self.anchor_data[valid_anchor_indices]
 
-	def generate_anchors(self, anchor_center, aspect_ratios, anchor_scales, sub_sample):
+	def generate_anchors(self, anchor_center, aspect_ratios, anchor_scales):
 	
 		'''
 		Input: 
@@ -77,7 +78,6 @@ class anchor_generator(object):
 		anchor_center = [100, 100]
 		aspect_ratios = [0.5, 1, 2]
 		anchor_scales = [128, 256, 512]
-		sub_sample = 16
 		anchor_base = generate_anchors(anchor_center, aspect_ratios, anchor_scales, sub_sample)
 
 		'''
@@ -110,7 +110,7 @@ class anchor_generator(object):
 
 	## DONE: Automate the process of getting these inputs. Make the inputs configuration parameters.
 
-	def get_anchor_centers(self, im_height, im_width, sub_sample):
+	def get_anchor_centers(self, im_height, im_width, feature_height, feature_width):
 	
 		'''
 		Given image dimensions and subsampling ratio from backbone, we get all anchor centers with respect to original image.
@@ -118,7 +118,8 @@ class anchor_generator(object):
 		Inputs: 
 		im_height: image height
 		im_width: image width
-		sub_sample: subsampling ratio of convolutional feature extractor
+		feature_height: feature_height
+		feature_width: feature_width
 		
 		Outputs:
 		ctr_y, ctr_x: center points
@@ -129,16 +130,16 @@ class anchor_generator(object):
 		'''
 		## Here x is facing towards the right, y is facing downwards
 		# print(im_height, im_width, sub_sample)
-		num_of_y_pixels = int(round(im_height/sub_sample[0]))
-		num_of_x_pixels = int(round(im_width/sub_sample[1]))
+		sub_sample = [int(round(self.image.size()[2]/self.feature_map.size()[2])),
+							int(round(self.image.size()[3]/self.feature_map.size()[3]))] ## Subsampling ratio.
 
 		## let's get anchor centers!
-		ctr_y = np.arange(sub_sample[0]//2, (num_of_y_pixels)*sub_sample[0], sub_sample[0])
-		ctr_x = np.arange(sub_sample[1]//2, (num_of_x_pixels)*sub_sample[1], sub_sample[1])
-		# print("shapes", ctr_x.shape, ctr_y.shape)
+		ctr_y = np.arange(sub_sample[0]//2, (feature_height)*sub_sample[0], sub_sample[0])
+		ctr_x = np.arange(sub_sample[1]//2, (feature_width)*sub_sample[1], sub_sample[1])
+		print("shapes", ctr_x.shape, ctr_y.shape)
 		return ctr_y, ctr_x
 
-	def get_all_anchors(self,im_height, im_width, sub_sample, aspect_ratios, anchor_scales):
+	def get_all_anchors(self,im_height, im_width, feature_height, feature_width, aspect_ratios, anchor_scales):
 	
 		'''
 		Inputs: 
@@ -155,13 +156,13 @@ class anchor_generator(object):
 		'''
 		
 		## getting anchor centers with respect to original image
-		ctr_y, ctr_x = self.get_anchor_centers(im_height=im_height, im_width = im_width, sub_sample = sub_sample)
+		ctr_y, ctr_x = self.get_anchor_centers(im_height=im_height, im_width = im_width, feature_height = feature_height, feature_width = feature_width)
 
 		
 		## At each pixel, we will have 9 anchors, total number of pixels in convolutional 
 		## feature map are (im_height*im_width)//(sub_sample*sub_sample). Hence,
 		## total number of anchors are,
-		num_of_pixels = (int(round(im_height/sub_sample[0])))*(int(round(im_width/sub_sample[1])))
+		num_of_pixels = feature_height*feature_width
 		anchors_per_pixel = len(aspect_ratios)*len(anchor_scales)
 		
 		## Each anchor has 4 points(y1, x1, y2, x2)
@@ -179,7 +180,7 @@ class anchor_generator(object):
 				anchor_center = [ctr_y[i], ctr_x[j]]
 				
 				## generate all 9 anchors for this anchor center, output 9x4 array
-				anchor_base = self.generate_anchors(anchor_center, aspect_ratios, anchor_scales, sub_sample)
+				anchor_base = self.generate_anchors(anchor_center, aspect_ratios, anchor_scales)
 				
 				## Populating anchor data matrix with appropriate co-ordinates
 				anchor_data[index,:,:] = anchor_base

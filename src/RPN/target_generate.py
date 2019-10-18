@@ -122,6 +122,7 @@ class RPN_targets(object):
 		neg_anchor_iou_threshold = self.cfg.ANCHORS.NEG_PROPOSAL_THRES
 
 
+
 		## IF max_iou for and anchor is lesser than neg_anchor_iou_threshold, it's a negative anchor.
 		anchor_labels[max_ious < neg_anchor_iou_threshold] = 0		
 
@@ -175,8 +176,8 @@ class RPN_targets(object):
 		'''
 
 		if len(pos_anchor_indices) < n_pos:
-			# n_neg = len(pos_anchor_indices)
 			n_neg = num_of_anchor_samples - len(pos_anchor_indices)
+			
 
 		if len(neg_anchor_indices) > n_neg:
 			disable_index = np.random.choice(neg_anchor_indices, size=(len(neg_anchor_indices) - n_neg), replace=False)
