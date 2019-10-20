@@ -132,13 +132,11 @@ conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon
 conf_params.TRAIN.SAVE_MODEL_EPOCHS = 5 ## save model at every certain epochs
 conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'probabilistic']
 conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
-conf_params.TRAIN.TRAIN_LENGTH = 1500
-conf_params.TRAIN.VAL_LENGTH = 500
-# conf_params.TRAIN.TRAIN_LENGTH = None
+conf_params.TRAIN.DATASET_LENGTH = 1000
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 10.0 	### Scale classification loss by this amount
 conf_params.TRAIN.SMOOTHL1LOSS_SCALE = 30
-conf_params.TRAIN.FAKE_BATCHSIZE = 25 ### fake batch
+conf_params.TRAIN.FAKE_BATCHSIZE = 5 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
 

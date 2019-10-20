@@ -88,16 +88,16 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 transform, inv_transform = image_transform(cfg) # this is tranform to normalise/standardise the images
 
 kitti_dataset = KittiDataset(dset_path, transform = transform, cfg = cfg) #---- Dataloader
-print("Number of Images in Dataset: ", len(kitti_dataset))
 
 ## Split into train & validation
 
-if cfg.TRAIN.TRAIN_LENGTH and cfg.TRAIN.VAL_LENGTH:
-	train_len = cfg.TRAIN.TRAIN_LENGTH
-	val_len = cfg.TRAIN.VAL_LENGTH
-else:
-	train_len = int(cfg.TRAIN.DATASET_DIVIDE*len(kitti_dataset))
-	val_len = len(kitti_dataset) - train_len
+if cfg.TRAIN.DATASET_LENGTH:
+	kitti_dataset = torch.utils.data.Subset(kitti_dataset, range(cfg.TRAIN.DATASET_LENGTH))
+
+train_len = int(cfg.TRAIN.DATASET_DIVIDE*len(kitti_dataset))
+val_len = len(kitti_dataset) - train_len
+
+print("Number of Images in Dataset: ", len(kitti_dataset))
 
 kitti_train_dataset, kitti_val_dataset = torch.utils.data.random_split(kitti_dataset, [train_len, val_len])
 
@@ -203,6 +203,10 @@ while epoch <= epochs:
 	running_loss_regress = 0.
 	running_loss_error = 0.0
 	batch_loss = 0.0
+	batch_loss_classify = 0.0
+	batch_loss_bbox = 0.0
+	batch_loss_error = 0.0
+
 
 	for idx, (image, labels, paths) in enumerate(kitti_train_loader):
 
@@ -256,14 +260,15 @@ while epoch <= epochs:
 
 		if (idx+1)%cfg.TRAIN.FAKE_BATCHSIZE==0:
 			batch_loss = batch_loss/cfg.TRAIN.FAKE_BATCHSIZE 
+			
 			batch_loss.backward()
 			optimizer.step()
 			optimizer.zero_grad()
-			
+
 			#------------ Logging and Printing ----------#
 			print("Epoch | Iteration | Loss | Bbox | Class | Error")
-			print("{:8>d} {:9>d} {:7>0.4f} {:7>0.4f} {:8>0.4f} {:8>0.4f}".format(epoch, idx, loss.item(), loss_regress_bbox.item(), loss_classify.item(), loss_error_bbox.item()))
-			
+			print("{:<8d} {:<9d} {:<7.4f} {:<7.4f} {:<8.4f}{:<8.4f}".format(epoch, idx, loss.item(), loss_regress_bbox.item(), loss_classify.item(), loss_error_bbox.item()))
+		
 			tb_writer.add_scalar('Loss/Classification', loss_classify.item(), epoch+itr_num)
 			tb_writer.add_scalar('Loss/Regression', loss_regress_bbox.item(), epoch+itr_num)
 			tb_writer.add_scalar('Loss/Error', loss_error_bbox.item(), epoch+itr_num)
@@ -271,12 +276,18 @@ while epoch <= epochs:
 			batch_loss_classify = batch_loss_classify/cfg.TRAIN.FAKE_BATCHSIZE
 			batch_loss_bbox = batch_loss_bbox/cfg.TRAIN.FAKE_BATCHSIZE
 			batch_loss_error = batch_loss_error/cfg.TRAIN.FAKE_BATCHSIZE
+			
 			running_loss = 0.9*running_loss + 0.1*batch_loss
 			running_loss_classify = 0.9*running_loss_classify + 0.1*batch_loss_classify
 			running_loss_regress = 0.9*running_loss_regress + 0.1*batch_loss_bbox
 			running_loss_error = 0.9*running_loss_error + 0.1*batch_loss_error
 	
 			#------------------------------------------------#
+
+			batch_loss = 0.0
+			batch_loss_classify = 0.0
+			batch_loss_error = 0.0
+			batch_loss_bbox = 0.0
 
 	rnd_indxs = np.random.randint(0, val_len-1, 10)
 
@@ -311,7 +322,6 @@ while epoch <= epochs:
 				print("Inside exception!")
 				continue
 			
-			image_number += 1
 			target = {}
 			target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
 			target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
@@ -324,7 +334,7 @@ while epoch <= epochs:
 			target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 
 			loss_classify, loss_regress_bbox, loss_error_bbox = loss_object(prediction, target, valid_indices)
-			loss = loss_error_bbox + cfg.TRAIN.CLASS_LOSS_SCALE*loss_classify + cfg.TRAIN.SMOOTHL1LOSS_SCALE*loss_regress_bbox
+			loss = loss_error_bbox + loss_classify + loss_regress_bbox
 
 			# print("Val loss - bbox: ", loss_regress_bbox.item(), " classification: ", loss_classify.item(), " Error:", loss_error_bbox.item())
 			val_loss.append(loss.item())
@@ -332,7 +342,8 @@ while epoch <= epochs:
 			val_loss_regress.append(loss_regress_bbox.item())
 			val_loss_error.append(loss_error_bbox.item())
 
-			target['bbox_pred'] = target['gt_bbox']
+			prediction[1] = torch.nn.functional.softmax(prediction[1], dim=2)
+			# target['bbox_pred'] = target['gt_bbox']
 			bbox_locs = utils.get_actual_coords(prediction, orig_anchors)
 			# pos_bbox= utils.get_actual_coords(target, orig_anchors)	
 			pos_bbox = orig_anchors[valid_labels==1]
@@ -383,7 +394,9 @@ while epoch <= epochs:
 		tb_writer.add_scalars('loss/error', {'validation': val_loss_error, 'train': running_loss_error.item()}, epoch)
 
 
-		print("Epoch ------------- {} ".format(epoch))
+		print("Epoch ---- {} ".format(epoch))
+		print("           Training   Validation")
+		print("Loss: {:>13.4f}    {:0.4f}".format(running_loss.item(), val_loss))
 		print("Training loss: {} classification: {} Regression: {} Error: {}".format(running_loss.item(), 
 			running_loss_classify.item(), running_loss_regress.item(), running_loss_error.item()))
 		print("Validation loss: ", val_loss, "Classification loss: ", val_loss_classify, "Regression Loss: ", val_loss_regress, 

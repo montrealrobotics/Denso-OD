@@ -4,6 +4,7 @@ Compute loss for Region proposal networks(Not supported for RetinaNet yet)
 
 import torch
 import sys
+from src.config import Cfg as cfg
 
 class RPNLoss(torch.nn.Module):
 	"""docstring for RPNLoss"""
