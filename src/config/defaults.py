@@ -83,11 +83,11 @@ Necessary params to define anchors
 """
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = 1, 0.5, 2
-conf_params.ANCHORS.ANCHOR_SCALES = 64, 128, 256
+conf_params.ANCHORS.ANCHOR_SCALES = 32, 128, 256
 conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 conf_params.ANCHORS.POS_PROPOSAL_THRES = 0.6
 conf_params.ANCHORS.NEG_PROPOSAL_THRES = 0.3
-conf_params.ANCHORS.TRAINING = 64
+conf_params.ANCHORS.TRAINING = 32
 
 
 ##### REGION PROPOSAL NETWORK CONFIG #####
@@ -120,22 +120,25 @@ For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
-conf_params.TRAIN.LR = 1e-3
+conf_params.TRAIN.LR = 2e-4
 conf_params.TRAIN.MOMENTUM = 0.09 # Used only when TRAIN.OPTIM is set to 'sgd'
 conf_params.TRAIN.EPOCHS = 50
-conf_params.TRAIN.MILESTONES = 15, 25	
+conf_params.TRAIN.MILESTONES = 5, 15, 35	
 conf_params.TRAIN.DSET_SHUFFLE = True
 conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
 conf_params.TRAIN.FREEZE_BACKBONE = False
-conf_params.TRAIN.LR_DECAY = 0.1 ## Decay learning rate by this factor every certain epochs
-conf_params.TRAIN.LR_DECAY_EPOCHS = 50 	## Epochs after which we should act upon learning rate
+conf_params.TRAIN.LR_DECAY = 0.5 ## Decay learning rate by this factor every certain epochs
+conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon learning rate
 conf_params.TRAIN.SAVE_MODEL_EPOCHS = 5 ## save model at every certain epochs
 conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'probabilistic']
 conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
+conf_params.TRAIN.TRAIN_LENGTH = 1500
+conf_params.TRAIN.VAL_LENGTH = 500
+# conf_params.TRAIN.TRAIN_LENGTH = None
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 10.0 	### Scale classification loss by this amount
 conf_params.TRAIN.SMOOTHL1LOSS_SCALE = 30
-conf_params.TRAIN.FAKE_BATCHSIZE = 32 ### fake batch
+conf_params.TRAIN.FAKE_BATCHSIZE = 25 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
 

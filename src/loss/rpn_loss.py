@@ -170,8 +170,9 @@ class RPNErrorLoss(torch.nn.Module):
 
 		self.total_anchors = prediction[0].shape[1]
 
-		self.class_loss = self.get_classification_loss(prediction, target, valid_indices)
+		self.class_loss = cfg.TRAIN.CLASS_LOSS_SCALE*self.get_classification_loss(prediction, target, valid_indices)
 		self.reg_loss_bbox, self.error_loss_bbox = self.get_regression_loss(prediction, target, valid_indices)
+		self.reg_loss_bbox = cfg.TRAIN.SMOOTHL1LOSS_SCALE*self.reg_loss_bbox
 
 		# print("Classification and regression losses are: ", self.class_loss.item(), self.reg_loss.item())
 		return self.class_loss, self.reg_loss_bbox, self.error_loss_bbox
@@ -214,8 +215,8 @@ class RPNErrorLoss(torch.nn.Module):
 
 
 		## Calculating loss over the error
-		pred_clone = prediction[0][0][pos_indices].clone()
-		target_clone = target['gt_bbox'][0][pos_indices].clone()
+		pred_clone = prediction[0][0][pos_indices].detach()
+		target_clone = target['gt_bbox'][0][pos_indices]
 
 		error_actual = pred_clone - target_clone
 
