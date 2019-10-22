@@ -48,6 +48,9 @@ ap.add_argument("-mp", "--modelpath", required = True, help="give path of the mo
 args = vars(ap.parse_args())
 dset_path = args["datasetpath"]
 model_path = args["modelpath"]
+checkpoint = torch.load(model_path)
+cfg = checkpoint['cfg']
+
 
 if not path.exists(dset_path):
 	print("Dataset path doesn't exist")
@@ -71,7 +74,7 @@ if torch.cuda.is_available() and not cfg.NO_GPU:
 #-----------------------------------------------#
 
 ### let's generate the dataset
-transform, inv_transform = image_transform(cfg)
+transform , inverse_transform = image_transform(cfg)
 
 kitti_dataset = KittiDataset(dset_path, transform = transform, cfg = cfg) #---- Dataloader
 print("Number of Images in Dataset: ", len(kitti_dataset))
@@ -96,7 +99,6 @@ if cfg.TRAIN.FREEZE_BACKBONE:
 		params.requires_grad = False
 
 
-checkpoint = torch.load(model_path)
 frcnn.load_state_dict(checkpoint['model_state_dict'])
 
 rpn_target = RPN_targets(cfg)
@@ -145,7 +147,8 @@ def check_validity(x1,y1,w,h, img_w, img_h):
 
 image_number = 0
 
-for images, labels, img_name in kitti_val_loader:
+for images, labels, img_name in kitti_train_loader:
+# for images, labels, img_name in kitti_val_loader:
 	
 	image_number += 1
 
@@ -164,6 +167,11 @@ for images, labels, img_name in kitti_val_loader:
 	# TODO: Training pass
 	# optimizer.zero_grad()
 	prediction, out = frcnn.forward(input_image)
+
+	bboxes = prediction[0]
+	class_probs = prediction[1]
+	uncertainties = prediction[2]
+	
 	print(input_image.shape, out.shape)
 	# print(targets['boxes'])
 	try:
@@ -175,33 +183,31 @@ for images, labels, img_name in kitti_val_loader:
 	target['gt_bbox'] = torch.unsqueeze(torch.from_numpy(valid_anchors),0)
 	target['gt_anchor_label'] = torch.unsqueeze(torch.from_numpy(valid_labels).long(), 0) 
 	valid_indices = np.where(valid_labels != -1)
-	prediction['bbox_pred'] = prediction['bbox_pred'].type(cfg.DTYPE.FLOAT)
-	prediction['bbox_uncertainty_pred'] = prediction['bbox_uncertainty_pred'].type(cfg.DTYPE.FLOAT)
-	prediction['bbox_class'] = prediction['bbox_class'].type(cfg.DTYPE.FLOAT)
-	prediction['bbox_class'] = torch.nn.functional.softmax(prediction['bbox_class'].type(cfg.DTYPE.FLOAT), dim=2)
 	target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 	target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
-	print(orig_anchors.shape, prediction['bbox_pred'].shape)
+	# print(orig_anchors.shape, prediction['bbox_pred'].shape)
 
-	bbox_locs = utils.get_actual_coords(prediction, orig_anchors)
-	print(bbox_locs.shape)
-
+	class_probs = torch.nn.functional.softmax(class_probs.type(cfg.DTYPE.FLOAT), dim=2)
+	
+	bbox_locs = utils.get_actual_coords((bboxes, class_probs, uncertainties), orig_anchors)
+	
 	nms = NMS(cfg.NMS_THRES)
-	index_to_keep = nms.apply_nms(bbox_locs, prediction['bbox_class'])
+	# print(prediction['bbox_class'].shape)
+	index_to_keep = nms.apply_nms(bbox_locs, class_probs)
 	index_to_keep = index_to_keep.numpy()
 
-	# print(index_to_keep)
+	print(index_to_keep)
 
 	img = np.asarray(Image.open(img_name[0]))
 
-	top_10_ind = index_to_keep[:10]
+	top_10_ind = index_to_keep[:15]
 
 	box_array = []
 	for i in np.arange(len(bbox_locs)):
 		count = 0
 		# print("Norm is: ",prediction['bbox_uncertainty_pred'][0,i,:].norm())
-		if prediction['bbox_class'][0,i,:][1].item() > 0.90 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 10.0 and i in index_to_keep:
-		# if prediction['bbox_class'][0,i,:][1].item() > 0.95:
+		# if prediction['bbox_class'][0,i,:][1].item() > 0.90 and prediction['bbox_uncertainty_pred'][0,i,:].norm() < 10.0 and i in index_to_keep:
+		if class_probs[0,i,:][1].item() > 0.6:
 			box_array.append(bbox_locs[i])
 			# print(bbox_locs[i][0],bbox_locs[i][1],bbox_locs[i][2],bbox_locs[i][3])
 			# print(prediction['bbox_class'][0,i,:][1].item(), prediction['bbox_uncertainty_pred'][0,i,:].norm())
@@ -211,7 +217,7 @@ for images, labels, img_name in kitti_val_loader:
 	img, img_pil = utils.draw_bbox(img, box_array)
 	# _ , img_ok = utils.draw_bbox(img, bbox_locs[valid_labels==1])
 
-	img_pil.save('/network/home/bansaldi/Denso-OD/logs/newloss/results/'+str(image_number).zfill(6)+'.png')
-	top10pil.save('/network/home/bansaldi/Denso-OD/logs/newloss/results/'+str(image_number).zfill(6)+'_top10.png')
-	# img_ok.save('/network/home/bansaldi/Denso-OD/logs/newloss/lol/'+str(image_number).zfill(6)+'_top10.png')
+	img_pil.save('/network/home/bansaldi/Denso-OD/logs/hopefully_all_good/results/'+str(image_number).zfill(6)+'.png')
+	top10pil.save('/network/home/bansaldi/Denso-OD/logs/hopefully_all_good/results/'+str(image_number).zfill(6)+'_top10.png')
+	# img_ok.save('/network/home/bhattdha/'+str(image_number).zfill(6)+'_top10.png')
 

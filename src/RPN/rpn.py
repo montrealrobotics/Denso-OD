@@ -100,32 +100,3 @@ class RPN(nn.Module):
 		return low + ((high - low) / (1 + torch.exp(-sharp * x)))
 
 
-	def reshape_output(self, result):
-
-		'''
-		This reshapes the output of the network.
-		Example: 
-		If output of regression layer is 8x36x18x18, the final 
-		output will be of size 8x2916x4
-
-		If output of classification layer is 8x18x18x18, the final 
-		output will be of size 8x2916x2(2916 = total number of anchors per image, 8 = batchsize)
-
-		'''
-		## Make this better, but ok for now!
-
-		final_output = {}
-
-		final_output['bbox_pred'] = result['regression'].view((result['regression'].size()[0],
-															int(result['regression'].size()[1]*result['regression'].size()[2]*result['regression'].size()[3]/4),
-															4))
-
-		final_output['bbox_uncertainty_pred'] = result['uncertainty'].view((result['uncertainty'].size()[0],
-															int(result['uncertainty'].size()[1]*result['uncertainty'].size()[2]*result['uncertainty'].size()[3]/4),
-															4))
-
-		final_output['bbox_class'] = result['classification'].view((result['classification'].size()[0],
-															int(result['classification'].size()[1]*result['classification'].size()[2]*result['classification'].size()[3]/2),
-															2))
-		return final_output
-

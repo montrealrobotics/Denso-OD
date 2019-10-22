@@ -143,6 +143,11 @@ class RPNErrorLoss(torch.nn.Module):
 		## Criterion for classification
 		self.class_criterion =  torch.nn.CrossEntropyLoss()
 
+
+
+
+
+
 		self.total_anchors = None
 		self.class_loss = None
 		self.reg_loss = None
@@ -216,7 +221,7 @@ class RPNErrorLoss(torch.nn.Module):
 
 
 		## Calculating loss over the error
-		pred_clone = prediction[0][0][pos_indices].detach()
+		pred_clone = prediction[0][0][pos_indices].clone().detach()
 		target_clone = target['gt_bbox'][0][pos_indices]
 
 		error_actual = pred_clone - target_clone
@@ -227,6 +232,7 @@ class RPNErrorLoss(torch.nn.Module):
 		error_loss = self.reg_criterion(error_predicted, error_actual)
 
 		return reg_loss, error_loss 
+
 
 
 

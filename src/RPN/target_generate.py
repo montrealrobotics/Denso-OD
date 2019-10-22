@@ -176,7 +176,8 @@ class RPN_targets(object):
 		'''
 
 		if len(pos_anchor_indices) < n_pos:
-			n_neg = num_of_anchor_samples - len(pos_anchor_indices)
+			# n_neg = num_of_anchor_samples - len(pos_anchor_indices)
+			n_neg = len(pos_anchor_indices)
 			
 
 		if len(neg_anchor_indices) > n_neg:

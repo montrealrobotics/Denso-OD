@@ -87,7 +87,7 @@ conf_params.ANCHORS.ANCHOR_SCALES = 32, 128, 256
 conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 conf_params.ANCHORS.POS_PROPOSAL_THRES = 0.6
 conf_params.ANCHORS.NEG_PROPOSAL_THRES = 0.3
-conf_params.ANCHORS.TRAINING = 32
+conf_params.ANCHORS.TRAINING = 64
 
 
 ##### REGION PROPOSAL NETWORK CONFIG #####
@@ -121,7 +121,7 @@ For training
 conf_params.TRAIN = CN()
 conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 2e-4
-conf_params.TRAIN.MOMENTUM = 0.09 # Used only when TRAIN.OPTIM is set to 'sgd'
+conf_params.TRAIN.MOMENTUM = 0.9 # Used only when TRAIN.OPTIM is set to 'sgd'
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.MILESTONES = 5, 15, 35	
 conf_params.TRAIN.DSET_SHUFFLE = True

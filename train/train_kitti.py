@@ -112,11 +112,15 @@ tb_writer = tensorboard.SummaryWriter(graph_dir)
 #--------- Define the model ---------------#
 
 frcnn = FRCNN(cfg)
+loss_object = RPNErrorLoss(cfg)
+rpn_target = RPN_targets(cfg)
+
+
 if cfg.TRAIN.FREEZE_BACKBONE:
 	for params in frcnn.backbone_obj.parameters():
 		params.requires_grad = False
 
-## Initialize RPN params
+
 if cfg.TRAIN.OPTIM.lower() == 'adam':
 	optimizer = optim.Adam(frcnn.parameters(), lr=cfg.TRAIN.LR, weight_decay=0.01)
 elif cfg.TRAIN.OPTIM.lower() == 'sgd':
@@ -124,24 +128,22 @@ elif cfg.TRAIN.OPTIM.lower() == 'sgd':
 else:
 	raise ValueError('Optimizer must be one of \"sgd\" or \"adam\"')
 
-loss_object = RPNErrorLoss(cfg)
 
-rpn_target = RPN_targets(cfg)
 if cfg.USE_CUDA:
 	frcnn = frcnn.cuda()
 	loss_object = loss_object.cuda()
+	# rpn_target = rpn_target.cuda()
 	# optimizer = optimizer.cuda()
 	cfg.DTYPE.FLOAT = 'torch.cuda.FloatTensor'
 	cfg.DTYPE.LONG = 'torch.cuda.LongTensor'
 #-----------------------------------------#
 
 
-#--------- Training Procedure -------------#
-
 #------- Loading previous point or running new----------#
 
 checkpoint_path = experiment_dir + '/checkpoint.txt'
 print(checkpoint_path)
+
 if path.exists(checkpoint_path):
 	with open(checkpoint_path, "r") as f: 
 		model_path = f.readline().strip('\n')
@@ -289,6 +291,45 @@ while epoch <= epochs:
 			batch_loss_error = 0.0
 			batch_loss_bbox = 0.0
 
+			# with torch.no_grad():
+			# 	# target['bbox_pred'] = target['gt_bbox']
+			# 	bbox_locs = utils.get_actual_coords(prediction, orig_anchors)
+			# 	# pos_bbox= utils.get_actual_coords(target, orig_anchors)	
+			# 	pos_bbox = orig_anchors[valid_labels==1]
+
+			# 	if cfg.NMS.USE_NMS==True:
+			# 		nms = NMS(cfg.NMS_THRES)
+			# 		index_to_keep = nms.apply_nms(bbox_locs, class_probs)
+			# 		index_to_keep = index_to_keep.numpy()
+			# 	else:
+			# 		index_to_keep = np.arrange(len(bbox_locs))
+
+			# 	final_indexes = []
+
+			# 	for box_idx in index_to_keep:
+			# 		if class_probs[0,box_idx,:][1].item() > 0.60:
+			# 			final_indexes.append(box_idx)
+
+					
+			# 	print("Num detected boxes {}, Num of positive boxes {}".format(len(final_indexes), len(pos_bbox)))
+				
+			# 	bbox_locs = bbox_locs[final_indexes]	
+
+			# 	# print(image)
+			# 	# image = inv_transform(image)
+			# 	image = np.array(Image.open(paths[0]), dtype='uint8')
+				
+			# 	# input_image = image
+			# 	pos_img, _ = utils.draw_bbox(image,utils.xy_to_wh(pos_bbox))
+			# 	predict_img, _ = utils.draw_bbox(image, bbox_locs, show_text=True)				
+
+			# 	# print(input_image.shape, pos_img.shape, predict_img.shape)
+			# 	image_grid = np.concatenate([pos_img,predict_img], axis = 1)
+			# 	# print(image_grid.shape)
+			# 	# image_grid = torchvision.utils.make_grid(torch.stack(image_grid), 1)
+
+			# 	tb_writer.add_image('Training', image_grid, epoch, dataformats='HWC')
+
 	rnd_indxs = np.random.randint(0, val_len-1, 10)
 
 	val_loss = []
@@ -342,9 +383,8 @@ while epoch <= epochs:
 			val_loss_regress.append(loss_regress_bbox.item())
 			val_loss_error.append(loss_error_bbox.item())
 
-			prediction[1] = torch.nn.functional.softmax(prediction[1], dim=2)
 			# target['bbox_pred'] = target['gt_bbox']
-			bbox_locs = utils.get_actual_coords(prediction, orig_anchors)
+			bbox_locs = utils.get_actual_coords((bboxes, class_probs, uncertainties), orig_anchors)
 			# pos_bbox= utils.get_actual_coords(target, orig_anchors)	
 			pos_bbox = orig_anchors[valid_labels==1]
 
@@ -382,7 +422,7 @@ while epoch <= epochs:
 				# print(image_grid.shape)
 				# image_grid = torchvision.utils.make_grid(torch.stack(image_grid), 1)
 
-				tb_writer.add_image('Image', image_grid, epoch, dataformats='HWC')
+				tb_writer.add_image('Validation', image_grid, epoch, dataformats='HWC')
 
 		val_loss = np.mean(val_loss)
 		val_loss_classify = np.mean(val_loss_classify)
