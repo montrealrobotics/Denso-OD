@@ -17,12 +17,7 @@ conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_datas
 conf_params.PATH.LOGS = "/network/home/bansaldi/Denso-OD/logs"
 
 ##### Whether to use cuda or not #####
-conf_params.USE_CUDA = False ## False by default, to be changed to True in the code if cuda is available
-
-#### IF True, we won't use GPU even if it would be available
-#### IF False, we will use GPU only if available	
-conf_params.NO_GPU = False	
-
+conf_params.USE_CUDA = True ## 
 
 ###### Reproducibility in randomization ######
 conf_params.RANDOMIZATION = CN()
@@ -42,9 +37,9 @@ conf_params.BACKBONE = CN()
 conf_params.BACKBONE.MODEL_NAME = 'resnet50'
 
 ### choices = [1,2,3,4]
-conf_params.BACKBONE.RESNET_STOP_LAYER = 4 
+conf_params.BACKBONE.RESNET_STOP_LAYER = 3
 
-
+conf_params.IMAGE_SIZE = (375, 1242)
 
 
 
@@ -71,6 +66,7 @@ We will stick to same to get better output.
 conf_params.INPUT = CN()
 conf_params.INPUT.MEAN = 0.485, 0.456, 0.406
 conf_params.INPUT.STD = 0.229, 0.224, 0.225
+conf_params.INPUT.NUM_CLASSES = 5
 
 ##### Datatypes #####
 conf_params.DTYPE = CN()
@@ -82,12 +78,10 @@ conf_params.DTYPE.LONG = "torch.LongTensor"
 Necessary params to define anchors
 """
 conf_params.ANCHORS = CN()
-conf_params.ANCHORS.ASPECT_RATIOS = 1, 0.5, 2
-conf_params.ANCHORS.ANCHOR_SCALES = 32, 128, 256
-conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
-conf_params.ANCHORS.POS_PROPOSAL_THRES = 0.6
+conf_params.ANCHORS.ASPECT_RATIOS = [0.5,1,2]
+conf_params.ANCHORS.ANCHOR_SCALES = [64, 128, 256]
+conf_params.ANCHORS.POS_PROPOSAL_THRES = 0.7
 conf_params.ANCHORS.NEG_PROPOSAL_THRES = 0.3
-conf_params.ANCHORS.TRAINING = 64
 
 
 ##### REGION PROPOSAL NETWORK CONFIG #####
@@ -96,10 +90,8 @@ Used for defining region proposal network
 """
 conf_params.RPN = CN()
 conf_params.RPN.OUT_CHANNELS = 512
-conf_params.RPN.LAYER_CHANNELS = 512, 256, 128
+# conf_params.RPN.LAYER_CHANNELS = 512, 256, 128
 conf_params.RPN.N_ANCHORS_PER_LOCATION = 9
-conf_params.RPN.SOFTPLUS_BETA = 1
-conf_params.RPN.SOFTPLUS_THRESH = 2
 
 """
 To be used for initilizing RPN weights
@@ -112,6 +104,20 @@ conf_params.RPN.UNCERTAIN_VAR = 0.02
 # conf_params.RPN.UNCERTAIN_BIAS = 30 ## Keeping it high to avoid running into NaN losses
 conf_params.RPN.UNCERTAIN_BIAS = 0.01
 conf_params.RPN.ACTIVATION_ALPHA = 1
+conf_params.RPN.LOSS_WEIGHT = 1.0
+conf_params.RPN.BATCH_SIZE_PER_IMAGE = 256
+conf_params.RPN.NMS_THRESH = 0.7
+conf_params.RPN.POSITIVE_FRACTION = 0.5
+conf_params.RPN.MIN_SIZE_PROPOSAL = 5
+conf_params.RPN.PRE_NMS_TOPK_TRAIN = 12000
+conf_params.RPN.PRE_NMS_TOPK_TEST = 6000
+conf_params.RPN.POST_NMS_TOPK_TRAIN = 2000
+conf_params.RPN.POST_NMS_TOPK_TEST = 50
+conf_params.RPN.BBOX_REG_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
+conf_params.RPN.IOU_THRESHOLDS = [0.3, 0.7]
+conf_params.RPN.IOU_LABELS = [0, -1, 1]
+conf_params.RPN.BOUNDARY_THRESH = -1
+conf_params.RPN.SMOOTH_L1_BETA = 0.0
 
 
 
@@ -119,27 +125,29 @@ conf_params.RPN.ACTIVATION_ALPHA = 1
 For training
 """
 conf_params.TRAIN = CN()
-conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
+conf_params.TRAIN.DATASET_LENGTH = 2000
+conf_params.TRAIN.BATCH_SIZE = 10 
+conf_params.TRAIN.EPOCHS = 50
+conf_params.TRAIN.OPTIM = 'sgd' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 2e-4
 conf_params.TRAIN.MOMENTUM = 0.9 # Used only when TRAIN.OPTIM is set to 'sgd'
-conf_params.TRAIN.EPOCHS = 50
-conf_params.TRAIN.MILESTONES = 5, 15, 35	
-conf_params.TRAIN.DSET_SHUFFLE = True
-conf_params.TRAIN.BATCH_SIZE = 1 ## Because all the images are of different sizes. 
+conf_params.TRAIN.MILESTONES = 10,20,30	
+conf_params.TRAIN.DSET_SHUFFLE = False
 conf_params.TRAIN.FREEZE_BACKBONE = False
 conf_params.TRAIN.LR_DECAY = 0.5 ## Decay learning rate by this factor every certain epochs
 conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon learning rate
 conf_params.TRAIN.SAVE_MODEL_EPOCHS = 5 ## save model at every certain epochs
 conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'probabilistic']
 conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
-conf_params.TRAIN.DATASET_LENGTH = 1000
 conf_params.TRAIN.NUSCENES_IMAGE_RESIZE_FACTOR = 1.5 ## The image size will be reduced for Nuscenes dataset by this amount
 conf_params.TRAIN.CLASS_LOSS_SCALE = 10.0 	### Scale classification loss by this amount
 conf_params.TRAIN.SMOOTHL1LOSS_SCALE = 30
-conf_params.TRAIN.FAKE_BATCHSIZE = 5 ### fake batch
 # conf_prarms.TRAIN.KITTI_HEIGHT = 400 ### Height of the kitti image
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
 
-conf_params.NMS = CN()
-conf_params.NMS.USE_NMS = True
-conf_params.NMS_THRES = 0.7
+
+conf_params.ROI = CN()
+conf_params.ROI.POOL_SIZE = 7
+conf_params.ROI.HIDDEN_SIZE1 = 4096
+conf_params.ROI.HIDDEN_SIZE2 = 1000
+

@@ -22,7 +22,7 @@ import os.path as path
 ## Inserting path of src directory
 sys.path.insert(1, '../')
 
-from src.architecture import FRCNN
+from src.architecture import model
 from src.config import Cfg as cfg # Configuration file
 from src.RPN import anchor_generator, RPN_targets
 from src.preprocess import image_transform ## It's a function, not a class.  
@@ -32,6 +32,8 @@ from src.datasets import KittiDataset # Dataloader
 from src.loss import RPNErrorLoss
 from src.utils import utils
 from src.NMS import nms as NMS
+# from src.pytorch_nms import nms as NMS
+
 
 from torchvision import datasets as dset
 from torchvision import transforms as T
@@ -79,6 +81,7 @@ torch.set_default_dtype(torch.float32)
 
 if torch.cuda.is_available() and not cfg.NO_GPU:
 	cfg.USE_CUDA = True
+	print("Cuda available: ",torch.cuda.is_available() )  
 
 #-----------------------------------------------#
 
@@ -111,7 +114,7 @@ tb_writer = tensorboard.SummaryWriter(graph_dir)
 
 #--------- Define the model ---------------#
 
-frcnn = FRCNN(cfg)
+frcnn = model(cfg)
 loss_object = RPNErrorLoss(cfg)
 rpn_target = RPN_targets(cfg)
 
@@ -249,6 +252,9 @@ while epoch <= epochs:
 		target['gt_bbox'] = target['gt_bbox'].type(cfg.DTYPE.FLOAT)
 		target['gt_anchor_label'] = target['gt_anchor_label'].type(cfg.DTYPE.LONG)
 
+		bbox_locs = utils.get_actual_coords((bboxes, class_probs, uncertainties), orig_anchors)
+		index_to_keep = torchvision.ops.nms(boxes, scores, iou_threshold)
+
 		loss_classify, loss_regress_bbox, loss_error_bbox = loss_object(prediction, target, valid_indices)
 
 		loss = loss_error_bbox + loss_classify + loss_regress_bbox
@@ -298,7 +304,7 @@ while epoch <= epochs:
 			# 	pos_bbox = orig_anchors[valid_labels==1]
 
 			# 	if cfg.NMS.USE_NMS==True:
-			# 		nms = NMS(cfg.NMS_THRES)
+			# 		nms = nms(cfg.NMS_THRES)
 			# 		index_to_keep = nms.apply_nms(bbox_locs, class_probs)
 			# 		index_to_keep = index_to_keep.numpy()
 			# 	else:
@@ -391,7 +397,7 @@ while epoch <= epochs:
 
 			if idx in rnd_indxs:
 				if cfg.NMS.USE_NMS==True:
-					nms = NMS(cfg.NMS_THRES)
+					nms = NMS(cfg.NMS_THRES, use_pytorch=True)
 					index_to_keep = nms.apply_nms(bbox_locs, class_probs)
 					index_to_keep = index_to_keep.numpy()
 				else:
@@ -399,15 +405,15 @@ while epoch <= epochs:
 
 				final_indexes = []
 
-				for box_idx in index_to_keep:
-					if class_probs[0,box_idx,:][1].item() > 0.60:
-						final_indexes.append(box_idx)
-
+				# for box_idx in index_to_keep:
+				# 	if class_probs[0,box_idx,:][1].item() > 0.60:
+				# 		final_indexes.append(box_idx)
+				final_indexes = index_to_keep[:50]
 					
 				print("Num detected boxes {}, Num of positive boxes {}".format(len(final_indexes), len(pos_bbox)))
 				
 				bbox_locs = bbox_locs[final_indexes]
-				print(bbox_locs.shape, bbox_locs[:,4])	
+				# print(bbox_locs.shape, bbox_locs[:,4])	
 
 				# print(image)
 				# image = inv_transform(image)

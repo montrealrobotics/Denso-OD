@@ -8,6 +8,14 @@ pytorch dataloader as arrays for Nuscenes dataset.
 import torch
 import numpy as np 
 
+class gt_instace(object):
+	"""docstring for gt_instace"""
+	def __init__(self, arg):
+		super(gt_instace, self).__init__()
+		self.arg = arg
+		
+
+
 
 def process_labels(cfg, ground_truth):
 
@@ -36,4 +44,4 @@ def process_labels(cfg, ground_truth):
 
 def get_y1x1y2x2(x1, y1, x2, y2):
 
-	return [y1, x1, y2, x2] ## This is how it is expected for our implementation
+	return [y1, x1, y2, x2] ## This is how it is expected for our implementation 

@@ -34,7 +34,7 @@ class Backbone(nn.Module):
 
 		if model_name in __all__:
 			self.model_name = model_name
-			print('Using ', self.model_name, ' as backbone.')
+			# print('Using ', self.model_name, ' as backbone.')
 
 		else:
 			print("No such backbone found, using", self.default_model, '...')
