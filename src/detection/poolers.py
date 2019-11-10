@@ -5,7 +5,7 @@ import torch
 from torch import nn
 from torchvision.ops import RoIPool
 
-from detectron2.layers import ROIAlign, ROIAlignRotated, cat
+# from .roi_align import ROIAlign
 
 __all__ = ["ROIPooler"]
 
@@ -30,9 +30,9 @@ def convert_boxes_to_pooler_format(box_lists):
         repeated_index = torch.full(
             (len(box_tensor), 1), batch_index, dtype=box_tensor.dtype, device=box_tensor.device
         )
-        return cat((repeated_index, box_tensor), dim=1)
+        return torch.cat((repeated_index, box_tensor), dim=1)
 
-    pooler_fmt_boxes = cat(
+    pooler_fmt_boxes = torch.cat(
         [fmt_box_list(box_list.tensor, i) for i, box_list in enumerate(box_lists)], dim=0
     )
 
@@ -48,7 +48,7 @@ class ROIPooler(nn.Module):
     def __init__(
         self,
         output_size,
-        scales,
+        scale,
         sampling_ratio,
         pooler_type,
     ):
@@ -62,11 +62,6 @@ class ROIPooler(nn.Module):
             sampling_ratio (int): The `sampling_ratio` parameter for the ROIAlign op.
             pooler_type (string): Name of the type of pooling operation that should be applied.
                 For instance, "ROIPool" or "ROIAlignV2".
-            canonical_box_size (int): A canonical box size in pixels (sqrt(box area)). The default
-                is heuristically defined as 224 pixels in the FPN paper (based on ImageNet
-                pre-training).
-            canonical_level (int): The feature map level index on which a canonically-sized box
-                should be placed. The default is defined as level 4 in the FPN paper.
         """
         super().__init__()
 
@@ -76,14 +71,16 @@ class ROIPooler(nn.Module):
         assert isinstance(output_size[0], int) and isinstance(output_size[1], int)
         self.output_size = output_size
 
-        if pooler_type == "ROIAlign":
-            self.level_poolers = ROIAlign(output_size, spatial_scale=scale, sampling_ratio=sampling_ratio, aligned=False)
-        elif pooler_type == "ROIAlignV2":
-            self.level_poolers = ROIAlign( output_size, spatial_scale=scale, sampling_ratio=sampling_ratio, aligned=True)
-        elif pooler_type == "ROIPool":
+        if pooler_type == "ROIPool":
             self.level_poolers = RoIPool(output_size, spatial_scale=scale)
+        # elif pooler_type == "ROIAlign":
+        #     self.level_poolers = ROIAlign(output_size, spatial_scale=scale, sampling_ratio=sampling_ratio, aligned=False)
+        # elif pooler_type == "ROIAlignV2":
+        #     self.level_poolers = ROIAlign( output_size, spatial_scale=scale, sampling_ratio=sampling_ratio, aligned=True)
         else:
             raise ValueError("Unknown pooler type: {}".format(pooler_type))
+
+        self.max_pool = nn.MaxPool2d(kernel_size=(2,2))
 
     def forward(self, x, box_lists):
         """
@@ -100,6 +97,7 @@ class ROIPooler(nn.Module):
         """
         pooler_fmt_boxes = convert_boxes_to_pooler_format(box_lists)
         output = self.level_poolers(x, pooler_fmt_boxes)
-        
+        output = self.max_pool(output)
+
         return output
 

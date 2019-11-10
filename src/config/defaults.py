@@ -64,14 +64,9 @@ We will stick to same to get better output.
 """
 
 conf_params.INPUT = CN()
-conf_params.INPUT.MEAN = 0.485, 0.456, 0.406
-conf_params.INPUT.STD = 0.229, 0.224, 0.225
-conf_params.INPUT.NUM_CLASSES = 5
-
-##### Datatypes #####
-conf_params.DTYPE = CN()
-conf_params.DTYPE.FLOAT = "torch.FloatTensor"
-conf_params.DTYPE.LONG = "torch.LongTensor"
+conf_params.INPUT.MEAN = [0.485, 0.456, 0.406]
+conf_params.INPUT.STD = [0.229, 0.224, 0.225]
+conf_params.INPUT.NUM_CLASSES = 4
 
 ##### ANCHOR CONFIG #####
 """
@@ -119,14 +114,31 @@ conf_params.RPN.IOU_LABELS = [0, -1, 1]
 conf_params.RPN.BOUNDARY_THRESH = -1
 conf_params.RPN.SMOOTH_L1_BETA = 0.0
 
-
-
+"""
+For ROI and Detection
+"""
+conf_params.ROI_HEADS = CN()
+conf_params.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
+conf_params.ROI_HEADS.POSITIVE_FRACTION = 0.25
+conf_params.ROI_HEADS.SCORE_THRESH_TEST = 0.05
+conf_params.ROI_HEADS.NMS_THRESH_TEST = 0.5
+conf_params.ROI_HEADS.PROPOSAL_APPEND_GT = True
+conf_params.ROI_HEADS.POOLER_TYPE = "ROIPool"
+conf_params.ROI_HEADS.FC_DIM = 1024
+conf_params.ROI_HEADS.CLS_AGNOSTIC_BBOX_REG = False
+conf_params.ROI_HEADS.SMOOTH_L1_BETA = 0.0
+conf_params.ROI_HEADS.POOLER_RESOLUTION = 14
+conf_params.ROI_HEADS.POOLER_SAMPLING_RATIO = 0
+conf_params.ROI_HEADS.IOU_THRESHOLDS = [0.5]
+conf_params.ROI_HEADS.IOU_LABELS = [0, 1]
+conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
+conf_params.ROI_HEADS.FC_DIM = 1024
 """
 For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.DATASET_LENGTH = 2000
-conf_params.TRAIN.BATCH_SIZE = 10 
+conf_params.TRAIN.BATCH_SIZE = 10
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.OPTIM = 'sgd' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 2e-4
@@ -146,8 +158,9 @@ conf_params.TRAIN.SMOOTHL1LOSS_SCALE = 30
 # conf_prarms.TRAIN.KITTI_WIDTH = 1100 ### Width of the kitti image
 
 
-conf_params.ROI = CN()
-conf_params.ROI.POOL_SIZE = 7
-conf_params.ROI.HIDDEN_SIZE1 = 4096
-conf_params.ROI.HIDDEN_SIZE2 = 1000
+"""
+For Testing
+"""
+conf_params.TEST = CN()
+conf_params.TEST.DETECTIONS_PER_IMAGE = 100
 

@@ -156,7 +156,7 @@ class Instances:
             elif isinstance(v0, list):
                 values = list(itertools.chain(*values))
             elif hasattr(type(v0), "cat"):
-                values = type(v0).torch.cat(values)
+                values = type(v0).cat(values)
             else:
                 raise ValueError("Unsupported type {} for concatenation".format(type(v0)))
             ret.set(k, values)

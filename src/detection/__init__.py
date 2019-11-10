@@ -1,1 +1,1 @@
-from .detection import ROIHeads
+from .detection import Detector, ROIHeads

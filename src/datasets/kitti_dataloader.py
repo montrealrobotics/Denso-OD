@@ -5,7 +5,7 @@ import json
 from torch.utils.data import Dataset #Default dataloader class for Pytorch
 import os
 import glob
-from ..utils import Boxes
+from ..utils import Boxes, Instances
 
 
 class KittiDataset(Dataset):
@@ -68,16 +68,16 @@ class KittiDataset(Dataset):
 		# print(image_names)
 		i = 0
 		for name in image_names:
-			if Image.open(name).size == (1242,375) and i<self.cfg.TRAIN.DATASET_LENGTH:
+			img_size = Image.open(name).size
+			if  img_size == (1242,375) and i<self.cfg.TRAIN.DATASET_LENGTH:
 				# print("Got here")
 				label_name = root_dir+"/labels/training/"+name[-10:-3]+"txt"
 				bbox_list, class_list = self._read_label(label_name)
 				# print(len(bbox_list), len(class_list))
 				if len(bbox_list)!=0:
 					# print(name[-10:], " : Yes got an Object")
-					data.append({"image_path":name,
-					 "boxes": Boxes(torch.tensor(bbox_list)),  # Load the data on RAM
-					 "class_labels": torch.tensor(class_list)})
+					data_point = Instances(img_size[::-1], gt_boxes=Boxes(torch.tensor(bbox_list)), gt_classes=torch.tensor(class_list))
+					data.append({"image_path":name, "target": data_point })
 					i+=1
 		return data	
 

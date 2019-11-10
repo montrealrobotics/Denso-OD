@@ -2,14 +2,12 @@
 import logging
 import numpy as np
 import torch
-from fvcore.nn import smooth_l1_loss
 from torch import nn
 from torch.nn import functional as F
 
-from detectron2.layers import batched_nms, cat
-from detectron2.structures import Boxes, Instances
-from detectron2.utils.events import get_event_storage
-
+from ..nms import batched_nms
+from ..utils import Boxes, Matcher, Box2BoxTransform, Instances
+from ..loss import smooth_l1_loss
 logger = logging.getLogger(__name__)
 
 """
@@ -163,7 +161,7 @@ class FastRCNNOutputs(object):
         if proposals[0].has("gt_boxes"):
             self.gt_boxes = box_type.cat([p.gt_boxes for p in proposals])
             assert proposals[0].has("gt_classes")
-            self.gt_classes = cat([p.gt_classes for p in proposals], dim=0)
+            self.gt_classes = torch.cat([p.gt_classes for p in proposals], dim=0)
 
     def _log_accuracy(self):
         """
@@ -195,7 +193,7 @@ class FastRCNNOutputs(object):
         Returns:
             scalar Tensor
         """
-        self._log_accuracy()
+        # self._log_accuracy()
         return F.cross_entropy(self.pred_class_logits, self.gt_classes, reduction="mean")
 
     def smooth_l1_loss(self):
@@ -322,8 +320,7 @@ class FastRCNNOutputLayers(nn.Module):
     def __init__(self, cfg, input_shape, num_classes, cls_agnostic_bbox_reg, box_dim=4):
         super(FastRCNNOutputLayers, self).__init__()
 
-        num_fc     = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
-        fc_dim     = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
+        fc_dim     = cfg.ROI_HEADS.FC_DIM
 
         self.fc1 = nn.Linear(np.prod(input_shape), fc_dim)
         self.fc2 = nn.Linear(fc_dim, fc_dim)
@@ -331,7 +328,7 @@ class FastRCNNOutputLayers(nn.Module):
         self.cls_score = nn.Linear(fc_dim, num_classes + 1)
 
         num_bbox_reg_classes = 1 if cls_agnostic_bbox_reg else num_classes
-        self.bbox_pred = nn.Linear(input_size, num_bbox_reg_classes * box_dim)
+        self.bbox_pred = nn.Linear(fc_dim, num_bbox_reg_classes * box_dim)
 
         
         for l in [self.fc1, self.fc2, self.cls_score, self.bbox_pred]:

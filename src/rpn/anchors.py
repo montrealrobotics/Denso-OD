@@ -8,6 +8,7 @@ import torch
 from torch import nn
 from ..utils import Boxes
 import math
+from PIL import Image, ImageDraw
 
 
 class AnchorGenerator(nn.Module):
@@ -17,8 +18,8 @@ class AnchorGenerator(nn.Module):
 
     def __init__(self, cfg, device=torch.device('cuda')):
         super(AnchorGenerator, self).__init__()
-        sizes         = cfg.ANCHORS.ASPECT_RATIOS
-        aspect_ratios = cfg.ANCHORS.ANCHOR_SCALES
+        sizes         = cfg.ANCHORS.ANCHOR_SCALES
+        aspect_ratios = cfg.ANCHORS.ASPECT_RATIOS
         self.num_images = cfg.TRAIN.BATCH_SIZE
 
         self.base_anchors = self.generate_base_anchors(sizes, aspect_ratios, device)
@@ -33,6 +34,8 @@ class AnchorGenerator(nn.Module):
         shift_y, shift_x = torch.meshgrid(shifts_y, shifts_x)
         shift_x = shift_x.reshape(-1)
         shift_y = shift_y.reshape(-1)
+
+        
         return shift_x, shift_y
 
     def grid_anchors(self, grid_sizes, stride):
@@ -43,6 +46,13 @@ class AnchorGenerator(nn.Module):
 
         anchors = shifts.view(-1, 1, 4) + self.base_anchors.view(1, -1, 4) # anchors: [H*W, num_of_achors_per_place=9, 4]
         anchors = anchors.reshape(-1, 4) # anchors: [tot_num_anchors=H*W*9, 4] : first 9 boxes are anchors for first (x,y) and so on. so
+
+        # nup_arr = np.ones((375,1242,3), dtype='uint8')*255
+        # img = Image.fromarray(nup_arr)
+        # drawer = ImageDraw.Draw(img)
+        # for i in anchors[np.random.random_integers(0, 16734, 50)]:
+        #     drawer.rectangle(i.cpu().numpy() ,outline='red')
+        # img.save("/network/home/bansaldi/Denso-OD/logs/both_stage/results/some.jpg", 'JPEG')
 
         return anchors
 
@@ -83,6 +93,14 @@ class AnchorGenerator(nn.Module):
                 h = aspect_ratio * w
                 x0, y0, x1, y1 = -w / 2.0, -h / 2.0, w / 2.0, h / 2.0
                 anchors.append([x0, y0, x1, y1])
+        # nup_arr = np.ones((int(shift_x.max().item()), int(shift_y.max().item()), 3), dtype='uint8')*255
+        nup_arr = np.ones((400,400,3), dtype='uint8')*255
+        img = Image.fromarray(nup_arr)
+        drawer = ImageDraw.Draw(img)
+        for i in anchors:
+            drawer.rectangle(i ,outline='red')
+        img.save("/network/home/bansaldi/Denso-OD/logs/both_stage/results/some.jpg", 'JPEG')
+
         return torch.tensor(anchors, device=device).float()
 
     def forward(self, features_shape, stride):
@@ -289,4 +307,3 @@ class anchor_generator(object):
         anchor_data = anchor_data.reshape(num_of_pixels*anchors_per_pixel, 4)
         
         return anchor_data  ## Shape: Total number of anchorsx4
-

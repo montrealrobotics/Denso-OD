@@ -86,7 +86,7 @@ class RPN(nn.Module):
         self.rpn_head = RPNHead(cfg, in_channels, self.num_anchors)
         self.anchors_generator = AnchorGenerator(cfg)
 
-    def forward(self, features, gt_boxes=None, image_sizes=None, is_training=True):
+    def forward(self, features, gt_target=None, image_sizes=None, is_training=True):
         """
         Args:
             images (ImageList): input images of length `N`
@@ -101,6 +101,8 @@ class RPN(nn.Module):
             proposals: list[Instances] or None
             loss: dict[Tensor]
         """
+
+        gt_boxes = [x.gt_boxes for x in gt_target]
 
         feature_shape = features.shape[-2:]
 
