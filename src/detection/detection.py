@@ -256,6 +256,9 @@ class Detector(ROIHeads):
         else:
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
+            pred_instances, _ = outputs.inference(
+                self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
+            )
             return pred_instances, {}
 
 

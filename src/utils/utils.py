@@ -73,14 +73,14 @@ def tb_logger(images, tb_writer, boxes=None, rpn_proposals=None, name="Image"):
 
 	image = toPIL(images[2].cpu())
 	proposal_locs = rpn_proposals[2].proposal_boxes[:50].tensor
-	# pred_locs = boxes[2].pred_boxes.tensor
+	pred_locs = boxes[2].pred_boxes.tensor
 
-	proposal_img = draw_bbox(image, proposal_locs)
-	# prediction_img = draw_bbox(image, pred_locs)	
+	proposal_img = draw_bbox(image.copy(), proposal_locs)
+	prediction_img = draw_bbox(image.copy(), pred_locs)	
 		
 
 	image = image.resize((np.array(image.size)/2).astype(int))
 	# image_grid = np.concatenate([image ,proposal_img, prediction_img], axis = 1)
-	image_grid = np.concatenate([image ,proposal_img], axis = 1)
+	image_grid = np.concatenate([image, proposal_img, prediction_img], axis = 1)
 
 	tb_writer.add_image(name, image_grid, dataformats='HWC')

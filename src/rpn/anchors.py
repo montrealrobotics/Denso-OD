@@ -93,13 +93,6 @@ class AnchorGenerator(nn.Module):
                 h = aspect_ratio * w
                 x0, y0, x1, y1 = -w / 2.0, -h / 2.0, w / 2.0, h / 2.0
                 anchors.append([x0, y0, x1, y1])
-        # nup_arr = np.ones((int(shift_x.max().item()), int(shift_y.max().item()), 3), dtype='uint8')*255
-        nup_arr = np.ones((400,400,3), dtype='uint8')*255
-        img = Image.fromarray(nup_arr)
-        drawer = ImageDraw.Draw(img)
-        for i in anchors:
-            drawer.rectangle(i ,outline='red')
-        img.save("/network/home/bansaldi/Denso-OD/logs/both_stage/results/some.jpg", 'JPEG')
 
         return torch.tensor(anchors, device=device).float()
 

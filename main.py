@@ -136,7 +136,7 @@ while epoch <= epochs:
 			
 		loss_dict = {}
 		loss_dict.update(proposal_losses)
-		# loss_dict.update(detector_losses) 
+		loss_dict.update(detector_losses) 
 
 		loss = 0.0 
 		for k, v in loss_dict.items():
@@ -161,7 +161,6 @@ while epoch <= epochs:
 					if len(running_loss)<len(loss_dict):
 						running_loss[key] = 0.0
 					running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
-				# print(running_loss)
 
 				
 				utils.tb_logger(in_images, tb_writer, boxes, rpn_proposals, "Training")
@@ -180,7 +179,7 @@ while epoch <= epochs:
 
 			loss_dict = {}
 			loss_dict.update(proposal_losses)
-			# loss_dict.update(detector_losses)
+			loss_dict.update(detector_losses)
 
 			loss = 0.0 
 			for k, v in loss_dict.items():

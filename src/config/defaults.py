@@ -138,7 +138,7 @@ For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.DATASET_LENGTH = 2000
-conf_params.TRAIN.BATCH_SIZE = 10
+conf_params.TRAIN.BATCH_SIZE = 4
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.OPTIM = 'sgd' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 2e-4
@@ -162,5 +162,5 @@ conf_params.TRAIN.SMOOTHL1LOSS_SCALE = 30
 For Testing
 """
 conf_params.TEST = CN()
-conf_params.TEST.DETECTIONS_PER_IMAGE = 100
+conf_params.TEST.DETECTIONS_PER_IMAGE = 50
 
