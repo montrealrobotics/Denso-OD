@@ -18,19 +18,17 @@ class RPNHead(nn.Module):
     def __init__(self, cfg, in_channels, num_anchors):
         super(RPNHead, self).__init__()
 
-        self.out_channels = cfg.RPN.OUT_CHANNELS  ## Number of output channels from first layer of RPN
-
         ## Layer 1
-        self.conv1 = nn.Conv2d(in_channels, self.out_channels, 3, 1, 1)
+        self.conv1 = nn.Conv2d(in_channels, in_channels, 3, 1, 1)
         
         ## Regression layer
-        self.bbox_head = nn.Conv2d(self.out_channels, num_anchors*4, 1, 1, 0)
+        self.bbox_head = nn.Conv2d(in_channels, num_anchors*4, 1, 1, 0)
 
         ## classification layer
-        self.classification_head = nn.Conv2d(self.out_channels, num_anchors, 1, 1, 0)
+        self.classification_head = nn.Conv2d(in_channels, num_anchors, 1, 1, 0)
 
         ## Uncertainty layer
-        self.uncertain_head = nn.Conv2d(self.out_channels, num_anchors*4, 1, 1, 0)
+        self.uncertain_head = nn.Conv2d(in_channels, num_anchors*4, 1, 1, 0)
 
         # Wight Initialization
         for l in [self.conv1, self.bbox_head, self.classification_head, self.uncertain_head]:
@@ -48,7 +46,8 @@ class RPNHead(nn.Module):
         class_logits = self.classification_head(x) #class_logits :[N, C=9, H, W]
         # class_logits = class_logits.view((class_logits.shape[0], 2, -1)).permute(0,2,1) #class_logits :[N, tot_anchors=H*W*9, 1]
 
-        sigma_bboxes = self.uncertain_head(x) # sigma_bboxes :[N, C=9*4, H, W]
+        # sigma_bboxes = self.uncertain_head(x) # sigma_bboxes :[N, C=9*4, H, W]
+        sigma_bboxes = None
         # sigma_bboxes = sigma_bboxes.view((sigma_bboxes.shape[0], 4, -1)).permute(0,2,1)  # sigma_bboxes :[N, tot_anchors=H*W*9, 4]
         
         return class_logits, bboxes_delta, sigma_bboxes

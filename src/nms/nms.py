@@ -62,7 +62,7 @@ def find_top_rpn_proposals(
     
     topk_idx = idx[:, :num_proposals] # N x topk index
     topk_proposals = proposals[batch_idx[:, None], topk_idx]  # N x topk x 4
-    lvl = torch.full((num_proposals,), 0, dtype=torch.int64, device=device)
+    level_ids = torch.full((num_proposals,), 0, dtype=torch.int64, device=device)
 
 
     # 3. For each image, run a per-level NMS, and choose topk results.
@@ -74,15 +74,15 @@ def find_top_rpn_proposals(
         # Commenting the below because of an error
         boxes.clip(image_size) 
 
-        # # filter empty boxes
-        # keep = boxes.nonempty(threshold=min_box_side_len)
-        # lvl = level_ids
+        # filter empty boxes
+        keep = boxes.nonempty(threshold=min_box_side_len)
+        lvl = level_ids
         # print(len(boxes))
-        # if keep.sum().item() != len(boxes):
-        #     boxes, scores_per_img, lvl = boxes[keep], scores_per_img[keep], level_ids[keep]
+        if keep.sum().item() != len(boxes):
+            boxes, scores_per_img, lvl = boxes[keep], scores_per_img[keep], lvl[keep]
 
-        # keep = batched_nms(boxes.tensor, scores_per_img, lvl, nms_thresh)
-        keep = nms(boxes.tensor, scores_per_img, nms_thresh)
+        keep = batched_nms(boxes.tensor, scores_per_img, lvl, nms_thresh)
+        # keep = nms(boxes.tensor, scores_per_img, nms_thresh)
 
         keep = keep[:post_nms_topk]
 

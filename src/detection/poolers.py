@@ -4,8 +4,9 @@ import sys
 import torch
 from torch import nn
 from torchvision.ops import RoIPool
+from torchvision.ops import RoIAlign
 
-# from .roi_align import ROIAlign
+# from .roi_align import ROIAlign as ROIAlignV2
 
 __all__ = ["ROIPooler"]
 
@@ -73,10 +74,10 @@ class ROIPooler(nn.Module):
 
         if pooler_type == "ROIPool":
             self.level_poolers = RoIPool(output_size, spatial_scale=scale)
-        # elif pooler_type == "ROIAlign":
-        #     self.level_poolers = ROIAlign(output_size, spatial_scale=scale, sampling_ratio=sampling_ratio, aligned=False)
+        elif pooler_type == "ROIAlign":
+            self.level_poolers = RoIAlign(output_size, spatial_scale=scale, sampling_ratio=sampling_ratio)
         # elif pooler_type == "ROIAlignV2":
-        #     self.level_poolers = ROIAlign( output_size, spatial_scale=scale, sampling_ratio=sampling_ratio, aligned=True)
+        #     self.level_poolers = ROIAlignV2( output_size, spatial_scale=scale, sampling_ratio=sampling_ratio, aligned=True)
         else:
             raise ValueError("Unknown pooler type: {}".format(pooler_type))
 
@@ -92,7 +93,7 @@ class ROIPooler(nn.Module):
 
         Returns:
             Tensor:
-                A tensor of shape (M, C, output_size, output_size) where M is the total number of
+                A tensor of shape (M, C, output_size/2, output_size/2) where M is the total number of
                 boxes aggregated over all N batch images and C is the number of channels in `x`.
         """
         pooler_fmt_boxes = convert_boxes_to_pooler_format(box_lists)

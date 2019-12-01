@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import itertools
 from typing import Any, Dict, List, Tuple, Union
+from PIL import Image, ImageDraw
 import torch
 
 
@@ -27,8 +28,8 @@ class Instances:
        or a vector of integer indices.
     """
 
-    def __init__(self, image_size: Tuple[int, int], **kwargs: Any):
-        """
+    def __init__(self, image_size: Tuple[int, int], **kwargs: Any): #This Any is an class import from typing
+        """ 
         Args:
             image_size (height, width): the spatial size of the image.
             kwargs: fields to add to this `Instances`.
@@ -46,7 +47,7 @@ class Instances:
         """
         return self._image_size
 
-    def __setattr__(self, name: str, val: Any) -> None:
+    def __setattr__(self, name: str, val: Any) -> None: #Overwriting default python function
         if name.startswith("_"):
             super().__setattr__(name, val)
         else:
@@ -63,11 +64,11 @@ class Instances:
         The length of `value` must be the number of instances,
         and must agree with other existing fields in this object.
         """
-        data_len = len(value)
-        if len(self._fields):
-            assert (
-                len(self) == data_len
-            ), "Adding a field of length {} to a Instances of length {}".format(data_len, len(self))
+        # data_len = len(value)
+        # if len(self._fields):
+        #     assert (
+        #         len(self) == data_len
+        #     ), "Adding a field of length {} to a Instances of length {}".format(data_len, len(self))
         self._fields[name] = value
 
     def has(self, name: str) -> bool:
@@ -161,6 +162,10 @@ class Instances:
                 raise ValueError("Unsupported type {} for concatenation".format(type(v0)))
             ret.set(k, values)
         return ret
+    
+    def draw_bbox(self, image):
+        drawer = ImageDraw.Draw(image, mode=None)
+
 
     def __str__(self) -> str:
         s = self.__class__.__name__ + "("

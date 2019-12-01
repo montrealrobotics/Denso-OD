@@ -43,9 +43,8 @@ class KittiDataset(Dataset):
 	def _read_label(self, file_name):
 		ob_list = []
 
-		labels_dict = {'Car':0, 'Van':1, 'Truck':2, 'Tram':3, 'Pedestrian':4, 'Person_sitting':5, 'Cyclist':6}
-		class_labels = ['Car', 'Van', 'Truck', 'Tram']
-		# class_list = ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
+		# labels_dict = {'Car':0, 'Van':1, 'Truck':2, 'Tram':3, 'Pedestrian':4, 'Person_sitting':5, 'Cyclist':6}
+		class_labels = self.cfg.INPUT.LABELS_TO_TRAIN
 		
 		box_list = []
 		class_list = []
@@ -54,7 +53,7 @@ class KittiDataset(Dataset):
 			for obj in objects:
 				obj = obj.split()
 				if obj[0] in class_labels:
-					class_list.append(labels_dict[obj[0]])
+					class_list.append(class_labels.index(obj[0]))
 					box_list.append([float(i) for i in obj[4:8]])
 
 		return box_list, class_list

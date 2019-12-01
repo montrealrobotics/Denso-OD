@@ -7,7 +7,7 @@ from .poolers import ROIPooler
 from .fast_rcnn import FastRCNNOutputLayers, FastRCNNOutputs
 from .proposal_utils import add_ground_truth_to_proposals
 
-from ..utils import Boxes, Matcher, Box2BoxTransform, subsample_labels, pairwise_iou
+from ..utils import Boxes, Matcher, Box2BoxXYXYTransform, subsample_labels, pairwise_iou
 
 class ROIHeads(torch.nn.Module):
     """
@@ -32,7 +32,6 @@ class ROIHeads(torch.nn.Module):
         self.proposal_append_gt       = cfg.ROI_HEADS.PROPOSAL_APPEND_GT
         self.cls_agnostic_bbox_reg    = cfg.ROI_HEADS.CLS_AGNOSTIC_BBOX_REG
         self.smooth_l1_beta           = cfg.ROI_HEADS.SMOOTH_L1_BETA
-        self.stride                   = stride
         # fmt: on
 
         # Matcher to assign box proposals to gt boxes
@@ -43,7 +42,7 @@ class ROIHeads(torch.nn.Module):
         )
 
         # Box2BoxTransform for bounding box regression
-        self.box2box_transform = Box2BoxTransform(weights=cfg.ROI_HEADS.BBOX_REG_WEIGHTS)
+        self.box2box_transform = Box2BoxXYXYTransform(weights=cfg.ROI_HEADS.BBOX_REG_WEIGHTS)
 
     def _sample_proposals(self, matched_idxs, matched_labels, gt_classes):
         """
@@ -66,7 +65,7 @@ class ROIHeads(torch.nn.Module):
         has_gt = gt_classes.numel() > 0
         # Get the corresponding GT for each proposal
         if has_gt:
-            gt_classes = gt_classes[matched_idxs]
+            gt_classes = gt_classes[matched_idxs] # vector of length N with 
             # Label unmatched proposals (0 label from matcher) as background (label=num_classes)
             gt_classes[matched_labels == 0] = self.num_classes
             # Label ignore proposals (-1 label)
@@ -131,14 +130,16 @@ class ROIHeads(torch.nn.Module):
                 targets_per_image.gt_boxes, proposals_per_image.proposal_boxes
             )
 
-            matched_idxs, matched_labels = self.proposal_matcher(match_quality_matrix)
+            #matched_idxs: index of the gt with which the prediction got matched to
+            #matched_labels: denotes if proposal is positive/negative/ignored - Here every proposal is either marked positive or negative, none is ignored
+            matched_idxs, matched_labels = self.proposal_matcher(match_quality_matrix) 
             
             sampled_idxs, gt_classes = self._sample_proposals(
                 matched_idxs, matched_labels, targets_per_image.gt_classes
             )
 
             # Set target attributes of the sampled proposals:
-            proposals_per_image = proposals_per_image[sampled_idxs]
+            proposals_per_image = proposals_per_image[sampled_idxs] #vector of length roi_batch_size
             proposals_per_image.gt_classes = gt_classes
 
             # We index all the attributes of targets that start with "gt_"
@@ -205,7 +206,7 @@ class Detector(ROIHeads):
         super(Detector, self).__init__(cfg, stride, in_channels)
         # fmt: off
         pooler_resolution = cfg.ROI_HEADS.POOLER_RESOLUTION
-        pooler_scales     = 1.0 / self.stride
+        pooler_scales     = 1.0 / stride
         sampling_ratio    = cfg.ROI_HEADS.POOLER_SAMPLING_RATIO
         pooler_type       = cfg.ROI_HEADS.POOLER_TYPE
         # fmt: on
@@ -225,22 +226,47 @@ class Detector(ROIHeads):
 
     def forward(self, features, proposals, targets=None, is_training=True):
         """
-        See :class:`ROIHeads.forward`.
+        Args:
+            features (dict[str: Tensor]): input data as a mapping from feature
+                map name to tensor. Axis 0 represents the number of images `N` in
+                the input data; axes 1-3 are channels, height, and width, which may
+                vary between feature maps (e.g., if a feature pyramid is used).
+            proposals (list[Instances]): length `N` list of `Instances`s. The i-th
+                `Instances` contains object proposals for the i-th input image,
+                with fields "proposal_boxes" and "objectness_logits".
+            targets (list[Instances], optional): length `N` list of `Instances`s. The i-th
+                `Instances` contains the ground-truth per-instance annotations
+                for the i-th input image.  Specify `targets` during training only.
+                It may have the following fields:
+                - gt_boxes: the bounding box of each instance.
+                - gt_classes: the label for each instance with a category ranging in [0, #class].
+                - gt_masks: PolygonMasks or BitMasks, the ground-truth masks of each instance.
+                - gt_keypoints: NxKx3, the groud-truth keypoints for each instance.
+
+        Returns:
+            results (list[Instances]): length `N` list of `Instances`s containing the
+                detected instances. Returned during inference only; may be []
+                during training.
+            losses (dict[str: Tensor]): mapping from a named loss to a tensor
+                storing the loss. Used during training only.
         """
+
         if is_training:
             proposals = self.label_and_sample_proposals(proposals, targets)
         
         del targets
 
-        box_features = self.box_pooler(features, [x.proposal_boxes for x in proposals])
+        # Tensor of [M, C, 7 ,7] - M is the total number of proposals over all the images in the batch, C is the number of channels from feature map
+        box_features = self.box_pooler(features, [x.proposal_boxes for x in proposals]) 
         
-        pred_class_logits, pred_proposal_deltas = self.box_predictor(box_features)
-        del box_features
+        # pred_class_logits: Tensor[M, num_classes+1], pred_proposal_deltas: Tensor[M, 4], pred_sigma: Tensor[M, 4]
+        pred_class_logits, pred_proposal_deltas, pred_sigma = self.box_predictor(box_features)
 
         outputs = FastRCNNOutputs(
             self.box2box_transform,
             pred_class_logits,
             pred_proposal_deltas,
+            pred_sigma,
             proposals,
             self.smooth_l1_beta,
         )
