@@ -32,9 +32,9 @@ def draw_bbox(image, instances):
 			drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes.cpu().numpy()], 
 				instance.scores.cpu().numpy()), outline='green')
 		if instance.has("pred_sigma"):
-			sigma = math.sqrt(instance.pred_sigma)
-			drawer.ellipse([box[0]-2*sigma[i, 0], box[1]-2*sigma[i, 1], box[0]+2*sigma[i, 0], box[1]+2*sigma[i,1]], outline='blue', width=3)
-			drawer.ellipse([box[2]-2*sigma[i, 2], box[3]-2*sigma[i, 3], box[2]+2*sigma[i, 2], box[3]+2*sigma[i,3]], outline='blue', width=3)
+			sigma = np.sqrt(instance.pred_sigma.cpu().numpy())
+			drawer.ellipse([box[0]-2*sigma[0], box[1]-2*sigma[1], box[0]+2*sigma[0], box[1]+2*sigma[1]], outline='blue', width=3)
+			drawer.ellipse([box[2]-2*sigma[2], box[3]-2*sigma[3], box[2]+2*sigma[2], box[3]+2*sigma[3]], outline='blue', width=3)
 
 	image = image.resize((np.array(image.size)/1.5).astype(int))
 	

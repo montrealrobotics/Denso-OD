@@ -17,7 +17,7 @@ def test(model, data_loader, device, results_dir):
 			# start = time.time()
 			rpn_proposals, instances, proposal_losses, detector_losses = model(in_images, target, is_training)
 			# print(time.time() - start)
-			# utils.disk_logger(in_images, results_dir, rpn_proposals, instances, img_paths)
+			utils.disk_logger(in_images, results_dir, rpn_proposals, instances, img_paths)
 
 def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_scheduler, device, model_save_dir, cfg):
 	epoch = 1

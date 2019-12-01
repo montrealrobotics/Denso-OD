@@ -164,7 +164,7 @@ else:
 
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_len, val_len])
 
-    test_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, 
+    test_loader = torch.utils.data.DataLoader(val_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, 
                         shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn)
 #----------------------------------------------#
 
