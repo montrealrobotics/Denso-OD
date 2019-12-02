@@ -5,12 +5,13 @@ import json
 from torch.utils.data import Dataset #Default dataloader class for Pytorch
 import os
 import glob
+from ..utils import Boxes, Instances
 
 
 class KittiDataset(Dataset):
 	"""NuScenes dataset for 2d annotations."""
 
-	def __init__(self, root_dir, transform=None, cfg = None):
+	def __init__(self, root_dir,transform=None, cfg = None):
 		"""
 		Args:
 			root_dir (string): Path to the dataset.
@@ -21,10 +22,8 @@ class KittiDataset(Dataset):
 			cfg: config file
 		"""
 
+		self.cfg = cfg
 		self.root_dir = root_dir
-
-		### loading all the annotations!!
-		annotations_dict = self._makedata(self.root_dir)
 		self.transform = transform
 		
 		## has all the annotations 
@@ -32,79 +31,83 @@ class KittiDataset(Dataset):
 		It's a dictionary, with keys() as absolute image_paths.
 		Each key leads to a list of annotations, corresponding to that particular image
 		'''
-		self.annotation_dict = annotations_dict
-		self.cfg = cfg
+		self.data_list = self._makedata(self.root_dir)
+		# # if self.cfg.TRAIN.DATASET_LENGTH != None:
+		# # 	self.data_list = data_list[:self.cfg.TRAIN.DATASET_LENGTH]
+		# else:
+		# 	self.data_list = data_list
+		
+
 	
 
 	def _read_label(self, file_name):
 		ob_list = []
-		class_list = ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
+
+		# labels_dict = {'Car':0, 'Van':1, 'Truck':2, 'Tram':3, 'Pedestrian':4, 'Person_sitting':5, 'Cyclist':6}
+		class_labels = self.cfg.INPUT.LABELS_TO_TRAIN
+		
+		box_list = []
+		class_list = []
 		with open(file_name) as file:
 			objects = file.read().splitlines()
 			for obj in objects:
-				em_dict = {}
 				obj = obj.split()
-				if obj[0] in class_list:
-					em_dict['class'] = obj[0]
-					em_dict['bbox'] = [float(i) for i in obj[4:8]]
-					ob_list.append(em_dict)
+				if obj[0] in class_labels:
+					class_list.append(class_labels.index(obj[0]))
+					box_list.append([float(i) for i in obj[4:8]])
 
-		return ob_list
+		return box_list, class_list
 
 	def _makedata(self, root_dir):
-		data_dict = {}
+		data= []
 		image_names = glob.glob(root_dir+"/images/training/*.png")
 
+		# if self.cfg.TRAIN.DATASET_LENGTH != None:
+		# 	image_names = image_names[:self.cfg.TRAIN.DATASET_LENGTH]
+		# print(image_names)
+		i = 0
 		for name in image_names:
-			label_name = root_dir+"/labels/training/"+name[-10:-3]+"txt"
-			objects = self._read_label(label_name)
-			if len(objects)!=0:
-				# print(name[-10:], " : Yes got an Object")
-				data_dict[name] = objects
-		
-		return data_dict	
+			img_size = Image.open(name).size
+			if  img_size == (1242,375) and i<self.cfg.TRAIN.DATASET_LENGTH:
+				# print("Got here")
+				label_name = root_dir+"/labels/training/"+name[-10:-3]+"txt"
+				bbox_list, class_list = self._read_label(label_name)
+				# print(len(bbox_list), len(class_list))
+				if len(bbox_list)!=0:
+					# print(name[-10:], " : Yes got an Object")
+					data_point = Instances(img_size[::-1], gt_boxes=Boxes(torch.tensor(bbox_list)), gt_classes=torch.tensor(class_list))
+					data.append({"image_path":name, "target": data_point })
+					i+=1
+		return data	
 
 	def __len__(self):
-		return len(self.annotation_dict.keys())
+		return len(self.data_list)
 
 	def __getitem__(self, idx):
 		if torch.is_tensor(idx):
 			idx = idx.tolist()
 
-		img = None
-		target = None
-		img_path  = None
-
-		img_path = list(self.annotation_dict.keys())[idx]
+		sample = self.data_list[idx]
 
 		## loading the image
-		img = Image.open(img_path).convert('RGB')
-
-		## Annotations
-		target = self.annotation_dict[img_path]
+		img = Image.open(sample["image_path"]).convert('RGB')
 		
 		## transform the image
 		if self.transform:
 			img = self.transform(img)
 
+		sample["image"] = img
 
-		return img, target, img_path
+		return sample
 
 
 
 # A collate function to enable loading the kitti labels in batch
 def kitti_collate_fn(batch):
 
-	## let's get the images stacked up(works with batchsize 1 as kitti has some images of diff sizes.)
-	data = torch.stack([item[0] for item in batch])
+	elem = batch[0]
+	batch = {key:[x[key] for x in batch] for key in elem}
+	batch["image"] = torch.stack(batch["image"], dim=0)
 
-	## getting the target in a list
-	target = [item[1] for item in batch]
-
-	## Getting paths in list
-	paths = [item[2] for item in batch]
-	# target = [item[1] for item in batch]
-	# target = torch.LongTensor(target)
-	return [data, target, paths]
-
+	return batch
 

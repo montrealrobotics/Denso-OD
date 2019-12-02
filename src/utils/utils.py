@@ -8,44 +8,8 @@ from PIL import Image, ImageDraw
 import matplotlib.image as mpimg ## To load the image
 from torch import optim
 import os.path as path
-
-
-
-def get_actual_coords(prediction, anchors):
-
-	for i in np.arange(prediction['bbox_class'].size()[1]):
-		if prediction['bbox_class'][0,i,:][1].item() < 0.8:
-			prediction['bbox_pred'][0,i,:] = 0
-
-	prediction['bbox_pred'] = prediction['bbox_pred'].detach().cpu().numpy()
-	prediction['bbox_pred'] = prediction['bbox_pred'].reshape([prediction['bbox_pred'].shape[1], prediction['bbox_pred'].shape[2]])
-	pred = prediction['bbox_class'].detach().cpu().numpy()
-
-	y_c = prediction['bbox_pred'][:,0]*(anchors[:,2] - anchors[:,0]) + anchors[:,0] + 0.5*(anchors[:,2] - anchors[:,0])
-	x_c = prediction['bbox_pred'][:,1]*(anchors[:,3] - anchors[:,1]) + anchors[:,1] + 0.5*(anchors[:,3] - anchors[:,1])
-	h = np.exp(prediction['bbox_pred'][:,2])*(anchors[:,2] - anchors[:,0])
-	w = np.exp(prediction['bbox_pred'][:,3])*(anchors[:,3] - anchors[:,1])
-	prob = pred[0,:,1]
-	# print(prob.shape)
-
-	x1 = x_c - w/2.0
-	y1 = y_c - h/2.0
-
-	bbox_locs_xy = np.vstack((x1, y1, x1+w, y1+h, prob)).transpose() ## Final locations of the anchors
-	# print(type(prediction['bbox_pred']), prediction['bbox_pred'].shape, anchors.shape)
-	return bbox_locs_xy
-
-def check_validity(x1,y1,w,h, img_w, img_h):
-	
-	## bottom corner
-	x2 = x1 + w
-	y2 = y1 + h
-
-	if (x1 > 0 and x2 < img_w) and (y1 > 0 and y2 < img_h):
-		return True
-	else:
-		return False
-
+from torchvision import transforms as T
+from src.config import Cfg as cfg
 
 def xy_to_wh(boxes):
 	trans = []
@@ -53,27 +17,103 @@ def xy_to_wh(boxes):
 		trans.append([i[1], i[0], i[3], i[2]])
 	return trans
 
-def draw_bbox(image, bboxes):
-
-	if len(image.shape)==4:
-		image = image[0]
-	if image.shape[2]!=3:
-
-		image = np.transpose(image, (1,2,0))
-
-	image = Image.fromarray(image)
+def draw_bbox(image, instances):
+	class_labels = cfg.INPUT.LABELS_TO_TRAIN	
 	drawer = ImageDraw.Draw(image, mode=None)
+	# print(instances[20:40])
+	for instance in instances:
+		if instance.has("proposal_boxes"):
+			box = instance.proposal_boxes.tensor.cpu().numpy()[0]
+			drawer.rectangle(box, outline ='red' ,width=3)
+		elif instance.has("pred_boxes"):
+			box = instance.pred_boxes.tensor.cpu().numpy()[0]
+			drawer.rectangle(box, outline ='red' ,width=3)
+		if instance.has("scores") & instance.has("pred_classes"):
+			drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes.cpu().numpy()], 
+				instance.scores.cpu().numpy()), outline='green')
+		if instance.has("pred_sigma"):
+			sigma = np.sqrt(instance.pred_sigma.cpu().numpy())
+			drawer.ellipse([box[0]-2*sigma[0], box[1]-2*sigma[1], box[0]+2*sigma[0], box[1]+2*sigma[1]], outline='blue', width=3)
+			drawer.ellipse([box[2]-2*sigma[2], box[3]-2*sigma[3], box[2]+2*sigma[2], box[3]+2*sigma[3]], outline='blue', width=3)
+
+	image = image.resize((np.array(image.size)/1.5).astype(int))
 	
-	for i in bboxes:
-		drawer.rectangle(i[:4], outline ='red' ,width=3)
-		drawer.text([i[0], i[1]-10], "{0:.3f}".format(i[4]))
+	return np.asarray(image)
 
-	return np.asarray(image), image	
+def image_transform(cfg):
+
+	"""
+	Input: 
+	cfg: configuration params
+	img: Image loaded using matplotlib, numpy array of size H x W x C, in RGB format.
+	(Note: if you use opencv to load image, convert it to RGB, as OpenCV works with BGR format)
+
+	Output:
+	torch.tensor : CxHxW  nomralised by mean and std of dataset 
+	"""
+
+	'''
+	### ToTensor() Converts a PIL Image or numpy.ndarray (H x W x C) in the range [0, 255] to a torch.FloatTensor  of shape (C x H x W) in the range [0.0, 1.0] 
+	
+
+	'''
+
+	transform = T.Compose([T.ToTensor(),
+							T.Normalize(mean=cfg.INPUT.MEAN, std=cfg.INPUT.STD)])
+
+	return transform
+
+def toPIL(img: torch.Tensor):
+	### T.ToPILImage() Converts an Tensor or numpy array in range [0, 1] with shape of (C x H x W) into an PIL image with range [0,255]
+	return T.Compose([T.Normalize( mean=[-mean/std for mean, std in zip(cfg.INPUT.MEAN, cfg.INPUT.STD)], std=[1.0/x for x in cfg.INPUT.STD]), T.ToPILImage()])(img)
+
+def toNumpyImage(img: torch.Tensor):
+	return T.Normalize( mean=[-mean/std for mean, std in zip(cfg.INPUT.MEAN, cfg.INPUT.STD)], std=[1.0/x for x in cfg.INPUT.STD])(img).mul(255).numpy().astype('uint8')
+
+def tb_logger(images, tb_writer, rpn_proposals=None, instances=None, name="Image"):
+
+	image = toPIL(images[2].cpu())
+
+	image_grid = image.resize((np.array(image.size)/1.5).astype(int))
+
+	if rpn_proposals:
+		proposal_locs = rpn_proposals[2].proposal_boxes[:50].tensor.cpu().numpy()
+		proposal_img = draw_bbox(image.copy(), proposal_locs)
+
+		image_grid = np.concatenate([image_grid, proposal_img], axis=1)
+	
+	if instances:
+		pred = instances[2].pred_boxes.tensor.cpu().numpy()
+		if instances[2].has("pred_sigma"):
+			sigma = instances[2].pred_sigma.cpu().numpy()
+		else:
+			sigma=None
+		img_cls = instances[2].pred_classes.cpu().numpy()
+		
+		prediction_img = draw_bbox(image.copy(), pred, img_cls, sigma)
+		image_grid = np.concatenate([image_grid, prediction_img], axis=1)	
+
+	tb_writer.add_image(name, image_grid, dataformats='HWC')
 
 
+def disk_logger(images, direc, rpn_proposals=None, instances=None, image_paths=None):
 
+	images = images.cpu()
+	pil_images = []
 
+	for image, rpn_proposal, instance, path in zip(images, rpn_proposals, instances, image_paths):
+		image = toPIL(image)
 
+		image_grid = image.resize((np.array(image.size)/1.5).astype(int))
 
+		if rpn_proposal:
+			proposal_img = draw_bbox(image.copy(), rpn_proposal)
+			image_grid = np.concatenate([image_grid, proposal_img], axis=1)
+		
+		if instance:			
+			prediction_img = draw_bbox(image.copy(), instance)
+			image_grid = np.concatenate([image_grid, prediction_img], axis=1)
 
+		Image.fromarray(image_grid).save(direc+"/"+path[-10:], "PNG")
+		print("{} written to disk".format(path[-10:]))
 

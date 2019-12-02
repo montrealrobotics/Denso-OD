@@ -1,2 +1,1 @@
-from .rpn_loss import RPNLoss
-from .RPN_error_loss import RPNErrorLoss
+from .rpn_loss import rpn_losses, smooth_l1_loss
