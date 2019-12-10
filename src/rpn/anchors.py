@@ -23,7 +23,7 @@ class AnchorGenerator(nn.Module):
         self.num_images = cfg.TRAIN.BATCH_SIZE
 
         self.base_anchors = self.generate_base_anchors(sizes, aspect_ratios, device)
-        self.register_buffer("cell_anchors", self.base_anchors)
+        # self.register_buffer("cell_anchors", self.base_anchors)
 
     def _create_grid_offsets(self, size, stride, device):
         grid_height, grid_width = size

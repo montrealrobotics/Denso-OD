@@ -28,6 +28,8 @@ from torchvision import transforms as T
 import torchvision
 from torch.utils import tensorboard
 
+import time
+
 
 #----- Initial paths setup and loading config values ------ #
 
@@ -55,7 +57,6 @@ print("Using the device for training: {} \n".format(device))
 
 
 #-----------------------------------------------#
-
 
 #--------Seting up Training/Testing-------#
 
@@ -132,6 +133,7 @@ transform = utils.image_transform(cfg) # this is tranform to normalise/standardi
 
 if mode=="train":
     print("--- Loading Training Dataset \n ")
+
     dataset = KittiDataset(dataset_path, transform = transform, cfg = cfg) #---- Dataloader
     dataset_len = len(dataset)
     ## Split into train & validation
@@ -145,9 +147,11 @@ if mode=="train":
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_len, val_len])
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, 
-        shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
+                shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
+    
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, 
-        shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
+                shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
+
 
 else:
     print("---Loading Test Dataset \n")
@@ -165,8 +169,9 @@ else:
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_len, val_len])
 
     test_loader = torch.utils.data.DataLoader(val_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, 
-                        shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn)
+                shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
 #----------------------------------------------#
+
 
 #---------Training/Testing Cycle-----------#
 epochs = cfg.TRAIN.EPOCHS
@@ -178,7 +183,3 @@ if mode=="train":
 if mode=='test':
     print("Starting the inference in 3.   2.   1.   Go \n")
     train_test.test(model, test_loader, device, results_dir)
-
-
-
-

@@ -29,8 +29,8 @@ conf_params.RANDOMIZATION.SEED = 5
 For training
 """
 conf_params.TRAIN = CN()
-conf_params.TRAIN.DATASET_LENGTH = 3000
-conf_params.TRAIN.BATCH_SIZE = 4
+conf_params.TRAIN.DATASET_LENGTH = 7000
+conf_params.TRAIN.BATCH_SIZE = 10
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.OPTIM = 'sgd' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 1e-3
@@ -89,7 +89,7 @@ conf_params.INPUT.NUM_CLASSES = 7
 
 
 """
-For Anchor Generator
+For Anchor Generator7
 """
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = [0.5,1,2]
@@ -132,7 +132,7 @@ For ROI and Detection
 conf_params.ROI_HEADS = CN()
 conf_params.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
 conf_params.ROI_HEADS.POSITIVE_FRACTION = 0.25
-conf_params.ROI_HEADS.SCORE_THRESH_TEST = 0.3
+conf_params.ROI_HEADS.SCORE_THRESH_TEST = 0.5
 conf_params.ROI_HEADS.NMS_THRESH_TEST = 0.5
 conf_params.ROI_HEADS.PROPOSAL_APPEND_GT = True
 conf_params.ROI_HEADS.IOU_THRESHOLDS = [0.5]

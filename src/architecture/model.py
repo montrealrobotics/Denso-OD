@@ -24,6 +24,7 @@ class FasterRCNN(nn.Module):
 		self.rpn = RPN(self.cfg, self.backbone.out_channels)
 		self.detector = Detector(self.cfg, self.backbone.stride, self.backbone.out_channels)
 
+
 	def forward(self, image, gt_target, is_training):
 		"""
 		Args:

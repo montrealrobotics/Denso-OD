@@ -386,8 +386,8 @@ class FastRCNNOutputs(object):
         return {
             "loss_cls": self.softmax_cross_entropy_loss(),
             # "loss_box_reg": self.smooth_l1_loss(),
-            "loss_box_reg": self.loss_attenuation(),
-            # "loss_box_reg": self.loss_calibration(),
+            # "loss_box_reg": self.loss_attenuation(),
+            "loss_box_reg": self.loss_calibration(),
         }
 
     def predict_boxes(self):

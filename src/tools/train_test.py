@@ -3,6 +3,9 @@ import torch
 import numpy as np
 import time
 from ..utils import utils
+import os
+import sys
+from ..eval.detection_map import DetectionMAP
 
 def test(model, data_loader, device, results_dir):
 	is_training= False
@@ -12,12 +15,16 @@ def test(model, data_loader, device, results_dir):
 
 			in_images = batch_sample['image'].to(device)
 			target = [x.to(device) for x in batch_sample['target']]
+
 			img_paths = batch_sample['image_path']
 
 			# start = time.time()
 			rpn_proposals, instances, proposal_losses, detector_losses = model(in_images, target, is_training)
 			# print(time.time() - start)
 			utils.disk_logger(in_images, results_dir, rpn_proposals, instances, img_paths)
+
+
+
 
 def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_scheduler, device, model_save_dir, cfg):
 	epoch = 1
@@ -49,7 +56,8 @@ def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_sche
 			optimizer.step()
 
 			if (idx)%10==0:
-				
+				# print(idx)
+				# os.system('free -m')
 				with torch.no_grad():
 					#----------- Logging and Printing ----------#
 					print("{:<8d} {:<9d} {:<7.4f}".format(epoch, idx, loss.item()))
@@ -66,7 +74,7 @@ def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_sche
 					
 					# utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
 				#------------------------------------------------#
-
+			# sys.exit()
 		val_loss = {}
 		# val_loss_error = []
 

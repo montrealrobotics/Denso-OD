@@ -99,6 +99,12 @@ class Instances:
         """
         return self._fields
 
+    # Converts list fields to tensor
+    def toTensor(self):
+        for k, v in self._fields.items():
+            if isinstance(v, list):
+                self._fields[k] = torch.tensor(v)
+
     # Tensor-like methods
     def to(self, device: str) -> "Instances":
         """
