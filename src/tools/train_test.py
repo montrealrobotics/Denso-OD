@@ -6,23 +6,35 @@ from ..utils import utils
 import os
 import sys
 from ..eval.detection_map import DetectionMAP
+import matplotlib.pyplot as plt
 
 def test(model, data_loader, device, results_dir):
 	is_training= False
-
+	mAP = DetectionMAP(7)
 	with torch.no_grad():
 		for idx, batch_sample in enumerate(data_loader):
 
 			in_images = batch_sample['image'].to(device)
-			target = [x.to(device) for x in batch_sample['target']]
+			targets = [x.to(device) for x in batch_sample['target']]
 
 			img_paths = batch_sample['image_path']
 
 			# start = time.time()
-			rpn_proposals, instances, proposal_losses, detector_losses = model(in_images, target, is_training)
+			rpn_proposals, instances, proposal_losses, detector_losses = model(in_images, targets, is_training)
 			# print(time.time() - start)
 			utils.disk_logger(in_images, results_dir, rpn_proposals, instances, img_paths)
+			# utils.ground_projection(in_images, results_dir, instances, img_paths)
 
+			for instance, target in zip(instances, targets):
+				pred_bb1 = instance.pred_boxes.tensor.cpu().numpy()
+				pred_cls1 = instance.pred_classes.cpu().numpy() 
+				pred_conf1 = instance.scores.cpu().numpy()
+				gt_bb1 = target.gt_boxes.tensor.cpu().numpy()
+				gt_cls1 = target.gt_classes.cpu().numpy()
+				mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
+
+	mAP.plot()
+	plt.show()
 
 
 

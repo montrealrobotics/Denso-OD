@@ -11,6 +11,9 @@ import os.path as path
 from torchvision import transforms as T
 from src.config import Cfg as cfg
 
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+
 def xy_to_wh(boxes):
 	trans = []
 	for i in boxes:
@@ -116,4 +119,62 @@ def disk_logger(images, direc, rpn_proposals=None, instances=None, image_paths=N
 
 		Image.fromarray(image_grid).save(direc+"/"+path[-10:], "PNG")
 		print("{} written to disk".format(path[-10:]))
+
+def TwoDtoThreeD(samples, matrix):
+	Threedboxes = []
+	for bottom_xy in samples:
+		bottom_xy = np.append(bottom_xy, 1.0).T
+		n = np.asarray([0, -1., 0])
+		CAM_HEIGHT = 1.72
+		numerator = np.linalg.solve(matrix, bottom_xy)
+		denominator = n.dot(numerator)
+		bboxBottomIn3D = np.reshape(-CAM_HEIGHT * (numerator/denominator), (2,1))
+		Threedboxes.append(bboxBottomIn3D)
+	return Threedboxes
+
+def read_matrix(path):
+	file_path = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset/calib/training/"+name[-10:-3]+"txt"
+	file = open(file_path)
+	lines = file.read().splitlines()
+	p_matrix = lines[2],split(':', 1)
+	matrix = np.array(map(float, p_matrix.split(' ')))
+	matrix = matrix[:,:-1]
+
+	return matrix
+
+def ground_projection(instances_list, img_paths_list, result_dir):
+	for instances, path in zip(instances_list, img_paths_list):
+		means = instances.pred_boxes.tensor.cpu().numpy()
+		means = [[(x[0]+x[2])/2,x[3]] for x in means]
+		sigmas = instances.sigma.cpu().numpy()
+		sigmas = [[(y[0]+y[2])/4, y[3]] for y in sigmas]
+		K_matrix = read_matrix(path)
+		gd_means=[]
+		gd_sigmas = []
+		for mean, sigma in zip(means, sigmas):
+			samples = np.random.normal(np.full((10,2), mean), sigma) #Draw 10 samples
+			ground_points = TwoDtoThreeD(samples, K_matrix)
+			gd_mean = ground_points.mean(axis=0)
+			gd_std = ground_points.std(axis=0)
+			gd_means.append(gd_mean)
+			gd_sigmas.append(gd_std)
+
+		ells = [Ellipse(xy = x, width= y[0], height= y[1]) for x, y in zip(gd_mean, gd_sigmas)]
+		fig, ax = plt.subplots()
+
+		for e in ells:
+			ax.add_artist(e)
+
+		plt.show()
+		plt.savefig(result_dir+"/"+path[-10:])
+
+
+
+
+
+
+
+
+
+
 

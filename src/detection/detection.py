@@ -254,7 +254,7 @@ class Detector(ROIHeads):
         if is_training:
             proposals = self.label_and_sample_proposals(proposals, targets)
         
-        del targets
+        # del targets
 
         # Tensor of [M, C, 7 ,7] - M is the total number of proposals over all the images in the batch, C is the number of channels from feature map
         box_features = self.box_pooler(features, [x.proposal_boxes for x in proposals]) 

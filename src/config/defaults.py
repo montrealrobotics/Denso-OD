@@ -32,7 +32,7 @@ conf_params.TRAIN = CN()
 conf_params.TRAIN.DATASET_LENGTH = 7000
 conf_params.TRAIN.BATCH_SIZE = 10
 conf_params.TRAIN.EPOCHS = 50
-conf_params.TRAIN.OPTIM = 'sgd' # Optimizer to use. (choices=['sgd', 'adam'])
+conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 1e-3
 conf_params.TRAIN.MOMENTUM = 0.9 # Used only when TRAIN.OPTIM is set to 'sgd'
 conf_params.TRAIN.MILESTONES = 10,20	
@@ -42,7 +42,6 @@ conf_params.TRAIN.LR_DECAY = 0.5 ## Decay learning rate by this factor every cer
 conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon learning rate
 conf_params.TRAIN.SAVE_MODEL_EPOCHS = 5 ## save model at every certain epochs
 conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
-conf_params.TRAIN.TRAIN_TYPE = 'probabilistic' ### could be ['deterministic', 'probabilistic']
 
 """
 For Testing
