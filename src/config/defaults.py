@@ -15,8 +15,8 @@ For General Initialization and Settings
 """
 
 conf_params.PATH = CN()
-conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
-conf_params.PATH.LOGS = "/network/home/bansaldi/Denso-OD/logs"
+conf_params.PATH.DATASET = "/network/tmp1/bhattdha/kitti_dataset/"
+conf_params.PATH.LOGS = "/network/tmp1/bhattdha/Denso-kitti-probabilistic-models/logs/"
 
 ##### Whether to use cuda or not #####
 conf_params.USE_CUDA = True ## 
@@ -30,7 +30,7 @@ For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.DATASET_LENGTH = 7000
-conf_params.TRAIN.BATCH_SIZE = 10
+conf_params.TRAIN.BATCH_SIZE = 3
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 1e-3
@@ -55,7 +55,7 @@ For Backbone
 
 conf_params.BACKBONE = CN()
 ### choices = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
-conf_params.BACKBONE.MODEL_NAME = 'resnet50'
+conf_params.BACKBONE.MODEL_NAME = 'resnet101'
 ### choices = [1,2,3,4]
 conf_params.BACKBONE.RESNET_STOP_LAYER = 3
 
