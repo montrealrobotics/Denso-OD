@@ -18,7 +18,7 @@ class Backbone(nn.Module):
 		if "resnet" in self.model_name:
 			self.stop_layer = cfg.BACKBONE.RESNET_STOP_LAYER ## used for resnets only
 
-		models = {'resnet50': resnet50}
+		models = {'resnet18': resnet18, 'resnet34': resnet34, 'resnet50': resnet50, 'resnet101': resnet101}
 
 		self.model = models[self.model_name](self.stop_layer, pretrained=True)
 		

@@ -219,7 +219,7 @@ def _resnet(arch, block, layers, pretrained, progress, stop_layer, **kwargs):
     return model
 
 
-def resnet18(pretrained=False, progress=True, **kwargs):
+def resnet18(stop_layer, pretrained=False, progress=True, **kwargs):
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -228,10 +228,10 @@ def resnet18(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
-                   **kwargs)
+                   stop_layer, **kwargs)
 
 
-def resnet34(pretrained=False, progress=True, **kwargs):
+def resnet34(stop_layer, pretrained=False, progress=True, **kwargs):
     r"""ResNet-34 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -240,7 +240,7 @@ def resnet34(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], pretrained, progress,
-                   **kwargs)
+                   stop_layer, **kwargs)
 
 
 def resnet50(stop_layer, pretrained=False, progress=True, **kwargs):
@@ -255,7 +255,7 @@ def resnet50(stop_layer, pretrained=False, progress=True, **kwargs):
                    stop_layer, **kwargs)
 
 
-def resnet101(pretrained=False, progress=True, **kwargs):
+def resnet101(stop_layer, pretrained=False, progress=True, **kwargs):
     r"""ResNet-101 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -264,4 +264,4 @@ def resnet101(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _resnet('resnet101', Bottleneck, [3, 4, 23, 3], pretrained, progress,
-                   **kwargs)
+                   stop_layer, **kwargs)
