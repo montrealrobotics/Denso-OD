@@ -40,7 +40,9 @@ class FasterRCNN(nn.Module):
 
 		"""
 
+
 		image_size = image.shape[-2:]
+		# print("inside: ", image_size)
 		
 		feature_map = self.backbone(image) # feature_map : [N, self.backbone_net.out_channels, H, W]
 
