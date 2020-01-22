@@ -15,10 +15,12 @@ class Backbone(nn.Module):
 		
 		self.model_name = cfg.BACKBONE.MODEL_NAME
 
-		if "resnet" in self.model_name:
-			self.stop_layer = cfg.BACKBONE.RESNET_STOP_LAYER ## used for resnets only
+		# if "resnet" in self.model_name:
+		self.stop_layer = cfg.BACKBONE.RESNET_STOP_LAYER ## used for resnets only
 
-		models = {'resnet18': resnet18, 'resnet34': resnet34, 'resnet50': resnet50, 'resnet101': resnet101}
+		models = {'resnet18': resnet18, 'resnet34': resnet34, 'resnet50': resnet50, 'resnet101': resnet101,'resnet152': resnet152, 
+					'resnext50_32x4d': resnext50_32x4d, 'resnext101_32x8d': resnext101_32x8d, 'wide_resnet50_2': wide_resnet50_2,
+						'wide_resnet101_2': wide_resnet101_2}
 
 		self.model = models[self.model_name](self.stop_layer, pretrained=True)
 		

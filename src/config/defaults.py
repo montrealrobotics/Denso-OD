@@ -30,15 +30,15 @@ For training
 """
 conf_params.TRAIN = CN()
 conf_params.TRAIN.DATASET_LENGTH = 7000
-conf_params.TRAIN.BATCH_SIZE = 3
+conf_params.TRAIN.BATCH_SIZE = 4
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
 conf_params.TRAIN.LR = 1e-3
 conf_params.TRAIN.MOMENTUM = 0.9 # Used only when TRAIN.OPTIM is set to 'sgd'
-conf_params.TRAIN.MILESTONES = 10,20	
+conf_params.TRAIN.MILESTONES = 15,30	
 conf_params.TRAIN.DSET_SHUFFLE = False
 conf_params.TRAIN.FREEZE_BACKBONE = False
-conf_params.TRAIN.LR_DECAY = 0.5 ## Decay learning rate by this factor every certain epochs
+conf_params.TRAIN.LR_DECAY = 0.2 ## Decay learning rate by this factor every certain epochs
 conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon learning rate
 conf_params.TRAIN.SAVE_MODEL_EPOCHS = 5 ## save model at every certain epochs
 conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
@@ -54,8 +54,13 @@ For Backbone
 """
 
 conf_params.BACKBONE = CN()
-### choices = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
-conf_params.BACKBONE.MODEL_NAME = 'resnet101'
+'''
+choices = ['resnet18', 'resnet34', 'resnet50', 'resnet101',
+           'resnet152', 'resnext50_32x4d', 'resnext101_32x8d',
+           'wide_resnet50_2', 'wide_resnet101_2'] 
+
+'''
+conf_params.BACKBONE.MODEL_NAME = 'resnext50_32x4d'
 ### choices = [1,2,3,4]
 conf_params.BACKBONE.RESNET_STOP_LAYER = 3
 
