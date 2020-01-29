@@ -23,18 +23,17 @@ def test(model, data_loader, device, results_dir):
 			rpn_proposals, instances, proposal_losses, detector_losses = model(in_images, targets, is_training)
 			# print(time.time() - start)
 			utils.disk_logger(in_images, results_dir, rpn_proposals, instances, img_paths)
-			# utils.ground_projection(in_images, results_dir, instances, img_paths)
 
 			for instance, target in zip(instances, targets):
 				pred_bb1 = instance.pred_boxes.tensor.cpu().numpy()
-				pred_cls1 = instance.pred_classes.cpu().numpy() 
+				pred_cls1 = instance.pred_classes.cpu().numpy()
 				pred_conf1 = instance.scores.cpu().numpy()
 				gt_bb1 = target.gt_boxes.tensor.cpu().numpy()
 				gt_cls1 = target.gt_classes.cpu().numpy()
 				mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
 
 	mAP.plot()
-	plt.show()
+	# plt.show()
 
 
 
@@ -56,9 +55,9 @@ def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_sche
 
 			loss_dict = {}
 			loss_dict.update(proposal_losses)
-			loss_dict.update(detector_losses) 
+			loss_dict.update(detector_losses)
 
-			loss = 0.0 
+			loss = 0.0
 			for k, v in loss_dict.items():
 				loss += v
 			loss_dict.update({'tot_loss':loss})
@@ -74,16 +73,16 @@ def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_sche
 					#----------- Logging and Printing ----------#
 					print("{:<8d} {:<9d} {:<7.4f}".format(epoch, idx, loss.item()))
 
-					for loss_name, value in loss_dict.items():	
+					for loss_name, value in loss_dict.items():
 						tb_writer.add_scalar('Loss/'+loss_name, value.item(), epoch+0.01*idx)
-					
+
 
 					for key, value in loss_dict.items():
 						if len(running_loss)<len(loss_dict):
 							running_loss[key] = 0.0
 						running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
 
-					
+
 					# utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
 				#------------------------------------------------#
 			# sys.exit()
@@ -92,7 +91,7 @@ def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_sche
 
 		with torch.no_grad():
 			for idx, batch_sample in enumerate(val_loader):
-				
+
 				in_images = batch_sample['image'].to(device)
 				target = [x.to(device) for x in batch_sample['target']]
 
@@ -102,7 +101,7 @@ def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_sche
 				loss_dict.update(proposal_losses)
 				loss_dict.update(detector_losses)
 
-				loss = 0.0 
+				loss = 0.0
 				for k, v in loss_dict.items():
 					loss += v
 				loss_dict.update({'tot_loss':loss})
@@ -124,7 +123,7 @@ def train(model, train_loader, val_loader, optimizer, epochs, tb_writer, lr_sche
 			print("Epoch ---- {} ".format(epoch))
 			print("Epoch      Training   Validation")
 			print("{} {:>13.4f}    {:0.4f}".format(epoch, running_loss['tot_loss'], val_loss['tot_loss']))
-			
+
 		## Decaying learning rate
 		lr_scheduler.step()
 

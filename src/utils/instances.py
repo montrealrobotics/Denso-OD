@@ -29,7 +29,7 @@ class Instances:
     """
 
     def __init__(self, image_size: Tuple[int, int], **kwargs: Any): #This Any is an class import from typing
-        """ 
+        """
         Args:
             image_size (height, width): the spatial size of the image.
             kwargs: fields to add to this `Instances`.
@@ -168,10 +168,6 @@ class Instances:
                 raise ValueError("Unsupported type {} for concatenation".format(type(v0)))
             ret.set(k, values)
         return ret
-    
-    def draw_bbox(self, image):
-        drawer = ImageDraw.Draw(image, mode=None)
-
 
     def __str__(self) -> str:
         s = self.__class__.__name__ + "("

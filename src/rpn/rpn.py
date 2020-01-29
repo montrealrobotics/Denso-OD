@@ -20,7 +20,7 @@ class RPNHead(nn.Module):
 
         ## Layer 1
         self.conv1 = nn.Conv2d(in_channels, in_channels, 3, 1, 1)
-        
+
         ## Regression layer
         self.bbox_head = nn.Conv2d(in_channels, num_anchors*4, 1, 1, 0)
 
@@ -49,7 +49,7 @@ class RPNHead(nn.Module):
         # sigma_bboxes = self.uncertain_head(x) # sigma_bboxes :[N, C=9*4, H, W]
         sigma_bboxes = None
         # sigma_bboxes = sigma_bboxes.view((sigma_bboxes.shape[0], 4, -1)).permute(0,2,1)  # sigma_bboxes :[N, tot_anchors=H*W*9, 4]
-        
+
         return class_logits, bboxes_delta, sigma_bboxes
 
 
@@ -109,7 +109,7 @@ class RPN(nn.Module):
         # print("Stride:", stride)
 
         #List(Boxes), return a list, each element is box struct for each image in batch. Each box struct is list of all anchors in that image.
-        # box struct: [HxWx9, 4] 
+        # box struct: [HxWx9, 4]
         anchors = self.anchors_generator(feature_shape, stride)
 
         pred_objectness_logits, pred_anchor_deltas, _ = self.rpn_head(features)
@@ -148,12 +148,8 @@ class RPN(nn.Module):
                 self.min_box_side_len,
                 is_training,
             )
-            # For RPN-only models, the proposals are the final output and we return them in
-            # high-to-low confidence order.
-            # For end-to-end models, the RPN proposals are an intermediate state
-            # and this sorting is actually not needed. But the cost is negligible.
+            
             inds = [p.objectness_logits.sort(descending=True)[1] for p in proposals]
             proposals = [p[ind] for p, ind in zip(proposals, inds)]
 
         return proposals, losses
-
