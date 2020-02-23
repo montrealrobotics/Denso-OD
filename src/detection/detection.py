@@ -259,14 +259,14 @@ class Detector(ROIHeads):
         # Tensor of [M, C, 7 ,7] - M is the total number of proposals over all the images in the batch, C is the number of channels from feature map
         box_features = self.box_pooler(features, [x.proposal_boxes for x in proposals]) 
         
-        # pred_class_logits: Tensor[M, num_classes+1], pred_proposal_deltas: Tensor[M, 4], pred_sigma: Tensor[M, 4]
-        pred_class_logits, pred_proposal_deltas, pred_sigma = self.box_predictor(box_features)
+        # pred_class_logits: Tensor[M, num_classes+1], pred_bbox_deltas: Tensor[M, 4], pred_delta_variance: Tensor[M, 4]
+        pred_class_logits, pred_bbox_deltas, pred_delta_variance = self.box_predictor(box_features)
 
         outputs = FastRCNNOutputs(
             self.box2box_transform,
             pred_class_logits,
-            pred_proposal_deltas,
-            pred_sigma,
+            pred_bbox_deltas,
+            pred_delta_variance,
             proposals,
             self.smooth_l1_beta,
         )
@@ -367,13 +367,13 @@ class Res5ROIHeads(ROIHeads):
         )
        
         feature_pooled = box_features.mean(dim=[2, 3])  # pooled to 1x1
-        pred_class_logits, pred_proposal_deltas = self.box_predictor(feature_pooled)
+        pred_class_logits, pred_bbox_deltas = self.box_predictor(feature_pooled)
         del feature_pooled
 
         outputs = FastRCNNOutputs(
             self.box2box_transform,
             pred_class_logits,
-            pred_proposal_deltas,
+            pred_bbox_deltas,
             proposals,
             self.smooth_l1_beta,
         )

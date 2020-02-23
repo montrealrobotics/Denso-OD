@@ -5,9 +5,10 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from ..nms import batched_nms
+from ..nms import batched_nms, bayes_od_clustering
 from ..utils import Boxes, Matcher, Box2BoxTransform, Instances
 from ..loss import smooth_l1_loss
+
 logger = logging.getLogger(__name__)
 
 """
@@ -29,10 +30,10 @@ Naming convention:
     gt_classes: ground-truth classification labels in [0, K], where [0, K) represent
         foreground object classes and K represents the background class.
 
-    pred_proposal_deltas: predicted box2box transform deltas for transforming proposals
+    pred_bbox_deltas: predicted box2box transform deltas for transforming proposals
         to detection box predictions.
 
-    gt_proposal_deltas: ground-truth box2box transform deltas
+    gt_bbox_deltas: ground-truth box2box transform deltas
 """
 
 class FastRCNNOutputLayers(nn.Module):
@@ -55,14 +56,14 @@ class FastRCNNOutputLayers(nn.Module):
         num_bbox_reg_classes = 1 if cls_agnostic_bbox_reg else num_classes
         self.bbox_pred = nn.Linear(fc_dim, num_bbox_reg_classes * box_dim)
 
-        self.sigma_pred = nn.Linear(fc_dim, box_dim)
+        self.var_pred = nn.Linear(fc_dim, box_dim)
         
-        for l in [self.fc1, self.fc2, self.cls_score, self.bbox_pred, self.sigma_pred]:
+        for l in [self.fc1, self.fc2, self.cls_score, self.bbox_pred, self.var_pred]:
             nn.init.normal_(l.weight, std=0.01)
             nn.init.constant_(l.bias, 0)
 
         nn.init.normal_(self.bbox_pred.weight, std=0.001)
-        nn.init.constant_(self.sigma_pred.bias, 2)
+        nn.init.constant_(self.var_pred.bias, 2)
 
     def RichardCurve(self, x, low=0.001, high=20, sharp=0.5):
         r"""Applies the generalized logistic function (aka Richard's curve)
@@ -85,12 +86,13 @@ class FastRCNNOutputLayers(nn.Module):
             x = F.relu(layer(x))
 
         scores = self.cls_score(x)
-        proposal_deltas = self.bbox_pred(x)
-        sigma = self.RichardCurve(self.sigma_pred(x))
+        bbox_deltas = self.bbox_pred(x)
+        # variance = self.RichardCurve(self.var_pred(x))
+        variance = F.relu(self.var_pred(x))
 
-        return scores, proposal_deltas, sigma
+        return scores, bbox_deltas, variance
 
-def fast_rcnn_inference(boxes, scores, sigma, image_shapes, score_thresh, nms_thresh, topk_per_image):
+def fast_rcnn_inference(boxes, scores, variance, image_shapes, score_thresh, nms_thresh, topk_per_image):
     """
     Call `fast_rcnn_inference_single_image` for all images.
 
@@ -120,13 +122,13 @@ def fast_rcnn_inference(boxes, scores, sigma, image_shapes, score_thresh, nms_th
         fast_rcnn_inference_single_image(
             boxes_per_image, scores_per_image, sigma_per_image, image_shape, score_thresh, nms_thresh, topk_per_image
         )
-        for scores_per_image, boxes_per_image, sigma_per_image, image_shape in zip(scores, boxes, sigma, image_shapes)
+        for scores_per_image, boxes_per_image, sigma_per_image, image_shape in zip(scores, boxes, variance, image_shapes)
     ]
     return tuple(list(x) for x in zip(*result_per_image))
 
 
 def fast_rcnn_inference_single_image(
-    boxes, scores, sigma, image_shape, score_thresh, nms_thresh, topk_per_image
+    boxes, scores, variance, image_shape, score_thresh, nms_thresh, topk_per_image
 ):
     """
     Single-image inference. Return bounding-box detection results by thresholding
@@ -145,33 +147,42 @@ def fast_rcnn_inference_single_image(
     boxes = Boxes(boxes.reshape(-1, 4))
     boxes.clip(image_shape)
     boxes = boxes.tensor.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
-    sigma = sigma.view(-1, num_bbox_reg_classes, 4)
+    variance = variance.view(-1, num_bbox_reg_classes, 4)
 
     # Filter results based on detection scores
     filter_mask = scores > score_thresh  # R x K
+    
     # R' x 2. First column contains indices of the R predictions;
     # Second column contains indices of classes.
     filter_inds = filter_mask.nonzero()
     if num_bbox_reg_classes == 1:
         boxes = boxes[filter_inds[:, 0], 0]
-        sigma = sigma[filter_inds[:,0 ], 0]
+        variance = variance[filter_inds[:,0 ], 0]
     else:
         boxes = boxes[filter_mask]
-        sigma = sigma[filter_mask]
+        variance = variance[filter_mask]
     scores = scores[filter_mask]
 
     # Apply per-class NMS
     keep = batched_nms(boxes, scores, filter_inds[:, 1], nms_thresh)
+
     if topk_per_image >= 0:
         keep = keep[:topk_per_image]
-    boxes, scores, sigma, filter_inds = boxes[keep], scores[keep], sigma[keep], filter_inds[keep]
 
+    use_bayesian_clustering = False
+
+    if use_bayesian_clustering==True:
+        boxes, scores, variance, filter_inds = bayes_od_clustering()
+
+    else:
+        boxes, scores, variance, filter_inds = boxes[keep], scores[keep], variance[keep], filter_inds[keep]
+    
     result = Instances(image_shape)
     result.pred_boxes = Boxes(boxes)
     result.scores = scores
-    result.pred_sigma = sigma
+    result.pred_variance = variance
     result.pred_classes = filter_inds[:, 1]
-    
+
     return result, filter_inds[:, 0]
 
 
@@ -181,7 +192,7 @@ class FastRCNNOutputs(object):
     """
 
     def __init__(
-        self, box2box_transform, pred_class_logits, pred_proposal_deltas, pred_delta_sigma,proposals, smooth_l1_beta
+        self, box2box_transform, pred_class_logits, pred_bbox_deltas, pred_delta_variance,proposals, smooth_l1_beta
     ):
         """
         Args:
@@ -190,7 +201,7 @@ class FastRCNNOutputs(object):
             pred_class_logits (Tensor): A tensor of shape (R, K + 1) storing the predicted class
                 logits for all R predicted object instances.
                 Each row corresponds to a predicted object instance.
-            pred_proposal_deltas (Tensor): A tensor of shape (R, K * B) or (R, B) for
+            pred_bbox_deltas (Tensor): A tensor of shape (R, K * B) or (R, B) for
                 class-specific or class-agnostic regression. It stores the predicted deltas that
                 transform proposals into final box detections.
                 B is the box dimension (4 or 5).
@@ -207,8 +218,8 @@ class FastRCNNOutputs(object):
         self.box2box_transform = box2box_transform
         self.num_preds_per_image = [len(p) for p in proposals]
         self.pred_class_logits = pred_class_logits
-        self.pred_proposal_deltas = pred_proposal_deltas
-        self.pred_delta_sigma = pred_delta_sigma
+        self.pred_bbox_deltas = pred_bbox_deltas
+        self.pred_delta_variance = pred_delta_variance
         self.smooth_l1_beta = smooth_l1_beta
 
         box_type = type(proposals[0].proposal_boxes)
@@ -239,12 +250,12 @@ class FastRCNNOutputs(object):
         Returns:
             scalar Tensor
         """
-        gt_proposal_deltas = self.box2box_transform.get_deltas(
+        gt_bbox_deltas = self.box2box_transform.get_deltas(
             self.proposals.tensor, self.gt_boxes.tensor
         )
-        box_dim = gt_proposal_deltas.size(1)  # 4 or 5
-        cls_agnostic_bbox_reg = self.pred_proposal_deltas.size(1) == box_dim
-        device = self.pred_proposal_deltas.device
+        box_dim = gt_bbox_deltas.size(1)  # 4 or 5
+        cls_agnostic_bbox_reg = self.pred_bbox_deltas.size(1) == box_dim
+        device = self.pred_bbox_deltas.device
 
         bg_class_ind = self.pred_class_logits.shape[1] - 1
 
@@ -258,11 +269,11 @@ class FastRCNNOutputs(object):
             1
         )
         if cls_agnostic_bbox_reg:
-            # pred_proposal_deltas only corresponds to foreground class for agnostic
+            # pred_bbox_deltas only corresponds to foreground class for agnostic
             gt_class_cols = torch.arange(box_dim, device=device)
         else:
             fg_gt_classes = self.gt_classes[fg_inds]
-            # pred_proposal_deltas for class k are located in columns [b * k : b * k + b],
+            # pred_bbox_deltas for class k are located in columns [b * k : b * k + b],
             # where b is the dimension of box representation (4 or 5)
             # Note that compared to Detectron1,
             # we do not perform bounding box regression for background classes.
@@ -271,7 +282,7 @@ class FastRCNNOutputs(object):
         ### 
 
         ## Computing the loss attenuation
-        loss_attenuation_final = ((self.pred_proposal_deltas[fg_inds[:, None], gt_class_cols] - gt_proposal_deltas[fg_inds])**2/(self.pred_delta_sigma[fg_inds[:, None], gt_class_cols]) + torch.log(self.pred_delta_sigma[fg_inds[:, None], gt_class_cols])).sum()/self.gt_classes.numel()
+        loss_attenuation_final = ((self.pred_bbox_deltas[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2/(self.pred_delta_variance[fg_inds[:, None], gt_class_cols]) + 0.5*torch.log(self.pred_delta_variance[fg_inds[:, None], gt_class_cols])).sum()/self.gt_classes.numel()
 
         return loss_attenuation_final
 
@@ -282,12 +293,12 @@ class FastRCNNOutputs(object):
         Returns:
             scalar Tensor
         """
-        gt_proposal_deltas = self.box2box_transform.get_deltas(
+        gt_bbox_deltas = self.box2box_transform.get_deltas(
             self.proposals.tensor, self.gt_boxes.tensor
-        )
-        box_dim = gt_proposal_deltas.size(1)  # 4 or 5
-        cls_agnostic_bbox_reg = self.pred_proposal_deltas.size(1) == box_dim
-        device = self.pred_proposal_deltas.device
+        ) 
+        box_dim = gt_bbox_deltas.size(1)  # 4 or 5
+        cls_agnostic_bbox_reg = self.pred_bbox_deltas.size(1) == box_dim
+        device = self.pred_bbox_deltas.device
 
         bg_class_ind = self.pred_class_logits.shape[1] - 1
 
@@ -301,19 +312,19 @@ class FastRCNNOutputs(object):
             1
         )
         if cls_agnostic_bbox_reg:
-            # pred_proposal_deltas only corresponds to foreground class for agnostic
+            # pred_bbox_deltas only corresponds to foreground class for agnostic
             gt_class_cols = torch.arange(box_dim, device=device)
         else:
             fg_gt_classes = self.gt_classes[fg_inds]
-            # pred_proposal_deltas for class k are located in columns [b * k : b * k + b],
+            # pred_bbox_deltas for class k are located in columns [b * k : b * k + b],
             # where b is the dimension of box representation (4 or 5)
             # Note that compared to Detectron1,
             # we do not perform bounding box regression for background classes.
             gt_class_cols = box_dim * fg_gt_classes[:, None] + torch.arange(box_dim, device=device)
 
         loss_box_reg = smooth_l1_loss(
-            self.pred_proposal_deltas[fg_inds[:, None], gt_class_cols],
-            gt_proposal_deltas[fg_inds],
+            self.pred_bbox_deltas[fg_inds[:, None], gt_class_cols],
+            gt_bbox_deltas[fg_inds],
             self.smooth_l1_beta,
             reduction="sum",
         )
@@ -338,12 +349,12 @@ class FastRCNNOutputs(object):
         Returns:
             scalar Tensor
         """
-        gt_proposal_deltas = self.box2box_transform.get_deltas(
+        gt_bbox_deltas = self.box2box_transform.get_deltas(
             self.proposals.tensor, self.gt_boxes.tensor
         )
-        box_dim = gt_proposal_deltas.size(1)  # 4 or 5
-        cls_agnostic_bbox_reg = self.pred_proposal_deltas.size(1) == box_dim
-        device = self.pred_proposal_deltas.device
+        box_dim = gt_bbox_deltas.size(1)  # 4 or 5
+        cls_agnostic_bbox_reg = self.pred_bbox_deltas.size(1) == box_dim
+        device = self.pred_bbox_deltas.device
 
         bg_class_ind = self.pred_class_logits.shape[1] - 1
 
@@ -357,11 +368,11 @@ class FastRCNNOutputs(object):
             1
         )
         if cls_agnostic_bbox_reg:
-            # pred_proposal_deltas only corresponds to foreground class for agnostic
+            # pred_bbox_deltas only corresponds to foreground class for agnostic
             gt_class_cols = torch.arange(box_dim, device=device)
         else:
             fg_gt_classes = self.gt_classes[fg_inds]
-            # pred_proposal_deltas for class k are located in columns [b * k : b * k + b],
+            # pred_bbox_deltas for class k are located in columns [b * k : b * k + b],
             # where b is the dimension of box representation (4 or 5)
             # Note that compared to Detectron1,
             # we do not perform bounding box regression for background classes.
@@ -370,8 +381,8 @@ class FastRCNNOutputs(object):
         ### 
 
         ## Computing the loss attenuation
-        error_loss = (self.pred_delta_sigma[fg_inds[:, None], gt_class_cols] - (self.pred_proposal_deltas.clone().detach()[fg_inds[:, None], gt_class_cols] - gt_proposal_deltas[fg_inds])**2).sum()
-        loss_cal_final = (((self.pred_proposal_deltas[fg_inds[:, None], gt_class_cols] - gt_proposal_deltas[fg_inds])**2/(self.pred_delta_sigma[fg_inds[:, None], gt_class_cols]) + torch.log(self.pred_delta_sigma[fg_inds[:, None], gt_class_cols])).sum() + error_loss)/self.gt_classes.numel() 
+        error_loss = (self.pred_delta_variance[fg_inds[:, None], gt_class_cols] - (self.pred_bbox_deltas.clone().detach()[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2).sum()
+        loss_cal_final = (((self.pred_bbox_deltas[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2/(self.pred_delta_variance[fg_inds[:, None], gt_class_cols]) + 0.5*torch.log(self.pred_delta_variance[fg_inds[:, None], gt_class_cols])).sum() + error_loss)/self.gt_classes.numel() 
 
         return loss_cal_final
 
@@ -386,8 +397,8 @@ class FastRCNNOutputs(object):
         return {
             "loss_cls": self.softmax_cross_entropy_loss(),
             # "loss_box_reg": self.smooth_l1_loss(),
-            # "loss_box_reg": self.loss_attenuation(),
-            "loss_box_reg": self.loss_calibration(),
+            "loss_box_reg": self.loss_attenuation(),
+            # "loss_box_reg": self.loss_calibration(),
         }
 
     def predict_boxes(self):
@@ -399,9 +410,9 @@ class FastRCNNOutputs(object):
         """
         num_pred = len(self.proposals)
         B = self.proposals.tensor.shape[1]
-        K = self.pred_proposal_deltas.shape[1] // B
+        K = self.pred_bbox_deltas.shape[1] // B
         boxes = self.box2box_transform.apply_deltas(
-            self.pred_proposal_deltas.view(num_pred * K, B),
+            self.pred_bbox_deltas.view(num_pred * K, B),
             self.proposals.tensor.unsqueeze(1).expand(num_pred, K, B).reshape(-1, B),
         )
         return boxes.view(num_pred, K * B).split(self.num_preds_per_image, dim=0)
@@ -425,9 +436,9 @@ class FastRCNNOutputs(object):
         """
         num_pred = len(self.proposals)
         B = self.proposals.tensor.shape[1]
-        K = self.pred_delta_sigma.shape[1] // B
+        K = self.pred_delta_variance.shape[1] // B
         boxes_var = self.box2box_transform.apply_deltas_variance(
-            self.pred_delta_sigma.view(num_pred * K, B),
+            self.pred_delta_variance.view(num_pred * K, B),
             self.proposals.tensor.unsqueeze(1).expand(num_pred, K, B).reshape(-1, B),
         )
         return boxes_var.view(num_pred, K * B).split(self.num_preds_per_image, dim=0)
@@ -445,10 +456,10 @@ class FastRCNNOutputs(object):
 
         boxes = self.predict_boxes()
         scores = self.predict_probs()
-        sigma = self.predict_variance()
+        variance = self.predict_variance()
         image_shapes = self.image_shapes
 
         return fast_rcnn_inference(
-            boxes, scores, sigma, image_shapes, score_thresh, nms_thresh, topk_per_image
+            boxes, scores, variance, image_shapes, score_thresh, nms_thresh, topk_per_image
         )
 

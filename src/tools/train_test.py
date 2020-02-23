@@ -7,10 +7,17 @@ import os
 import sys
 from ..eval.detection_map import DetectionMAP
 import matplotlib.pyplot as plt
+from src.config import Cfg as cfg
+from ..tracker.track import MultiObjTracker
+from ..utils import Instances
+
 
 def test(model, data_loader, device, results_dir):
 	is_training= False
-	mAP = DetectionMAP(7)
+
+	mAP = DetectionMAP(len(cfg.INPUT.LABELS_TO_TRAIN)) # number of classes
+	tracker = MultiObjTracker()
+	
 	with torch.no_grad():
 		for idx, batch_sample in enumerate(data_loader):
 
@@ -19,20 +26,30 @@ def test(model, data_loader, device, results_dir):
 
 			img_paths = batch_sample['image_path']
 
-			# start = time.time()
 			rpn_proposals, instances, proposal_losses, detector_losses = model(in_images, targets, is_training)
-			# print(time.time() - start)
-			utils.disk_logger(in_images, results_dir, rpn_proposals, instances, img_paths)
+
+			rpn_proposals = [x.toList() for x in rpn_proposals]
+			instances = [x.toList() for x in instances]
+			targets = [x.toList() for x in targets]
+			
+			for instance in instances:
+				tracker.predict()
+				tracker.update(instance.pred_boxes, instance.pred_variance)
+
+			tracked_instances = [Instances(pred_boxes=np.array([x.mean for x in tracker.tracks]), pred_variance=np.array([x.covariance for x in tracker.tracks]))]
+
+			# utils.disk_logger(in_images, results_dir, instances, rpn_proposals, img_paths)
+			utils.disk_logger(in_images, results_dir, tracked_instances, rpn_proposals, img_paths)
 
 			for instance, target in zip(instances, targets):
-				pred_bb1 = instance.pred_boxes.tensor.cpu().numpy()
-				pred_cls1 = instance.pred_classes.cpu().numpy()
-				pred_conf1 = instance.scores.cpu().numpy()
-				gt_bb1 = target.gt_boxes.tensor.cpu().numpy()
-				gt_cls1 = target.gt_classes.cpu().numpy()
+				pred_bb1 = instance.pred_boxes.tensor
+				pred_cls1 = instance.pred_classes
+				pred_conf1 = instance.scores
+				gt_bb1 = target.gt_boxes
+				gt_cls1 = target.gt_classes
 				mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
 
-	mAP.plot()
+	mAP.plot(class_names = cfg.INPUT.LABELS_TO_TRAIN)
 	# plt.show()
 
 

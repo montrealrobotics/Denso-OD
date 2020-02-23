@@ -153,6 +153,7 @@ class DetectionMAP:
             precisions, recalls = self.compute_precision_recall_(i, interpolated)
             average_precision = self.compute_ap(precisions, recalls)
             class_name = class_names[i] if class_names else "Class {}".format(i)
+            print("Class: {} Precision: {}".format(class_name, average_precision))
             self.plot_pr(ax, class_name, precisions, recalls, average_precision)
             mean_average_precision.append(average_precision)
 

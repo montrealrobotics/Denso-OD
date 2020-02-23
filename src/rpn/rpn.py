@@ -103,7 +103,7 @@ class RPN(nn.Module):
 
         gt_boxes = [x.gt_boxes for x in gt_target]
 
-        feature_shape = features.shape[-2:]
+        feature_shape = features.shape
 
         stride = round(image_sizes[-1]/feature_shape[-1])
         # print("Stride:", stride)
@@ -137,7 +137,7 @@ class RPN(nn.Module):
             # joint training with roi heads. This approach ignores the derivative
             # w.r.t. the proposal boxes’ coordinates that are also network
             # responses, so is approximate.
-            image_sizes = [image_sizes]*self.cfg.TRAIN.BATCH_SIZE
+            image_sizes = [image_sizes]*feature_shape[0]
             proposals = find_top_rpn_proposals(
                 RPNProcessor.predict_proposals(),
                 RPNProcessor.predict_objectness_logits(),

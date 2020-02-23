@@ -16,6 +16,7 @@ For General Initialization and Settings
 
 conf_params.PATH = CN()
 conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
+conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_tracking"
 conf_params.PATH.LOGS = "/network/home/bansaldi/Denso-OD/logs"
 
 ##### Whether to use cuda or not #####
@@ -83,8 +84,9 @@ conf_params.INPUT.IMAGE_SIZE = (375, 1242)
 # We will stick to same to get better output.
 conf_params.INPUT.MEAN = [0.485, 0.456, 0.406]
 conf_params.INPUT.STD = [0.229, 0.224, 0.225]
-conf_params.INPUT.LABELS_TO_TRAIN = ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
-conf_params.INPUT.NUM_CLASSES = 7
+# conf_params.INPUT.LABELS_TO_TRAIN = ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
+conf_params.INPUT.LABELS_TO_TRAIN = ['Car', 'Pedestrian']
+conf_params.INPUT.NUM_CLASSES = 2
 
 
 """
@@ -131,7 +133,7 @@ For ROI and Detection
 conf_params.ROI_HEADS = CN()
 conf_params.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
 conf_params.ROI_HEADS.POSITIVE_FRACTION = 0.25
-conf_params.ROI_HEADS.SCORE_THRESH_TEST = 0.5
+conf_params.ROI_HEADS.SCORE_THRESH_TEST = 0.6
 conf_params.ROI_HEADS.NMS_THRESH_TEST = 0.5
 conf_params.ROI_HEADS.PROPOSAL_APPEND_GT = True
 conf_params.ROI_HEADS.IOU_THRESHOLDS = [0.5]

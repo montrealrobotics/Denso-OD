@@ -13,7 +13,7 @@ def fig2data(fig):
     @return a numpy 3D array of RGBA values
     """
     # draw the renderer
-    fig.canvas.draw ( )
+    fig.canvas.draw()d
 
     # Get the RGBA buffer from the figure
     w,h = fig.canvas.get_width_height()
@@ -43,16 +43,15 @@ class Visualizer(object):
         drawer = ImageDraw.Draw(img, mode=None)
 
         for instance in self.instances:
-            box = instance.pred_boxes.tensor.numpy()[0]
+            box = instance.pred_boxes[0]
             drawer.rectangle(box, outline ='red' ,width=3)
-            drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes.numpy()],
-            instance.scores.numpy()), outline='green')
+            drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes],
+            instance.scores), outline='green')
 
             if instance.has("pred_sigma"):
-                sigma = np.sqrt(instance.pred_sigma.numpy())
+                sigma = np.sqrt(instance.pred_sigma)
                 drawer.ellipse([box[0]-2*sigma[0], box[1]-2*sigma[1], box[0]+2*sigma[0], box[1]+2*sigma[1]], outline='blue', width=3)
                 drawer.ellipse([box[2]-2*sigma[2], box[3]-2*sigma[3], box[2]+2*sigma[2], box[3]+2*sigma[3]], outline='blue', width=3)
-
         ax = self.output.add_subplot(1,2,1)
         ax.imshow(img)
 

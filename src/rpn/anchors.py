@@ -20,7 +20,6 @@ class AnchorGenerator(nn.Module):
         super(AnchorGenerator, self).__init__()
         sizes         = cfg.ANCHORS.ANCHOR_SCALES
         aspect_ratios = cfg.ANCHORS.ASPECT_RATIOS
-        self.num_images = cfg.TRAIN.BATCH_SIZE
 
         self.base_anchors = self.generate_base_anchors(sizes, aspect_ratios, device)
         # self.register_buffer("cell_anchors", self.base_anchors)
@@ -104,12 +103,11 @@ class AnchorGenerator(nn.Module):
         Returns:
             list[Boxes]: a list of #image elements.
         """
-        # num_images = features_shape[0]
-        grid_sizes = features_shape
+        num_images = features_shape[0]
+        grid_sizes = features_shape[-2:]
         anchors = self.grid_anchors(grid_sizes, stride)
         anchors_image = Boxes(anchors) 
-
-        anchors_batch = [copy.deepcopy(anchors_image) for _ in range(self.num_images)]
+        anchors_batch = [copy.deepcopy(anchors_image) for _ in range(num_images)]
     
         # List(Boxes) len(anchor_batch) = batch_size, 
         # each element is a Box Strucutre which is list of all anchor in image i. 

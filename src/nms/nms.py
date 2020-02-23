@@ -113,23 +113,87 @@ def batched_nms(boxes, scores, idxs, iou_threshold):
     keep = keep[scores[keep].argsort(descending=True)]
     return keep
 
-# Our Implementation    
-# def batched_nms(boxes, scores, iou_threshold):
-#     ''' boxes: [batch_size, N, 4] tensor
-#         scores:[batch_size, N] tensor.
-#     '''
-    
-#     batch_size, N, _ = boxes.shape
-#     indices = torch.arange(batch_size, device=boxes.device)
-#     indices = indices[:, None].expand(batch_size, N).flatten()
-#     boxes_flat = boxes.flatten(0, 1)
-#     scores_flat = scores.flatten()
-#     indices_flat = torchvision.ops.boxes.batched_nms(
-#         boxes_flat, scores_flat, indices, iou_threshold)
-#     # now reshape the indices as you want, maybe
-#     # projecting back to the [batch_size, N] space
-#     # I'm omitting this here
-#     indices = indices_flat # To see now to reshape these indices to [batch_size, N] see the function defination
-#                             # Also it might not be necessary to reshape it may be.
-#     return indices
+def bayes_od_clustering(
+        predicted_boxes_class_counts,
+        predicted_boxes_means,
+        predicted_boxes_covs,
+        cluster_centers,
+        affinity_matrix,
+        affinity_threshold=0.7):
+    """
+    Bayesian NMS clustering to output a single probability distribution per object in the scene.
+
+    Args:
+        predicted_boxes_means: Nx4x1 tensor containing resulting means from mc_dropout. N is the number of anchors processed by the model.
+        predicted_boxes_covs: Nx4x4 tensor containing resulting covariance matrices from mc_dropout.
+        cat_count_res: NxC tensor containing the alpha counts from mc dropout. C is the number of categories.
+        cluster_centers: Kx1 tensor containing the indices of centers of clusters based on minimum entropy. K is the number of clusters.
+        affinity_matrix: NxN matrix containing affinity measures between bounding boxes.
+        affinity_threshold: scalar to determine the minimum affinity for clustering.
+        
+    Returns:
+        final_scores: Kx4 tensor containing the parameters of the final categorical posterior distribution describing the objects' categories.
+        final_means: Kx4x1 tensor containing the mean vectors of the posterior gaussian distribution describing objects' location in the scene.
+        final_covs: Kx4x4 tensor containing the covariance matrices of the posterior gaussian distribution describing objects' location in the scene.
+    """
+
+    # Initialize lists to save per cluster results
+    final_box_means = []
+    final_box_covs = []
+    final_box_class_scores = []
+    final_box_class_counts = []
+    for cluster_center in cluster_centers:
+
+        # Get bounding boxes with affinity > threshold with the center of the
+        # cluster
+        cluster_inds = affinity_matrix[:, cluster_center] > affinity_threshold
+        cluster_means = predicted_boxes_means[cluster_inds, :, :]
+        cluster_covs = predicted_boxes_covs[cluster_inds, :, :]
+
+        # Compute mean and covariance of the final posterior distribution
+        cluster_precs = np.array(
+            [np.linalg.inv(member_cov) for member_cov in cluster_covs])
+
+        final_cov = np.linalg.inv(np.sum(cluster_precs, axis=0))
+        final_box_covs.append(final_cov)
+
+        mean_temp = np.array([np.matmul(member_prec, member_mean) for
+                              member_prec, member_mean in
+                              zip(cluster_precs, cluster_means)])
+        mean_temp = np.sum(mean_temp, axis=0)
+        final_box_means.append(np.matmul(final_cov, mean_temp))
+
+        # Compute the updated parameters of the categorical distribution
+        final_counts = predicted_boxes_class_counts[cluster_inds, :]
+        final_score = (final_counts) / \
+            np.expand_dims(np.sum(final_counts, axis=1), axis=1)
+
+        if final_score.shape[0] > 3:
+            cluster_center_score = np.expand_dims(predicted_boxes_class_counts[cluster_center, :] / np.sum(
+                predicted_boxes_class_counts[cluster_center, :]), axis=0)
+            cluster_center_score = np.repeat(
+                cluster_center_score, final_score.shape[0], axis=0)
+
+            cat_ent = entropy(cluster_center_score.T, final_score.T)
+
+            inds = np.argpartition(cat_ent, 3)[:3]
+
+            final_score = final_score[inds]
+            final_counts = final_counts[inds]
+
+        final_score = np.mean(final_score, axis=0)
+        final_counts = np.sum(final_counts, axis=0)
+        final_box_class_scores.append(final_score)
+        final_box_class_counts.append(final_counts)
+
+    final_box_means = np.array(final_box_means)
+    final_box_class_scores = np.array(final_box_class_scores)
+
+    # 70 is a calibration parameter specific to BDD and KITTI datasets. It
+    # gives the best PDQ. It does not affect AP or MUE.
+    final_box_covs = np.array(final_box_covs) * 70
+    final_box_class_counts = np.array(final_box_class_counts)
+
+    return final_box_class_scores, final_box_means, final_box_covs, final_box_class_counts
+
 

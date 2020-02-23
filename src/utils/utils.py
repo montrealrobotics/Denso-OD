@@ -17,26 +17,6 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from .projection import ground_project
 from .visualizer import Visualizer
 
-def draw_instances(image, instances):
-    class_labels = cfg.INPUT.LABELS_TO_TRAIN
-
-    drawer = ImageDraw.Draw(image, mode=None)
-
-    for instance in instances:
-        box = instance.pred_boxes.tensor.numpy()[0]
-        drawer.rectangle(box, outline ='red' ,width=3)
-        drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes.numpy()],
-            instance.scores.numpy()), outline='green')
-
-        if instance.has("pred_sigma"):
-            sigma = np.sqrt(instance.pred_sigma.numpy())
-            drawer.ellipse([box[0]-2*sigma[0], box[1]-2*sigma[1], box[0]+2*sigma[0], box[1]+2*sigma[1]], outline='blue', width=3)
-            drawer.ellipse([box[2]-2*sigma[2], box[3]-2*sigma[3], box[2]+2*sigma[2], box[3]+2*sigma[3]], outline='blue', width=3)
-
-    output = image.resize((np.array(image.size)/1.5).astype(int))
-
-    return np.asarray(output)
-
 def image_transform(cfg):
 
     """
@@ -82,8 +62,8 @@ def tb_logger(images, tb_writer, rpn_proposals=None, instances=None, name="Image
 
     if instances:
         pred = instances[2].pred_boxes.tensor.cpu().numpy()
-        if instances[2].has("pred_sigma"):
-            sigma = instances[2].pred_sigma.cpu().numpy()
+        if instances[2].has("pred_variance"):
+            sigma = instances[2].pred_variance.cpu().numpy()
         else:
             sigma=None
         img_cls = instances[2].pred_classes.cpu().numpy()
@@ -93,16 +73,16 @@ def tb_logger(images, tb_writer, rpn_proposals=None, instances=None, name="Image
 
     tb_writer.add_image(name, image_grid, dataformats='HWC')
 
-def disk_logger(images, direc, rpn_proposals=None, instances=None, image_paths=None):
+def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=None):
     images = images.cpu()
 
     for image, rpn_proposal, instance, path in zip(images, rpn_proposals, instances, image_paths):
         image = toPIL(image)
-        img_visualizer = Visualizer(image, path, rpn_proposal.to("cpu"), instance.to("cpu"), cfg)
+        
+        img_visualizer = Visualizer(image, path, rpn_proposal, instance, cfg)
 
         if instance:
             img_visualizer.draw_instances()
             img_visualizer.draw_projection()
-
         img_visualizer.save(direc)
         print("{} written to disk".format(path[-10:]))

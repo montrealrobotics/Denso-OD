@@ -10,14 +10,12 @@ import matplotlib.pyplot as plt
 from torch import optim
 import os.path as path
 from torchvision import transforms as T
-## Inserting path of src directory
-# sys.path.insert(1, '../')
 
 from src.architecture import FasterRCNN
 from src.config import Cfg as cfg # Configuration file
 from src.datasets import process_kitti_labels
 from src.datasets import kitti_collate_fn
-from src.datasets import KittiDataset # Dataloader
+from src.datasets import KittiDataset, KittiMOTDataset # Dataloader
 from src.utils import utils, Boxes
 from src.tools import train_test
 # from src.pytorch_nms import nms as NMS
@@ -75,10 +73,10 @@ if mode=='train':
         if args.weights:
             print("    :Using Pretrained wights: {} \n".format(args.weights))
             checkpoint = torch.load(args.weights)
-    
+
     elif args.resume:
         print("    :Resuming the training \n")
-        epoch = args['epoch'] #With which epoch you want to resume the training. 
+        epoch = args['epoch'] #With which epoch you want to resume the training.
         checkpoint = torch.load(model_save_dir + "/epoch_" +  str(epoch).zfill(5) + '.model')
         cfg = checkpoint['cfg']
 
@@ -108,7 +106,7 @@ elif cfg.TRAIN.OPTIM.lower() == 'sgd':
 else:
     raise ValueError('Optimizer must be one of \"sgd\" or \"adam\"')
 
-lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES, 
+lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = cfg.TRAIN.MILESTONES,
                 gamma=cfg.TRAIN.LR_DECAY, last_epoch=-1)
 
 if checkpoint:
@@ -146,14 +144,13 @@ if mode=="train":
 
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_len, val_len])
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, 
-                shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
-    
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, 
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
                 shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
 
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=cfg.TRAIN.BATCH_SIZE,
+                shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
 
-else:
+elif mode=="validation":
     print("---Loading Test Dataset \n")
     dataset = KittiDataset(dataset_path, transform = transform, cfg = cfg) #---- Dataloader
 
@@ -168,8 +165,20 @@ else:
 
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_len, val_len])
 
-    test_loader = torch.utils.data.DataLoader(val_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, 
+    test_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1,
                 shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
+
+else:
+    dataset = KittiDataset(dataset_path, transform = transform, cfg = cfg) #---- Dataloader
+    dataset_len = len(dataset)
+
+    print("--- Data Loaded---")
+    print("Number of Images in Dataset: {} \n".format(dataset_len))
+    print("Number of Classes in Dataset: {} \n".format(cfg.INPUT.NUM_CLASSES))
+
+    test_loader = torch.utils.data.DataLoader(dataset, batch_size=1,
+                shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
+
 #----------------------------------------------#
 
 

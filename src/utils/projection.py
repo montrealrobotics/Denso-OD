@@ -27,9 +27,9 @@ def read_matrix(path):
     return matrix
             
 def ground_project(instances, path):
-    means = instances.pred_boxes.tensor.numpy()
+    means = instances.pred_boxes
     means = [[(x[0]+x[2])/2,x[3]] for x in means]
-    sigmas = instances.pred_sigma.numpy()
+    sigmas = instances.pred_sigma
     sigmas = [[(y[0]+y[2])/4, y[3]] for y in sigmas]
     K_matrix = read_matrix(path)
     gd_means=[]

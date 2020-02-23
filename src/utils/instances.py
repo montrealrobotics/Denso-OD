@@ -3,6 +3,7 @@ import itertools
 from typing import Any, Dict, List, Tuple, Union
 from PIL import Image, ImageDraw
 import torch
+from .boxes import Boxes
 
 
 
@@ -104,6 +105,14 @@ class Instances:
         for k, v in self._fields.items():
             if isinstance(v, list):
                 self._fields[k] = torch.tensor(v)
+
+    def toList(self):
+        for k, v in self._fields.items():
+            if isinstance(v, torch.Tensor):
+                self._fields[k] = v.cpu().numpy()
+            if isinstance(v, Boxes):
+                self._fields[k] = v.tensor.cpu().numpy()
+
 
     # Tensor-like methods
     def to(self, device: str) -> "Instances":
