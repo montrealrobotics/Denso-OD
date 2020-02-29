@@ -38,6 +38,15 @@ def iou(bbox, candidates):
     area_candidates = candidates[:, 2:].prod(axis=1)
     return area_intersection / (area_bbox + area_candidates - area_intersection)
 
+def to_xywh(a):
+    if a.ndim==2:
+        a[:, 2] = a[:, 2] - a[:, 0] 
+        a[:, 3] = a[:, 3] - a[:, 1] 
+    else:
+        a[2] = a[2] - a[0]
+        a[3] = a[3] - a[1]
+
+    return a
 
 def iou_cost(tracks, detections, track_indices=None,
              detection_indices=None):
@@ -76,6 +85,6 @@ def iou_cost(tracks, detections, track_indices=None,
             continue
 
         bbox = tracks[track_idx].to_tlwh()
-        candidates = np.asarray([detections[i].tlwh for i in detection_indices])
+        candidates = np.asarray([to_xywh(detections[i]) for i in detection_indices])
         cost_matrix[row, :] = 1. - iou(bbox, candidates)
     return cost_matrix

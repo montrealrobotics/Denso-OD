@@ -18,29 +18,19 @@ from .projection import ground_project
 from .visualizer import Visualizer
 
 def image_transform(cfg):
+    """
+    ToTensor() Converts a PIL Image or numpy.ndarray (H x W x C) in the range [0, 255] to a torch.FloatTensor  of shape (C x H x W) in the range [0.0, 1.0]
 
     """
-    Input:
-    cfg: configuration params
-    img: Image loaded using matplotlib, numpy array of size H x W x C, in RGB format.
-    (Note: if you use opencv to load image, convert it to RGB, as OpenCV works with BGR format)
-
-    Output:
-    torch.tensor : CxHxW  nomralised by mean and std of dataset
-    """
-
-    '''
-    ### ToTensor() Converts a PIL Image or numpy.ndarray (H x W x C) in the range [0, 255] to a torch.FloatTensor  of shape (C x H x W) in the range [0.0, 1.0]
-
-    '''
-
     transform = T.Compose([T.ToTensor(),
                             T.Normalize(mean=cfg.INPUT.MEAN, std=cfg.INPUT.STD)])
 
     return transform
 
 def toPIL(img: torch.Tensor):
-    ### T.ToPILImage() Converts an Tensor or numpy array in range [0, 1] with shape of (C x H x W) into an PIL image with range [0,255]
+    """
+    T.ToPILImage() Converts an Tensor or numpy array in range [0, 1] with shape of (C x H x W) into an PIL image with range [0,255]
+    """
     return T.Compose([T.Normalize( mean=[-mean/std for mean, std in zip(cfg.INPUT.MEAN, cfg.INPUT.STD)],
             std=[1.0/x for x in cfg.INPUT.STD]), T.ToPILImage()])(img)
 
@@ -48,6 +38,27 @@ def toNumpyImage(img: torch.Tensor):
     return T.Normalize( mean=[-mean/std for mean, std in zip(cfg.INPUT.MEAN, cfg.INPUT.STD)],
             std=[1.0/x for x in cfg.INPUT.STD])(img).mul(255).numpy().astype('uint8')
 
+def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=None):
+    images = images.cpu()
+
+    output_images = []
+    for image, rpn_proposal, instance, path in zip(images, rpn_proposals, instances, image_paths):
+        image = toPIL(image)
+        
+        img_visualizer = Visualizer(image, path, rpn_proposal, instance, cfg)
+
+        if instance:
+            # img_visualizer.draw_instances()
+            img_visualizer.draw_projection()
+            img_visualizer.draw_instance_prob()
+        # img_visualizer.save(direc)
+        img_visualizer.show()
+
+        print("{} written to disk".format(path[-10:]))
+        output_images.append(img_visualizer.get_image())
+
+        return output_images
+        
 def tb_logger(images, tb_writer, rpn_proposals=None, instances=None, name="Image"):
 
     image = toPIL(images[2].cpu())
@@ -73,16 +84,3 @@ def tb_logger(images, tb_writer, rpn_proposals=None, instances=None, name="Image
 
     tb_writer.add_image(name, image_grid, dataformats='HWC')
 
-def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=None):
-    images = images.cpu()
-
-    for image, rpn_proposal, instance, path in zip(images, rpn_proposals, instances, image_paths):
-        image = toPIL(image)
-        
-        img_visualizer = Visualizer(image, path, rpn_proposal, instance, cfg)
-
-        if instance:
-            img_visualizer.draw_instances()
-            img_visualizer.draw_projection()
-        img_visualizer.save(direc)
-        print("{} written to disk".format(path[-10:]))

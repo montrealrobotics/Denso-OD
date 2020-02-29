@@ -106,6 +106,16 @@ class Boxes:
     def to(self, device: str) -> "Boxes":
         return Boxes(self.tensor.to(device))
 
+    def toList(self):
+        self.tensor = self.tensor.cpu().numpy()
+
+    def to_XYWH():
+        out = self.tensor.copy()
+        out[:, 2] = out[:,2]-out[:,0]
+        out[:, 3] = out[:,3]-out[:,1]
+        return out
+
+
     def area(self) -> torch.Tensor:
         """
         Computes the area of all the boxes.

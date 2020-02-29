@@ -8,13 +8,6 @@ pytorch dataloader as arrays for Nuscenes dataset.
 import torch
 import numpy as np 
 
-class gt_instace(object):
-	"""docstring for gt_instace"""
-	def __init__(self, arg):
-		super(gt_instace, self).__init__()
-		self.arg = arg
-		
-
 
 
 def process_labels(cfg, ground_truth):

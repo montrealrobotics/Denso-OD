@@ -10,16 +10,18 @@ import matplotlib.pyplot as plt
 from src.config import Cfg as cfg
 from ..tracker.track import MultiObjTracker
 from ..utils import Instances
+from ..utils import Boxes
 
 
 def test(model, data_loader, device, results_dir):
 	is_training= False
 
 	mAP = DetectionMAP(len(cfg.INPUT.LABELS_TO_TRAIN)) # number of classes
-	tracker = MultiObjTracker()
+	tracker = MultiObjTracker(max_age=4)
 	
 	with torch.no_grad():
 		for idx, batch_sample in enumerate(data_loader):
+			print("image: {}".format(idx))
 
 			in_images = batch_sample['image'].to(device)
 			targets = [x.to(device) for x in batch_sample['target']]
@@ -28,29 +30,42 @@ def test(model, data_loader, device, results_dir):
 
 			rpn_proposals, instances, proposal_losses, detector_losses = model(in_images, targets, is_training)
 
-			rpn_proposals = [x.toList() for x in rpn_proposals]
-			instances = [x.toList() for x in instances]
-			targets = [x.toList() for x in targets]
+			for proposals, instance in zip(rpn_proposals, instances):
+				proposals.toList()
+				instance.toList()
 			
 			for instance in instances:
+				# print("Prediction-")
 				tracker.predict()
+				# predict_instances = [Instances((1242,375), pred_boxes=Boxes(torch.tensor([x.mean[:4] for x in tracker.tracks])), pred_variance=torch.tensor([x.get_diag_var()[:4] for x in tracker.tracks]))]
+				# _ = [x.toList() for x in predict_instances]
+				# utils.disk_logger(in_images, results_dir, predict_instances, rpn_proposals, img_paths)
+				print("Number of tracks - {}".format(len(tracker.tracks)))
+				print("Predicted:", tracker.tracks)
+
+				print("Measurement: ")
+				print("Detected boxes - {}".format(len(instance.pred_boxes)), instance.pred_boxes)
+				utils.disk_logger(in_images, results_dir+"/normal", instances, rpn_proposals, img_paths)
+				
 				tracker.update(instance.pred_boxes, instance.pred_variance)
+				
+				updated_instances = [Instances((1242,375), pred_boxes=Boxes(torch.tensor([x.mean[:4] for x in tracker.tracks])), pred_variance=torch.tensor([x.get_diag_var()[:4] for x in tracker.tracks]))]
+				_ = [x.toList() for x in updated_instances]
+				print("After Update: ", tracker.tracks)
+				print("Number of tracks - {}".format(len(tracker.tracks)))
+				utils.disk_logger(in_images, results_dir+"/tracked", updated_instances, rpn_proposals, img_paths)
 
-			tracked_instances = [Instances(pred_boxes=np.array([x.mean for x in tracker.tracks]), pred_variance=np.array([x.covariance for x in tracker.tracks]))]
 
-			# utils.disk_logger(in_images, results_dir, instances, rpn_proposals, img_paths)
-			utils.disk_logger(in_images, results_dir, tracked_instances, rpn_proposals, img_paths)
+	# 		for instance, target in zip(instances, targets):
+	# 			pred_bb1 = instance.pred_boxes.tensor
+	# 			pred_cls1 = instance.pred_classes
+	# 			pred_conf1 = instance.scores
+	# 			gt_bb1 = target.gt_boxes
+	# 			gt_cls1 = target.gt_classes
+	# 			mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
 
-			for instance, target in zip(instances, targets):
-				pred_bb1 = instance.pred_boxes.tensor
-				pred_cls1 = instance.pred_classes
-				pred_conf1 = instance.scores
-				gt_bb1 = target.gt_boxes
-				gt_cls1 = target.gt_classes
-				mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
-
-	mAP.plot(class_names = cfg.INPUT.LABELS_TO_TRAIN)
-	# plt.show()
+	# mAP.plot(class_names = cfg.INPUT.LABELS_TO_TRAIN)
+	# # plt.show()
 
 
 

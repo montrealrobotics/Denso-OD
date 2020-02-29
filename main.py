@@ -5,6 +5,7 @@ import numpy as np
 import math
 import argparse
 from PIL import Image, ImageDraw
+import matplotlib
 import matplotlib.image as mpimg ## To load the image
 import matplotlib.pyplot as plt
 from torch import optim
@@ -28,6 +29,7 @@ from torch.utils import tensorboard
 
 import time
 
+# matplotlib.use('agg')
 
 #----- Initial paths setup and loading config values ------ #
 
@@ -52,7 +54,6 @@ np.random.seed(cfg.RANDOMIZATION.SEED)
 
 device = torch.device("cuda") if (torch.cuda.is_available() and cfg.USE_CUDA) else torch.device("cpu")
 print("Using the device for training: {} \n".format(device))
-
 
 #-----------------------------------------------#
 
@@ -87,7 +88,7 @@ else:
     model_path = model_save_dir + "/epoch_" +  str(epoch).zfill(5) + '.model'
     print("    : Using Model {}".format(model_path))
     checkpoint = torch.load(model_path)
-    cfg = checkpoint['cfg']
+    # cfg = checkpoint['cfg']
 
 #-----------------------------------------------#
 
@@ -169,7 +170,9 @@ elif mode=="validation":
                 shuffle=cfg.TRAIN.DSET_SHUFFLE, collate_fn = kitti_collate_fn, drop_last=True)
 
 else:
-    dataset = KittiDataset(dataset_path, transform = transform, cfg = cfg) #---- Dataloader
+    print("--- Loading Test Dataset \n ")
+
+    dataset = KittiMOTDataset(dataset_path, transform = transform, cfg = cfg) #---- Dataloader
     dataset_len = len(dataset)
 
     print("--- Data Loaded---")

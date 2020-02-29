@@ -3,6 +3,7 @@ import numpy as np
 from .kalman_filter import KalmanFilter
 from . import linear_assignment
 from . import iou_matching
+from sklearn.utils.linear_assignment_ import linear_assignment as assignment
 
 class TrackState:
     """
@@ -85,21 +86,15 @@ class Track:
             The bounding box.
         """
         ret = self.mean[:4].copy()
-        ret[2] *= ret[3]
-        ret[:2] -= ret[2:] / 2
+        ret[2] -= ret[0]
+        ret[3] -= ret[1]
         return ret
 
-    def to_tlbr(self):
-        """Get current position in bounding box format `(min x, miny, max x,
-        max y)`.
-        Returns
-        -------
-        ndarray
-            The bounding box.
-        """
-        ret = self.to_tlwh()
-        ret[2:] = ret[:2] + ret[2:]
-        return ret
+    def to_xyxy(self):
+        return self.mean[:4].copy()
+
+    def get_diag_var(self):
+        return self.covariance.diagonal()
 
     def predict(self, kf):
         """Propagate the state distribution to the current time step using a
@@ -124,7 +119,7 @@ class Track:
             The associated detection.
         """
         self.mean, self.covariance = kf.update(
-            self.mean, self.covariance, detection.to_xyah(), detection_noise)
+            self.mean, self.covariance, detection, detection_noise)
 
         self.hits += 1
         self.time_since_update = 0
@@ -151,6 +146,12 @@ class Track:
     def is_deleted(self):
         """Returns True if this track is dead and should be deleted."""
         return self.state == TrackState.Deleted
+
+    def __str__(self):
+        return str(self.mean)
+
+    def __repr__(self):
+        return str(self.mean)
 
 
 
@@ -181,13 +182,12 @@ class MultiObjTracker:
         The list of active tracks at the current time step.
     """
 
-    def __init__(self, metric, max_iou_distance=0.7, max_age=30, n_init=3):
-        self.metric = metric
+    def __init__(self, max_iou_distance=0.7, max_age=30, n_init=3):
         self.max_iou_distance = max_iou_distance
         self.max_age = max_age
         self.n_init = n_init
 
-        self.kf = kalman_filter.KalmanFilter()
+        self.kf = KalmanFilter()
         self.tracks = []
         self._next_id = 1
 
@@ -209,9 +209,15 @@ class MultiObjTracker:
         """
 
         # Run matching cascade.
-        matches, unmatched_tracks, unmatched_detections = \
-            self._match(detections)
+        # matches, unmatched_tracks, unmatched_detections = \
+        #     self._match(detections)
 
+       
+        matches, unmatched_tracks, unmatched_detections = \
+            self.associate_detections_to_trackers(detections, self.tracks)
+
+        print("Update state print:")
+        print(matches, unmatched_tracks, unmatched_detections)
         # Update track set.
         for track_idx, detection_idx in matches:
             self.tracks[track_idx].update(
@@ -242,7 +248,7 @@ class MultiObjTracker:
         # Associate confirmed tracks using appearance features.
         matches_a, unmatched_tracks_a, unmatched_detections = \
             linear_assignment.matching_cascade(
-                gated_metric, self.metric.matching_threshold, self.max_age,
+                gated_metric, self.max_iou_distance, self.max_age,
                 self.tracks, detections, confirmed_tracks_idx)
 
         # Associate remaining tracks together with unconfirmed tracks using IOU.
@@ -259,30 +265,35 @@ class MultiObjTracker:
 
         matches = matches_a + matches_b
         unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
+
+        
         return matches, unmatched_tracks, unmatched_detections
 
+
     # Not used anywhere, but can be used in place of _match
-    def associate_detections_to_trackers(detections,trackers,iou_threshold = 0.3):
+    def associate_detections_to_trackers(self, detections, trackers,iou_threshold = 0.3):
         """
         Assigns detections to tracked object (both represented as bounding boxes)
         Returns 3 lists of matches, unmatched_detections and unmatched_trackers
         """
+        
         if(len(trackers)==0):
-            return np.empty((0,2),dtype=int), np.arange(len(detections)), np.empty((0,5),dtype=int)
+            return np.empty((0,2),dtype=int), np.empty((0,5),dtype=int), np.arange(len(detections))
+    
         iou_matrix = np.zeros((len(detections),len(trackers)),dtype=np.float32)
 
         for d,det in enumerate(detections):
             for t,trk in enumerate(trackers):
-                iou_matrix[d,t] = iou(det,trk)
+                iou_matrix[d,t] = self._iou(det,trk.to_xyxy())
         
-        matched_indices = linear_assignment(-iou_matrix)
+        matched_indices = assignment(-iou_matrix)
 
         unmatched_detections = []
         for d,det in enumerate(detections):
             if(d not in matched_indices[:,0]):
                 unmatched_detections.append(d)
-        unmatched_trackers = []
         
+        unmatched_trackers = []
         for t,trk in enumerate(trackers):
             if(t not in matched_indices[:,1]):
                 unmatched_trackers.append(t)
@@ -300,12 +311,29 @@ class MultiObjTracker:
         else:
             matches = np.concatenate(matches,axis=0)
 
-      return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
+        matches = matches[:,[1,0]] # 0th col is tracking, 1st col is detection
         
+        return matches, np.array(unmatched_trackers), np.array(unmatched_detections)
+
 
     def _initiate_track(self, detection, detection_noise):
-        mean, covariance = self.kf.initiate(detection.to_xyah(), detection_noise)
+        mean, covariance = self.kf.initiate(detection, detection_noise)
         self.tracks.append(Track(
-            mean, covariance, self._next_id, self.n_init, self.max_age,
-            detection.feature))
+            mean, covariance, self._next_id, self.n_init, self.max_age))
         self._next_id += 1
+
+    def _iou(self, bb_test,bb_gt):
+        """
+        Computes IUO between two bboxes in the form [x1,y1,x2,y2]
+        """
+        xx1 = np.maximum(bb_test[0], bb_gt[0])
+        yy1 = np.maximum(bb_test[1], bb_gt[1])
+        xx2 = np.minimum(bb_test[2], bb_gt[2])
+        yy2 = np.minimum(bb_test[3], bb_gt[3])
+        w = np.maximum(0., xx2 - xx1)
+        h = np.maximum(0., yy2 - yy1)
+        wh = w * h
+        o = wh / ((bb_test[2]-bb_test[0])*(bb_test[3]-bb_test[1])
+            + (bb_gt[2]-bb_gt[0])*(bb_gt[3]-bb_gt[1]) - wh)
+        return(o)
+

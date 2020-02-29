@@ -13,7 +13,7 @@ def fig2data(fig):
     @return a numpy 3D array of RGBA values
     """
     # draw the renderer
-    fig.canvas.draw()d
+    fig.canvas.draw()
 
     # Get the RGBA buffer from the figure
     w,h = fig.canvas.get_width_height()
@@ -43,13 +43,14 @@ class Visualizer(object):
         drawer = ImageDraw.Draw(img, mode=None)
 
         for instance in self.instances:
-            box = instance.pred_boxes[0]
+            box = instance.pred_boxes
             drawer.rectangle(box, outline ='red' ,width=3)
-            drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes],
-            instance.scores), outline='green')
+            if instance.has("pred_classes"):
+                drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes],
+                instance.scores), outline='green')
 
-            if instance.has("pred_sigma"):
-                sigma = np.sqrt(instance.pred_sigma)
+            if instance.has("pred_variance"):
+                sigma = np.sqrt(instance.pred_variance)
                 drawer.ellipse([box[0]-2*sigma[0], box[1]-2*sigma[1], box[0]+2*sigma[0], box[1]+2*sigma[1]], outline='blue', width=3)
                 drawer.ellipse([box[2]-2*sigma[2], box[3]-2*sigma[3], box[2]+2*sigma[2], box[3]+2*sigma[3]], outline='blue', width=3)
         ax = self.output.add_subplot(1,2,1)
@@ -57,6 +58,21 @@ class Visualizer(object):
 
         # return np.asarray(self.image)
         return ax
+
+    def draw_instance_prob(self):
+        
+        img = self.image.copy()
+
+        ax = self.output.add_subplot(1,2,1)
+        ax.imshow(img)
+
+        for instance in self.instances:
+            box_cords = instance.pred_boxes
+            box = patches.Rectangle(box_cords[[0,3]], box_cords[2]-box_cords[0], box_cords[3]-box_cords[1], linewidth=1, fill=False, edgecolor='r')
+            ax.add_patch(box)
+        
+        return ax
+
 
     def draw_proposals(self):
         for instance in self.instances:
@@ -83,7 +99,20 @@ class Visualizer(object):
 
         return ax
 
+    def get_image(self):
+        return fig2data(self.output)
+
     def save(self, direc):
         # plt.show()
         plt.savefig(direc+self.path[-11:-4]+".png")
+        plt.close()
+
+    def show(self):
+        # plt.show(block=False)
+        # plt.pause(3)
+        # plt.close()
+
+        plt.draw()
+        # plt.pause(3)
+        plt.waitforbuttonpress(0)
         plt.close()

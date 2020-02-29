@@ -56,14 +56,14 @@ class FastRCNNOutputLayers(nn.Module):
         num_bbox_reg_classes = 1 if cls_agnostic_bbox_reg else num_classes
         self.bbox_pred = nn.Linear(fc_dim, num_bbox_reg_classes * box_dim)
 
-        self.var_pred = nn.Linear(fc_dim, box_dim)
+        self.sigma_pred = nn.Linear(fc_dim, box_dim)
         
-        for l in [self.fc1, self.fc2, self.cls_score, self.bbox_pred, self.var_pred]:
+        for l in [self.fc1, self.fc2, self.cls_score, self.bbox_pred, self.sigma_pred]:
             nn.init.normal_(l.weight, std=0.01)
             nn.init.constant_(l.bias, 0)
 
         nn.init.normal_(self.bbox_pred.weight, std=0.001)
-        nn.init.constant_(self.var_pred.bias, 2)
+        nn.init.constant_(self.sigma_pred.bias, 2)
 
     def RichardCurve(self, x, low=0.001, high=20, sharp=0.5):
         r"""Applies the generalized logistic function (aka Richard's curve)
@@ -87,8 +87,8 @@ class FastRCNNOutputLayers(nn.Module):
 
         scores = self.cls_score(x)
         bbox_deltas = self.bbox_pred(x)
-        # variance = self.RichardCurve(self.var_pred(x))
-        variance = F.relu(self.var_pred(x))
+        variance = self.RichardCurve(self.sigma_pred(x))
+        # variance = F.relu(self.sigma_pred(x))
 
         return scores, bbox_deltas, variance
 

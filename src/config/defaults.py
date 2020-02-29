@@ -15,7 +15,7 @@ For General Initialization and Settings
 """
 
 conf_params.PATH = CN()
-conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
+# conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
 conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_tracking"
 conf_params.PATH.LOGS = "/network/home/bansaldi/Denso-OD/logs"
 

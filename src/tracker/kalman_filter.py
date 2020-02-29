@@ -23,9 +23,8 @@ class KalmanFilter(object):
     """
     A simple Kalman filter for tracking bounding boxes in image space.
     The 8-dimensional state space
-        x, y, a, h, vx, vy, va, vh
-    contains the bounding box center position (x, y), aspect ratio a, height h,
-    and their respective velocities.
+        x1, y1, x2, y2, vx1, vy1, vx2, vy2
+    contains the bounding box coridnates and their respective velocities.
     Object motion follows a constant velocity model. The bounding box location
     (x, y, a, h) is taken as direct observation of the state space (linear
     observation model).
@@ -62,9 +61,11 @@ class KalmanFilter(object):
             dimensional) of the new track. Unobserved velocities are initialized
             to 0 mean.
         """
+
         mean_pos = measurement
         mean_vel = np.zeros_like(mean_pos)
         mean = np.r_[mean_pos, mean_vel]
+
 
         vel_std = [10 * self._std_weight_velocity * measurement[3],
                     10 * self._std_weight_velocity * measurement[3],
@@ -115,6 +116,7 @@ class KalmanFilter(object):
             self._std_weight_velocity * mean[3]]
 
         motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
+        # motion_cov = 0
 
         mean = np.dot(self._motion_mat, mean)
  
@@ -163,16 +165,21 @@ class KalmanFilter(object):
         """
         projected_mean, projected_cov = self.project(mean, covariance, measurement_noise)
 
-        chol_factor, lower = scipy.linalg.cho_factor(
-            projected_cov, lower=True, check_finite=False)
-        kalman_gain = scipy.linalg.cho_solve(
-            (chol_factor, lower), np.dot(covariance, self._update_mat.T).T,
-            check_finite=False).T
-        innovation = measurement - projected_mean
+        # chol_factor, lower = scipy.linalg.cho_factor(
+        #     projected_cov, lower=True, check_finite=False)
+        # kalman_gain = scipy.linalg.cho_solve(
+        #     (chol_factor, lower), np.dot(covariance, self._update_mat.T).T,
+        #     check_finite=False).T
+        # innovation = measurement - projected_mean
 
-        new_mean = mean + np.dot(innovation, kalman_gain.T)
-        new_covariance = covariance - np.linalg.multi_dot((
-            kalman_gain, projected_cov, kalman_gain.T))
+        # new_mean = mean + np.dot(innovation, kalman_gain.T)
+        # new_covariance = covariance - np.linalg.multi_dot((
+        #     kalman_gain, projected_cov, kalman_gain.T))
+
+        innovation = measurement - projected_mean
+        kalman_gain = np.linalg.multi_dot((covariance, self._update_mat.T, np.linalg.inv(projected_cov)))
+        new_mean = mean + np.dot(kalman_gain, innovation)
+        new_covariance = covariance - np.linalg.multi_dot((kalman_gain, self._update_mat, covariance))
         
         return new_mean, new_covariance
 
