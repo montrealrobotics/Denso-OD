@@ -23,7 +23,6 @@ from src.tools import train_test
 
 
 from torchvision import datasets as dset
-from torchvision import transforms as T
 import torchvision
 from torch.utils import tensorboard
 

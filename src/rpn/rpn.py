@@ -101,7 +101,7 @@ class RPN(nn.Module):
             loss: dict[Tensor]
         """
 
-        gt_boxes = [x.gt_boxes for x in gt_target]
+        gt_boxes = [x.gt_boxes for x in gt_target] if gt_target is not None else None
 
         feature_shape = features.shape
 

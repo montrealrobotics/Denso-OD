@@ -25,7 +25,7 @@ class FasterRCNN(nn.Module):
 		self.detector = Detector(self.cfg, self.backbone.stride, self.backbone.out_channels)
 
 
-	def forward(self, image, gt_target, is_training):
+	def forward(self, image, gt_target=None, is_training=False):
 		"""
 		Args:
 			image: 	   Tensor[N,H,W,C], N is batch_size

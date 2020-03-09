@@ -216,8 +216,8 @@ class MultiObjTracker:
         matches, unmatched_tracks, unmatched_detections = \
             self.associate_detections_to_trackers(detections, self.tracks)
 
-        print("Update state print:")
-        print(matches, unmatched_tracks, unmatched_detections)
+        # print("Update state print:")
+        # print(matches, unmatched_tracks, unmatched_detections)
         # Update track set.
         for track_idx, detection_idx in matches:
             self.tracks[track_idx].update(

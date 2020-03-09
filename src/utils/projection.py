@@ -17,7 +17,7 @@ def TwoDtoThreeD(samples, matrix):
     return np.array(Threedboxes)
 
 def read_matrix(path):
-    file_path = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset/calib/training/"+path[-10:-3]+"txt"
+    file_path = "/home/dishank/denso-ws/src/denso/datasets/kitti_tracking/training/calib/0001.txt"
     file = open(file_path)
     lines = file.read().splitlines()
     p_matrix = lines[2].split(':', 1)[1].strip()

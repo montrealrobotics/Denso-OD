@@ -36,7 +36,8 @@ class Instances:
             kwargs: fields to add to this `Instances`.
         """
         self._image_size = image_size
-        self._fields: Dict[str, Any] = {}
+        # self._fields: Dict[str, Any] = {}
+        self._fields = {}
         for k, v in kwargs.items():
             self.set(k, v)
 

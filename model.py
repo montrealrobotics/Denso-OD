@@ -4,7 +4,7 @@ from src.architecture import FasterRCNN
 
 
 def create_model(checkpoint_path):
-    print("Using Model {}".format(checkpoint_path))
+    # print("Using Model {}".format(checkpoint_path))
     checkpoint = torch.load(checkpoint_path)
     cfg = checkpoint['cfg']
 

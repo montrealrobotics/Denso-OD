@@ -1,10 +1,13 @@
 import numpy as np
 from PIL import Image, ImageDraw
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.patches as patches
 from .projection import ground_project
+
 
 def fig2data(fig):
     """
@@ -27,7 +30,7 @@ def fig2data(fig):
 class Visualizer(object):
     """docstring for Visualizer."""
 
-    def __init__(self, img, img_path,rpn_proposals, instances, cfg):
+    def __init__(self, img, instances, img_path, rpn_proposals, cfg):
         super(Visualizer, self).__init__()
         self.image = img
         self.proposals = rpn_proposals

@@ -57,7 +57,7 @@ class RPNProcessing(object):
         self.anchors = anchors #[N, num_of_anchor, 4] - These will be boxes class
         self.gt_boxes = gt_boxes # [batch_size, M, 4] M= number of gt boxes in an image - These will be Boxes class
         self.image_size = image_sizes
-        self.num_images = len(gt_boxes)
+        # self.num_images = len(gt_boxes)
         
         self.box2box_transform = box2box_transform
         self.anchor_matcher = matcher
@@ -209,8 +209,9 @@ class RPNProcessing(object):
         """
         # Reshape: (N, A, Hi, Wi) -> (N, Hi, Wi, A) -> (N, Hi*Wi*A)
         # print(self.pred_objectness_logits.shape)
-        
-        pred_objectness_logits = self.pred_objectness_logits.permute(0, 2, 3, 1).reshape(self.num_images, -1)
+        N = self.pred_objectness_logits.shape[0]
+
+        pred_objectness_logits = self.pred_objectness_logits.permute(0, 2, 3, 1).reshape(N, -1)
 
         return pred_objectness_logits
 

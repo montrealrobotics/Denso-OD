@@ -42,6 +42,7 @@ def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=N
     images = images.cpu()
 
     output_images = []
+
     for image, rpn_proposal, instance, path in zip(images, rpn_proposals, instances, image_paths):
         image = toPIL(image)
         
@@ -52,12 +53,23 @@ def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=N
             img_visualizer.draw_projection()
             img_visualizer.draw_instance_prob()
         # img_visualizer.save(direc)
-        img_visualizer.show()
+        # img_visualizer.show()
 
         print("{} written to disk".format(path[-10:]))
         output_images.append(img_visualizer.get_image())
 
         return output_images
+
+def single_disk_logger(img, instances=None, rpn_proposals=None, image_path=None):
+    img = img.cpu()
+    img = toPIL(img)
+    img_visualizer = Visualizer(img, instances, image_path, None, cfg)
+
+    if instances:
+        img_visualizer.draw_instances()
+        img_visualizer.draw_projection()
+
+    return img_visualizer.get_image()
         
 def tb_logger(images, tb_writer, rpn_proposals=None, instances=None, name="Image"):
 
