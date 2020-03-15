@@ -36,7 +36,9 @@ class Visualizer(object):
         self.proposals = rpn_proposals
         self.instances = instances
         self.path = img_path
-        self.output = plt.figure(figsize=(16, 12), dpi=80)
+        self.output = plt.figure(figsize=(16, 12), dpi=80, constrained_layout=True)
+        widths_ratio = [3,1]
+        self.grid_spec = self.output.add_gridspec(ncols=2, nrows=1, width_ratios=widths_ratio)
         self.cfg = cfg
 
     def draw_instances(self):
@@ -47,7 +49,7 @@ class Visualizer(object):
 
         for instance in self.instances:
             box = instance.pred_boxes
-            drawer.rectangle(box, outline ='red' ,width=3)
+            drawer.rectangle(box, outline ='red',width=3)
             if instance.has("pred_classes"):
                 drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes],
                 instance.scores), outline='green')
@@ -56,7 +58,7 @@ class Visualizer(object):
                 sigma = np.sqrt(instance.pred_variance)
                 drawer.ellipse([box[0]-2*sigma[0], box[1]-2*sigma[1], box[0]+2*sigma[0], box[1]+2*sigma[1]], outline='blue', width=3)
                 drawer.ellipse([box[2]-2*sigma[2], box[3]-2*sigma[3], box[2]+2*sigma[2], box[3]+2*sigma[3]], outline='blue', width=3)
-        ax = self.output.add_subplot(1,2,1)
+        ax = self.output.add_subplot(self.grid_spec[0,0])
         ax.imshow(img)
 
         # return np.asarray(self.image)
@@ -84,7 +86,7 @@ class Visualizer(object):
 
     def draw_projection(self):
         xy_coords, variance = ground_project(self.instances, self.path)
-        ax = self.output.add_subplot(1,2,2)
+        ax = self.output.add_subplot(self.grid_spec[0,1])
 
         for xy, xy_var in zip(xy_coords, variance):
             ellip = patches.Ellipse(xy, width= 4*xy_var[0], height= 4*xy_var[1], fill = False)

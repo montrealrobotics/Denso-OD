@@ -12,8 +12,6 @@ import matplotlib.pyplot as plt
 import rospy
 import cv2
 
-print(sys.path)
-
 from src.utils import utils
 from src.eval.detection_map import DetectionMAP
 from src.config import Cfg as cfg
