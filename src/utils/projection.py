@@ -7,6 +7,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 def TwoDtoThreeD(samples, matrix):
     Threedboxes = []
     CAM_HEIGHT = 1.72
+    # CAM_HEIGHT = 1.65
     for bottom_xy in samples:
         bottom_xy = np.append(bottom_xy, 1.0).T
         n = np.asarray([0, -1., 0])
@@ -26,7 +27,7 @@ def read_matrix(path):
 
     return matrix
             
-def ground_project(instances, path):
+def ground_project(instances, path="/home/dishank/denso-ws/src/denso/datasets/kitti_tracking/training/calib/0001.txt"):
     means = instances.pred_boxes
     means = [[(x[0]+x[2])/2,x[3]] for x in means]
     sigmas = instances.pred_variance
@@ -43,4 +44,4 @@ def ground_project(instances, path):
         gd_means.append(np.squeeze(gd_mean))
         gd_sigmas.append(np.squeeze(gd_std))
 
-    return gd_means, gd_sigmas
+    return np.asarray(gd_means), np.asarray(gd_sigmas)

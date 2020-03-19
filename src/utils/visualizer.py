@@ -105,7 +105,9 @@ class Visualizer(object):
         return ax
 
     def get_image(self):
-        return fig2data(self.output)
+        np_img = fig2data(self.output)
+        plt.close()
+        return np_img
 
     def save(self, direc):
         # plt.show()
