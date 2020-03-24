@@ -82,10 +82,6 @@ class Kitti_Publisher():
 
         self.cv_bridge = CvBridge()
 
-
-
-
-
     def run(self):
 
         ros_rate = rospy.Rate(self.rate)

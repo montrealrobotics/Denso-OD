@@ -17,7 +17,7 @@ def test(model, data_loader, device, results_dir):
 	is_training= False
 
 	mAP = DetectionMAP(len(cfg.INPUT.LABELS_TO_TRAIN)) # number of classes
-	tracker = MultiObjTracker(max_age=4)
+	tracker = MultiObjTracker(max_age=1)
 	
 	with torch.no_grad():
 		for idx, batch_sample in enumerate(data_loader):
