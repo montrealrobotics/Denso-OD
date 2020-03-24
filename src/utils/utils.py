@@ -46,12 +46,12 @@ def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=N
     for image, rpn_proposal, instance, path in zip(images, rpn_proposals, instances, image_paths):
         image = toPIL(image)
         
-        img_visualizer = Visualizer(image, path, rpn_proposal, instance, cfg)
+        img_visualizer = Visualizer(image, instance, path, rpn_proposal, cfg)
 
         if instance:
-            # img_visualizer.draw_instances()
+            img_visualizer.draw_instances()
             img_visualizer.draw_projection()
-            img_visualizer.draw_instance_prob()
+            # img_visualizer.draw_instance_prob()
         # img_visualizer.save(direc)
         # img_visualizer.show()
 

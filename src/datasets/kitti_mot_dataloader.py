@@ -38,11 +38,11 @@ class KittiMOTDataset(Dataset):
         # else:
         #   self.data_list = data_list
 
-    def _makedata(self, root_dir, track="0000"):
+    def _makedata(self, root_dir, track="0001"):
         data= {}
-        image_names = glob.glob(root_dir + "/images/training/" + track + "/*.png")
+        image_names = glob.glob(root_dir + "/training/image_02/" + track + "/*.png")
         image_names.sort(key=lambda f: int(f[-8:-4]))
-        label_name = root_dir+"/labels/training/"+track+".txt"
+        label_name = root_dir+"/training/label_02/"+track+".txt"
         object_rows = open(label_name).read().splitlines()
         class_labels = self.cfg.INPUT.LABELS_TO_TRAIN
 

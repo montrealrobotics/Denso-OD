@@ -45,6 +45,7 @@ def test(model, data_loader, device, results_dir):
 
 				print("Measurement: ")
 				print("Detected boxes - {}".format(len(instance.pred_boxes)), instance.pred_boxes)
+				# print(instances)
 				utils.disk_logger(in_images, results_dir+"/normal", instances, rpn_proposals, img_paths)
 				
 				tracker.update(instance.pred_boxes, instance.pred_variance)

@@ -106,7 +106,7 @@ class model_inference(object):
         i=0
         for point, var in zip(points, variances):
             marker = Marker()
-            marker.header.frame_id = "cam2"
+            marker.header.frame_id = "cam0"
             marker.header.stamp = rospy.Time.now()
             marker.id = i
             marker.type = marker.SPHERE
