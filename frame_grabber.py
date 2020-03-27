@@ -76,9 +76,9 @@ class Kitti_Publisher():
         broadcaster = tf2_ros.StaticTransformBroadcaster()
         T_velo_to_cam0 = data.calib.Tr_velo_to_cam0
 
-        self.tf_velo_to_cam2 = get_static_transform(self.velo_frame_id, self.cam2_frame_id, T_velo_to_cam0)
+        self.tf_velo_to_cam0 = get_static_transform(self.velo_frame_id, 'cam0', T_velo_to_cam0)
 
-        broadcaster.sendTransform(self.tf_velo_to_cam2)
+        broadcaster.sendTransform(self.tf_velo_to_cam0)
 
         self.cv_bridge = CvBridge()
 

@@ -48,7 +48,7 @@ class model_inference(object):
         self.output_image_pub = rospy.Publisher("/output_img", Image, queue_size=10)
         self.detected_boxes = rospy.Publisher("/detected_boxes", Instances_msg, queue_size=10)
         self.visualization_markers = rospy.Publisher("/visualization_array", MarkerArray, queue_size=10)
-
+        self.output = []
         rospy.loginfo("Model is built and ready to be used")
 
 
@@ -73,6 +73,7 @@ class model_inference(object):
                 self.tracker.update(instance.pred_boxes, instance.pred_variance)
 
             updated_instances = Instances((1242,375), pred_boxes=Boxes(torch.tensor([x.mean[:4] for x in self.tracker.tracks])), pred_variance=torch.tensor([x.get_diag_var()[:4] for x in self.tracker.tracks]))
+            self.output.append([x.mean[:4] for x in self.tracker.tracks]+[x.get_diag_var()[:4] for x in self.tracker.tracks])
             ground_points, ground_variance = projection.ground_project(updated_instances)
 
             #Filter detections with large variance
@@ -135,10 +136,12 @@ class model_inference(object):
 
 def main(args):
 
-	rospy.init_node('model')
-	model_infer = model_inference()
-	sub = rospy.Subscriber("/image_raw", Image, model_infer.single_img_inference)
-	rospy.spin()
+    rospy.init_node('model')
+    model_infer = model_inference()
+    sub = rospy.Subscriber("/image_raw", Image, model_infer.single_img_inference)
+    if rospy.is_shutdown():
+        np.savetxt('data.csv', np.array(model_infer.output), delimiter=',')
+    rospy.spin()
 
 
 if __name__ == '__main__':
