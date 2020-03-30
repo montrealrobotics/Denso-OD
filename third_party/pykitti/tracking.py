@@ -94,6 +94,28 @@ class tracking:
         """Read velodyne [x,y,z,reflectance] scan at the specified index."""
         return utils.load_velo_scan(self.velo_files[idx])
 
+    @property
+    def label(self):
+        labels = self.load_labels()
+        for frame in labels:
+            yield frame
+    
+    def load_labels(self):
+        data = []
+        curr_frame = -1
+        for file_name in self.label_files:
+            with open(file_name) as file:
+                for line in file.readlines():
+                    frame, values = line.split(' ', 1)
+                    if values[1]!="DontCare":
+                        if int(frame)!=curr_frame:
+                            data.append([utils.Object3d(line)])
+                            curr_frame = int(frame)
+                        else:
+                            data[int(frame)].append(utils.Object3d(line))
+        return data
+
+
     def _get_file_lists(self):
         """Find and list data files for each sensor."""
         cam2_files = sorted(glob.glob(
@@ -112,6 +134,11 @@ class tracking:
                         self.sequence,
                          '*.bin')))
 
+        label_files = sorted(glob.glob(
+            os.path.join(self.base_path,
+                        'label_02',
+                        '*.txt')))
+
         # Subselect the chosen range of frames, if any
         # if self.frames is not None:
         #     self.cam0_files = utils.subselect_files(
@@ -124,6 +151,9 @@ class tracking:
             #     self.cam3_files, self.frames)
         self.velo_files = utils.subselect_files(
                 velo_files, self.frames)
+        self.label_files = utils.subselect_files(
+                label_files, self.frames)
+        # print(self.label_files, self.velo_files)
 
     def _load_calib(self):
         """Load and compute intrinsic and extrinsic calibration parameters."""

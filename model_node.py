@@ -45,9 +45,9 @@ class model_inference(object):
         self.cv_bridge = CvBridge()
         self.img_transform = utils.image_transform(cfg)
 
-        self.output_image_pub = rospy.Publisher("/output_img", Image, queue_size=10)
-        self.detected_boxes = rospy.Publisher("/detected_boxes", Instances_msg, queue_size=10)
-        self.visualization_markers = rospy.Publisher("/visualization_array", MarkerArray, queue_size=10)
+        self.output_image_pub = rospy.Publisher("/output_img", Image, queue_size=30)
+        self.detected_boxes = rospy.Publisher("/detected_boxes", Instances_msg, queue_size=30)
+        self.visualization_markers = rospy.Publisher("/visualization_array", MarkerArray, queue_size=30)
         self.output = []
         rospy.loginfo("Model is built and ready to be used")
 
@@ -123,7 +123,7 @@ class model_inference(object):
             marker.pose.position.x = point[0]
             marker.pose.position.y = 0.0 
             marker.pose.position.z = point[1]
-            marker.lifetime = rospy.Duration(0.2)
+            marker.lifetime = rospy.Duration(0.1)
 
             all_boxes.markers.append(marker)
             i+=1

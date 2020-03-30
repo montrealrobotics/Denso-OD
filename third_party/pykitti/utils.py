@@ -22,6 +22,49 @@ OxtsPacket = namedtuple('OxtsPacket',
 # Bundle into an easy-to-access structure
 OxtsData = namedtuple('OxtsData', 'packet, T_w_imu')
 
+class Object3d(object):
+    """ 3d object label """
+
+    def __init__(self, label_file_line):
+        data = label_file_line.split(" ")
+        data[3:] = [float(x) for x in data[3:]]
+        # extract label, truncation, occlusion
+        self.track_id = data[1]
+        self.type = data[2]  # 'Car', 'Pedestrian', ...
+        self.truncation = data[3]  # truncated pixel ratio [0..1]
+        self.occlusion = int(
+            data[4]
+        )  # 0=visible, 1=partly occluded, 2=fully occluded, 3=unknown
+        self.alpha = data[5]  # object observation angle [-pi..pi]
+
+        # extract 2d bounding box in 0-based coordinates
+        self.xmin = data[6]  # left
+        self.ymin = data[7]  # top
+        self.xmax = data[8]  # right
+        self.ymax = data[9]  # bottom
+        self.box2d = np.array([self.xmin, self.ymin, self.xmax, self.ymax])
+
+        # extract 3d bounding box information
+        self.h = data[10]  # box height
+        self.w = data[11]  # box width
+        self.l = data[12]  # box length (in meters)
+        self.t = (data[13], data[14], data[15])  # location (x,y,z) in camera coord.
+        self.ry = data[16]  # yaw angle (around Y-axis in camera coordinates) [-pi..pi]
+
+    def print_object(self):
+        print(
+            "Type, truncation, occlusion, alpha: %s, %d, %d, %f"
+            % (self.type, self.truncation, self.occlusion, self.alpha)
+        )
+        print(
+            "2d bbox (x0,y0,x1,y1): %f, %f, %f, %f"
+            % (self.xmin, self.ymin, self.xmax, self.ymax)
+        )
+        print("3d bbox h,w,l: %f, %f, %f" % (self.h, self.w, self.l))
+        print(
+            "3d bbox location, ry: (%f, %f, %f), %f"
+            % (self.t[0], self.t[1], self.t[2], self.ry)
+        )
 
 def subselect_files(files, indices):
     try:

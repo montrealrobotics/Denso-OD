@@ -6,7 +6,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 
 #Gave coordinates in cam2 frame I guess. Not sure though. 
-def TwoDtoThreeD(samples, matrix):
+def TwoDtoThreeD_cam2(samples, matrix):
     Threedboxes = []
     CAM_HEIGHT = 1.72
     # CAM_HEIGHT = 1.65
@@ -20,7 +20,7 @@ def TwoDtoThreeD(samples, matrix):
     return np.array(Threedboxes)
 
 # Coordinates in cam0 frame
-def TwoDtoThreeD_new(samples, p_matrix, rect_matrix=0):
+def TwoDtoThreeD_cam0(samples, p_matrix, rect_matrix=0):
     Threedboxes = []
     CAM_HEIGHT = 1.72
     # CAM_HEIGHT = 1.65
@@ -63,7 +63,7 @@ def ground_project(instances, path="/home/dishank/denso-ws/src/denso/datasets/ki
     for mean, sigma in zip(means, sigmas): #iterating gthrough each of the box
         samples = np.random.normal(np.full((10,2), mean), sigma) #Draw 10 samples
         # ground_points = TwoDtoThreeD(samples, K_matrix)
-        ground_points = TwoDtoThreeD_new(samples, matrix)
+        ground_points = TwoDtoThreeD_cam0(samples, matrix)
         gd_mean = ground_points.mean(axis=0, keepdims=False)
         gd_std = ground_points.std(axis=0, keepdims=False)
         gd_means.append(np.squeeze(gd_mean))
