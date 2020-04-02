@@ -39,14 +39,13 @@ def get_static_transform(from_frame_id, to_frame_id, transform):
     
     return tf_msg
 
-def markers_from_labels(objects, frame):
+def markers_from_labels(objects, frame, duration, stamp):
     all_boxes = MarkerArray()
     i=0
-    
     for obj in objects:
         marker = Marker()
         marker.header.frame_id = frame
-        marker.header.stamp = rospy.Time.now()
+        marker.header.stamp = stamp
         marker.id = i
         marker.type = marker.CUBE
         marker.action = marker.ADD
@@ -71,7 +70,7 @@ def markers_from_labels(objects, frame):
         marker.color.g = 1.0
         marker.color.b = 1.0
 
-        marker.lifetime = rospy.Duration(0.1)
+        marker.lifetime = rospy.Duration(duration)
 
         all_boxes.markers.append(marker)
         i+=1
@@ -97,11 +96,11 @@ class Kitti_Publisher():
         self.velo_frame_id = rospy.get_param('~frame_id_velo', 'velodyne')
         rospy.loginfo("Velodyne Frame ID set to  %s", self.velo_frame_id)
         
-        self.image_publisher = rospy.Publisher(self.image_topic, Image, queue_size=30)
-        self.velodyne_publisher = rospy.Publisher(self.velodyne_topic, PointCloud2, queue_size=30)
-        self.bbox_publisher = rospy.Publisher(self.ground_bbox_topic, MarkerArray, queue_size=30)
+        self.image_publisher = rospy.Publisher(self.image_topic, Image, queue_size=200)
+        self.velodyne_publisher = rospy.Publisher(self.velodyne_topic, PointCloud2, queue_size=200)
+        self.bbox_publisher = rospy.Publisher(self.ground_bbox_topic, MarkerArray, queue_size=200)
 
-        self.rate = rospy.get_param('~publish_rate', 10)
+        self.rate = rospy.get_param('~publish_rate', 5)
         rospy.loginfo("Publish rate set to %s hz", self.rate)
 
         self.loop = rospy.get_param('~loop', 1)
@@ -135,21 +134,25 @@ class Kitti_Publisher():
         while self.loop != 0:
             frame = 0
             for img, velo_scan, label in zip(self.images, self.velodyne_scans, self.labels):
+
                 if not rospy.is_shutdown():
+                    stamp = rospy.Time.now()
                     cv_image = np.array(img) # Converting PIL image to cv2
-                    pc2 = array_to_xyzi_pointcloud2f(velo_scan, frame_id = self.velo_frame_id)
-                    markers = markers_from_labels(label, frame='cam0')
+                    pc2 = array_to_xyzi_pointcloud2f(velo_scan, stamp=stamp,frame_id = self.velo_frame_id)
+                    markers = markers_from_labels(label, frame='cam0', duration=1.0/self.rate, stamp=stamp)
                     # ros_msg = self.cv_bridge.cv2_to_imgmsg(cv_image, "bgr8") # bgr8 encoding gives error in image_view, hence moved to rgb8 and chaged the order above as well. 
                     ros_msg = self.cv_bridge.cv2_to_imgmsg(cv_image, "rgb8") # This encoding just tells what is the encoding of the image, here the fucntion does not change the encoding of image to the mentioned
                     # ros_msg.header.seq = join(self.image_folder, f)
                     ros_msg.header.frame_id = self.cam2_frame_id
-                    ros_msg.header.stamp = rospy.Time.now()
+                    ros_msg.header.stamp = stamp
                     
                     self.image_publisher.publish(ros_msg)
                     self.velodyne_publisher.publish(pc2)
                     self.bbox_publisher.publish(markers)
-    
+
+                    rospy.loginfo("Markers:  %s", markers)
                     rospy.loginfo("Published %s", frame)
+
                     frame +=1
     
                     ros_rate.sleep()
@@ -164,7 +167,7 @@ def main(args):
     rospy.init_node('kitti_publisher')
 
     base_folder = rospy.get_param('~data_folder',
-                                '/home/dishank/projects/MILA/denso-ws/src/Denso-OD/datasets/kitti_tracking/training')
+                                '/home/dishank/denso-ws/src/denso/datasets/kitti_tracking/training')
 
     if base_folder == '' or not os.path.exists(base_folder) or not os.path.isdir(base_folder):
         rospy.logfatal("Invalid Image folder")

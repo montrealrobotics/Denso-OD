@@ -89,7 +89,7 @@ class Visualizer(object):
         ax = self.output.add_subplot(self.grid_spec[0,1])
 
         for xy, xy_var in zip(xy_coords, variance):
-            ellip = patches.Ellipse(xy, width= 4*xy_var[0], height= 4*xy_var[1], fill = False)
+            ellip = patches.Ellipse(xy, width= 2*xy_var[0], height= 2*xy_var[1], fill = False)
             box_width, box_height = 2, 4
             box = patches.Rectangle((xy[0]-box_width/2, xy[1]), box_width, box_height, linewidth=1, fill=False, edgecolor='r')
             ellip.set_edgecolor(np.random.rand(3))

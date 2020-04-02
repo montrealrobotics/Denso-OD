@@ -52,7 +52,7 @@ def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=N
             img_visualizer.draw_instances()
             img_visualizer.draw_projection()
             # img_visualizer.draw_instance_prob()
-        # img_visualizer.save(direc)
+        img_visualizer.save(direc)
         # img_visualizer.show()
 
         print("{} written to disk".format(path[-10:]))
