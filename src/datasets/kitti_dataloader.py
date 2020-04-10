@@ -253,7 +253,8 @@ class KittiDataset(Dataset):
 
 	def _makedata(self, root_dir):
 		data= {}
-		image_names = glob.glob(root_dir+"/images/training/*.png")
+		# image_names = glob.glob(root_dir+"/images/training/*.png")
+		image_names = glob.glob(root_dir+"/training/image_02/*.png")
 
 		# if self.cfg.TRAIN.DATASET_LENGTH != None:
 		# 	image_names = image_names[:self.cfg.TRAIN.DATASET_LENGTH]
@@ -263,7 +264,8 @@ class KittiDataset(Dataset):
 			img_size = Image.open(name).size
 			if  img_size == (1242,375) and i<self.cfg.TRAIN.DATASET_LENGTH:
 				# print("Got here")
-				label_name = root_dir+"/labels/training/"+name[-10:-3]+"txt"
+				# label_name = root_dir+"/labels/training/"+name[-10:-3]+"txt"
+				label_name = root_dir+"/training/label_02/"+name[-10:-3]+"txt"
 				bbox_list, class_list = self._read_label(label_name)
 				# print(len(bbox_list), len(class_list))
 				if len(bbox_list)!=0:

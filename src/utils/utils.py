@@ -23,7 +23,7 @@ def image_transform(cfg):
 
     """
     transform = T.Compose([T.ToTensor(),
-                            T.Normalize(mean=cfg.INPUT.MEAN, std=cfg.INPUT.STD)])
+                            T.Normalize(mean=cfg.BACKBONE.MEAN, std=cfg.BACKBONE.STD)])
 
     return transform
 
@@ -31,12 +31,12 @@ def toPIL(img: torch.Tensor):
     """
     T.ToPILImage() Converts an Tensor or numpy array in range [0, 1] with shape of (C x H x W) into an PIL image with range [0,255]
     """
-    return T.Compose([T.Normalize( mean=[-mean/std for mean, std in zip(cfg.INPUT.MEAN, cfg.INPUT.STD)],
-            std=[1.0/x for x in cfg.INPUT.STD]), T.ToPILImage()])(img)
+    return T.Compose([T.Normalize( mean=[-mean/std for mean, std in zip(cfg.BACKBONE.MEAN, cfg.BACKBONE.STD)],
+            std=[1.0/x for x in cfg.BACKBONE.STD]), T.ToPILImage()])(img)
 
 def toNumpyImage(img: torch.Tensor):
-    return T.Normalize( mean=[-mean/std for mean, std in zip(cfg.INPUT.MEAN, cfg.INPUT.STD)],
-            std=[1.0/x for x in cfg.INPUT.STD])(img).mul(255).numpy().astype('uint8')
+    return T.Normalize( mean=[-mean/std for mean, std in zip(cfg.BACKBONE.MEAN, cfg.BACKBONE.STD)],
+            std=[1.0/x for x in cfg.BACKBONE.STD])(img).mul(255).numpy().astype('uint8')
 
 def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=None):
     images = images.cpu()

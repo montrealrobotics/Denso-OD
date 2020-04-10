@@ -192,7 +192,7 @@ class FastRCNNOutputs(object):
     """
 
     def __init__(
-        self, box2box_transform, pred_class_logits, pred_bbox_deltas, pred_delta_variance,proposals, smooth_l1_beta
+        self, box2box_transform, pred_class_logits, pred_bbox_deltas, pred_delta_variance,proposals, smooth_l1_beta, loss_type
     ):
         """
         Args:
@@ -221,6 +221,7 @@ class FastRCNNOutputs(object):
         self.pred_bbox_deltas = pred_bbox_deltas
         self.pred_delta_variance = pred_delta_variance
         self.smooth_l1_beta = smooth_l1_beta
+        self.loss_type = loss_type
 
         box_type = type(proposals[0].proposal_boxes)
         # cat(..., dim=0) concatenates over all images in the batch
@@ -394,11 +395,14 @@ class FastRCNNOutputs(object):
         Returns:
             A dict of losses (scalar tensors) containing keys "loss_cls" and "loss_box_reg".
         """
+
+        regress_loss_dir = {"deterministic": self.smooth_l1_loss(), 
+                            "loss_attenuation": self.loss_attenuation() , 
+                            "loss_attenuation_with_calibration": self.loss_calibration()}
+
         return {
             "loss_cls": self.softmax_cross_entropy_loss(),
-            # "loss_box_reg": self.smooth_l1_loss(),
-            "loss_box_reg": self.loss_attenuation(),
-            # "loss_box_reg": self.loss_calibration(),
+            "loss_box_reg": regress_loss_dir[self.loss_type],
         }
 
     def predict_boxes(self):

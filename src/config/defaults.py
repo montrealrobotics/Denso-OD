@@ -1,71 +1,16 @@
 '''
 Contains default params for object detector
 '''
-
-import os
 from yacs.config import CfgNode as CN
-import argparse
-
 
 
 conf_params = CN()
 
 """
-For General Initialization and Settings
-"""
-
-conf_params.PATH = CN()
-# conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
-conf_params.PATH.DATASET = "/network/home/bansaldi/Denso-OD/datasets/kitti_tracking"
-conf_params.PATH.LOGS = "/network/home/bansaldi/Denso-OD/logs"
-
-##### Whether to use cuda or not #####
-conf_params.USE_CUDA = True ## 
-
-###### Reproducibility in randomization ######
-conf_params.RANDOMIZATION = CN()
-conf_params.RANDOMIZATION.SEED = 5
-
-"""
-For training
-"""
-conf_params.TRAIN = CN()
-conf_params.TRAIN.DATASET_LENGTH = 7000
-conf_params.TRAIN.BATCH_SIZE = 10
-conf_params.TRAIN.EPOCHS = 50
-conf_params.TRAIN.OPTIM = 'adam' # Optimizer to use. (choices=['sgd', 'adam'])
-conf_params.TRAIN.LR = 1e-3
-conf_params.TRAIN.MOMENTUM = 0.9 # Used only when TRAIN.OPTIM is set to 'sgd'
-conf_params.TRAIN.MILESTONES = 10,20	
-conf_params.TRAIN.DSET_SHUFFLE = False
-conf_params.TRAIN.FREEZE_BACKBONE = False
-conf_params.TRAIN.LR_DECAY = 0.5 ## Decay learning rate by this factor every certain epochs
-conf_params.TRAIN.LR_DECAY_EPOCHS = 15 	## Epochs after which we should act upon learning rate
-conf_params.TRAIN.SAVE_MODEL_EPOCHS = 5 ## save model at every certain epochs
-conf_params.TRAIN.DATASET_DIVIDE = 0.9 ## This fraction of dataset is for training, rest for testing.
-
-"""
-For Testing
-"""
-conf_params.TEST = CN()
-conf_params.TEST.DETECTIONS_PER_IMAGE = 50
-
-"""
 For Backbone
 """
-
 conf_params.BACKBONE = CN()
-### choices = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
-conf_params.BACKBONE.MODEL_NAME = 'resnet50'
-### choices = [1,2,3,4]
-conf_params.BACKBONE.RESNET_STOP_LAYER = 3
 
-
-"""
-For Data 
-"""
-conf_params.INPUT = CN()
-conf_params.INPUT.IMAGE_SIZE = (375, 1242)
 # Params to define input image transformation.
 # The input to backbone network has to be RGB 
 # image with intensity scaled between 0 to 1.
@@ -82,15 +27,19 @@ conf_params.INPUT.IMAGE_SIZE = (375, 1242)
 
 # The mean and std are of ImageNet dataset, as the models are trained on that. 
 # We will stick to same to get better output.
-conf_params.INPUT.MEAN = [0.485, 0.456, 0.406]
-conf_params.INPUT.STD = [0.229, 0.224, 0.225]
-# conf_params.INPUT.LABELS_TO_TRAIN = ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
-conf_params.INPUT.LABELS_TO_TRAIN = ['Car', 'Pedestrian']
-conf_params.INPUT.NUM_CLASSES = 2
+conf_params.BACKBONE.MEAN = [0.485, 0.456, 0.406]
+conf_params.BACKBONE.STD = [0.229, 0.224, 0.225]
+
+# choices = ['VGG16', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
+conf_params.BACKBONE.MODEL_NAME = 'resnet50'
+# choices = [1,2,3,4]
+conf_params.BACKBONE.RESNET_STOP_LAYER = 3
+conf_params.BACKBONE.FREEZE = False
+
 
 
 """
-For Anchor Generator7
+For Anchor Generator
 """
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = [0.5,1,2]
@@ -134,12 +83,13 @@ conf_params.ROI_HEADS = CN()
 conf_params.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
 conf_params.ROI_HEADS.POSITIVE_FRACTION = 0.25
 conf_params.ROI_HEADS.SCORE_THRESH_TEST = 0.6
-conf_params.ROI_HEADS.NMS_THRESH_TEST = 0.5
+conf_params.ROI_HEADS.NMS_THRESH_TEST = 0.5	
 conf_params.ROI_HEADS.PROPOSAL_APPEND_GT = True
 conf_params.ROI_HEADS.IOU_THRESHOLDS = [0.5]
 conf_params.ROI_HEADS.IOU_LABELS = [0, 1]
 # conf_params.ROI_HEADS.POOLER_TYPE = "ROIPool"
 conf_params.ROI_HEADS.POOLER_TYPE = "ROIAlign"
+conf_params.ROI_HEADS.LOSS_TYPE = "loss_attenuation" # Options: "deterministic, loss_attenuation, loss_attenuation_with_calibration"
 conf_params.ROI_HEADS.FC_DIM = 1024
 conf_params.ROI_HEADS.CLS_AGNOSTIC_BBOX_REG = True
 conf_params.ROI_HEADS.SMOOTH_L1_BETA = 0.0
@@ -147,4 +97,12 @@ conf_params.ROI_HEADS.POOLER_RESOLUTION = 14 # After this there is MaxPool2D, so
 conf_params.ROI_HEADS.POOLER_SAMPLING_RATIO = 0
 conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 10.0, 10.0)
 # conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
+conf_params.ROI_HEADS.DETECTIONS_PER_IMAGE = 50
+
+"""
+Solver
+"""
+
+conf_params.SOLVER.OPTIM = "adam" #options: "adam", "sgd"
+
 

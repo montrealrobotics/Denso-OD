@@ -27,7 +27,7 @@ class ROIHeads(torch.nn.Module):
         self.positive_sample_fraction = cfg.ROI_HEADS.POSITIVE_FRACTION
         self.test_score_thresh        = cfg.ROI_HEADS.SCORE_THRESH_TEST
         self.test_nms_thresh          = cfg.ROI_HEADS.NMS_THRESH_TEST
-        self.test_detections_per_img  = cfg.TEST.DETECTIONS_PER_IMAGE
+        self.test_detections_per_img  = cfg.ROI_HEADS.DETECTIONS_PER_IMAGE
         self.num_classes              = cfg.INPUT.NUM_CLASSES
         self.proposal_append_gt       = cfg.ROI_HEADS.PROPOSAL_APPEND_GT
         self.cls_agnostic_bbox_reg    = cfg.ROI_HEADS.CLS_AGNOSTIC_BBOX_REG
@@ -209,6 +209,7 @@ class Detector(ROIHeads):
         pooler_scales     = 1.0 / stride
         sampling_ratio    = cfg.ROI_HEADS.POOLER_SAMPLING_RATIO
         pooler_type       = cfg.ROI_HEADS.POOLER_TYPE
+        self.loss_type    = cfg.ROI_HEADS.LOSS_TYPE
         # fmt: on
 
         self.box_pooler = ROIPooler(
@@ -269,6 +270,7 @@ class Detector(ROIHeads):
             pred_delta_variance,
             proposals,
             self.smooth_l1_beta,
+            self.loss_type
         )
 
 

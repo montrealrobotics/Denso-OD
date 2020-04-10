@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.linalg
-
+import torch
 
 """
 Table for the 0.95 quantile of the chi-square distribution with N degrees of
@@ -34,10 +34,10 @@ class KalmanFilter(object):
         ndim, dt = 4, 1.
 
         # Create Kalman filter model matrices.
-        self._motion_mat = np.eye(2 * ndim, 2 * ndim)
+        self._motion_mat = torch.eye(2 * ndim, 2 * ndim)
         for i in range(ndim):
             self._motion_mat[i, ndim + i] = dt
-        self._update_mat = np.eye(ndim, 2 * ndim)
+        self._update_mat = torch.eye(ndim, 2 * ndim)
 
         # Motion and observation uncertainty are chosen relative to the current
         # state estimate. These weights control the amount of uncertainty in
@@ -63,16 +63,16 @@ class KalmanFilter(object):
         """
 
         mean_pos = measurement
-        mean_vel = np.zeros_like(mean_pos)
-        mean = np.r_[mean_pos, mean_vel]
+        mean_vel = torch.zeros_like(mean_pos)
+        mean = torch.cat((mean_pos, mean_vel))
 
 
-        vel_std = [10 * self._std_weight_velocity * measurement[3],
+        vel_std = torch.tensor([10 * self._std_weight_velocity * measurement[3],
                     10 * self._std_weight_velocity * measurement[3],
                     10 * self._std_weight_velocity * measurement[3],
-                    10 * self._std_weight_velocity * measurement[3]]
+                    10 * self._std_weight_velocity * measurement[3]])
         
-        var = np.r_[measurement_var, np.square(vel_std)]
+        var = torch.cat((measurement_var, vel_std**2))
 
         # var = [
         #     2 * self._std_weight_position * measurement[3],
@@ -83,7 +83,7 @@ class KalmanFilter(object):
         #     10 * self._std_weight_velocity * measurement[3],
         #     1e-5,
         #     10 * self._std_weight_velocity * measurement[3]]
-        covariance = np.diag(var)
+        covariance = torch.diag(var)
         
         return mean, covariance
 
@@ -104,7 +104,7 @@ class KalmanFilter(object):
             state. Unobserved velocities are initialized to 0 mean.
         """
         std_pos = [
-            self._std_weight_position * mean[3],
+            self._std_weight_position * mean[3],  
             self._std_weight_position * mean[3],
             self._std_weight_position * mean[3],
             self._std_weight_position * mean[3]]
@@ -115,13 +115,13 @@ class KalmanFilter(object):
             self._std_weight_velocity * mean[3],
             self._std_weight_velocity * mean[3]]
 
-        motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
+        motion_cov = torch.diag(torch.cat((std_pos, std_vel))**2)0
         # motion_cov = 0
 
-        mean = np.dot(self._motion_mat, mean)
+        mean = torch.matmul(self._motion_mat, mean)
  
-        covariance = np.linalg.multi_dot((
-            self._motion_mat, covariance, self._motion_mat.T)) + motion_cov
+        covariance = torch.chain_matmul(
+            self._motion_mat, covariance, self._motion_mat.T) + motion_cov
 
         return mean, covariance
 
@@ -140,9 +140,9 @@ class KalmanFilter(object):
             estimate.
         """
 
-        mean = np.dot(self._update_mat, mean)
-        covariance = np.linalg.multi_dot((
-            self._update_mat, covariance, self._update_mat.T))
+        mean = torch.matmul(self._update_mat, mean)
+        covariance = torch.chain_matmul(
+            self._update_mat, covariance, self._update_mat.T)
 
         return mean, covariance + measurement_noise
 
@@ -177,9 +177,9 @@ class KalmanFilter(object):
         #     kalman_gain, projected_cov, kalman_gain.T))
 
         innovation = measurement - projected_mean
-        kalman_gain = np.linalg.multi_dot((covariance, self._update_mat.T, np.linalg.inv(projected_cov)))
-        new_mean = mean + np.dot(kalman_gain, innovation)
-        new_covariance = covariance - np.linalg.multi_dot((kalman_gain, self._update_mat, covariance))
+        kalman_gain = torch.chain_matmul(covariance, self._update_mat.T, torch.inverse(projected_cov))
+        new_mean = mean + torch.matmul(kalman_gain, innovation)
+        new_covariance = covariance - torch.chain_matmul(kalman_gain, self._update_mat, covariance)
         
         return new_mean, new_covariance
 

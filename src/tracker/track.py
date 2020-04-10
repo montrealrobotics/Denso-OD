@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 import numpy as np
+import torch
+import torch.nn as nn
 from .kalman_filter import KalmanFilter
 from . import linear_assignment
 from . import iou_matching
@@ -155,7 +157,7 @@ class Track:
 
 
 
-class MultiObjTracker:
+class MultiObjTracker(nn.Module):
     """
     This is the multi-target tracker.
     Parameters
@@ -191,14 +193,19 @@ class MultiObjTracker:
         self.tracks = []
         self._next_id = 1
 
-    def predict(self):
+    def forward(self, detections, measurement_var):
+        self._predict()
+        self._update(detections, measurement_var)
+
+
+    def _predict(self):
         """Propagate track state distributions one time step forward.
         This function should be called once every time step, before `update`.
         """
         for track in self.tracks:
             track.predict(self.kf)
 
-    def update(self, detections, measurement_var):
+    def _update(self, detections, measurement_var):
         """Perform measurement update and track management.
         Parameters
         ----------
@@ -214,7 +221,7 @@ class MultiObjTracker:
 
        
         matches, unmatched_tracks, unmatched_detections = \
-            self.associate_detections_to_trackers(detections, self.tracks)
+            self._associate_detections_to_trackers(detections, self.tracks)
 
         # print("Update state print:")
         # print(matches, unmatched_tracks, unmatched_detections)
@@ -269,9 +276,7 @@ class MultiObjTracker:
         
         return matches, unmatched_tracks, unmatched_detections
 
-
-    # Not used anywhere, but can be used in place of _match
-    def associate_detections_to_trackers(self, detections, trackers,iou_threshold = 0.3):
+    def _associate_detections_to_trackers(self, detections, trackers,iou_threshold = 0.3):
         """
         Assigns detections to tracked object (both represented as bounding boxes)
         Returns 3 lists of matches, unmatched_detections and unmatched_trackers
