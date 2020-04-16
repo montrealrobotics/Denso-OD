@@ -100,7 +100,7 @@ class RPN(nn.Module):
             proposals: list[Instances] or None
             loss: dict[Tensor]
         """
-
+        #  List[Boxes]: Length N
         gt_boxes = [x.gt_boxes for x in gt_target] if gt_target is not None else None
 
         feature_shape = features.shape
@@ -108,7 +108,7 @@ class RPN(nn.Module):
         stride = round(image_sizes[-1]/feature_shape[-1])
         # print("Stride:", stride)
 
-        #List(Boxes), return a list, each element is box struct for each image in batch. Each box struct is list of all anchors in that image.
+        #List[Boxes], return a list, each element is Box struct for each image in batch. Each Box struct is Tensor of all anchors in that image.
         # box struct: [HxWx9, 4]
         anchors = self.anchors_generator(feature_shape, stride)
 

@@ -9,7 +9,7 @@ from .proposal_utils import add_ground_truth_to_proposals
 
 from ..utils import Boxes, Matcher, Box2BoxXYXYTransform, subsample_labels, pairwise_iou
 
-class ROIHeads(torch.nn.Module):
+class ROIHeads(nn.Module):
     """
     ROIHeads perform all per-region computation in an R-CNN.
 
@@ -97,7 +97,7 @@ class ROIHeads(torch.nn.Module):
                 length `N` list of `Instances`s containing the proposals
                 sampled for training. Each `Instances` has the following fields:
                 - proposal_boxes: the proposal boxes
-                - gt_boxes: the ground-truth box that the proposal is assigned to
+                - gt_boxes: the ground-truth box that the proposal is assigned to   <------------ This is important
                   (this is only meaningful if the proposal has a label > 0; if label = 0
                    then the ground-truth box is random)
                 Other fields such as "gt_classes", "gt_masks", that's included in `targets`.
@@ -118,6 +118,8 @@ class ROIHeads(torch.nn.Module):
         if self.proposal_append_gt:
             proposals = add_ground_truth_to_proposals(gt_boxes, proposals)
 
+        # return proposals
+
         proposals_with_gt = []
 
         num_fg_samples = []
@@ -130,7 +132,7 @@ class ROIHeads(torch.nn.Module):
                 targets_per_image.gt_boxes, proposals_per_image.proposal_boxes
             )
 
-            #matched_idxs: index of the gt with which the prediction got matched to
+            #matched_idxs: index of the gt with which the proposals got matched to- Length= number of proposals
             #matched_labels: denotes if proposal is positive/negative/ignored - Here every proposal is either marked positive or negative, none is ignored
             matched_idxs, matched_labels = self.proposal_matcher(match_quality_matrix) 
             
@@ -144,16 +146,21 @@ class ROIHeads(torch.nn.Module):
 
             # We index all the attributes of targets that start with "gt_"
             # and have not been added to proposals yet (="gt_classes").
-
-            sampled_targets = matched_idxs[sampled_idxs]
-            # NOTE: here the indexing waste some compute, because heads
-            # like masks, keypoints, etc, will filter the proposals again,
-            # (by foreground/background, or number of keypoints in the image, etc)
-            # so we essentially index the data twice.
-            for (trg_name, trg_value) in targets_per_image.get_fields().items():
-                if trg_name.startswith("gt_") and not proposals_per_image.has(trg_name):
-                    proposals_per_image.set(trg_name, trg_value[sampled_targets])
-
+            if has_gt:
+                sampled_targets = matched_idxs[sampled_idxs]
+                # NOTE: here the indexing waste some compute, because heads
+                # like masks, keypoints, etc, will filter the proposals again,
+                # (by foreground/background, or number of keypoints in the image, etc)
+                # so we essentially index the data twice.
+                for (trg_name, trg_value) in targets_per_image.get_fields().items():
+                    if trg_name.startswith("gt_") and not proposals_per_image.has(trg_name):
+                        proposals_per_image.set(trg_name, trg_value[sampled_targets])
+            else:
+                gt_boxes = Boxes(
+                    targets_per_image.gt_boxes.tensor.new_zeros((len(sampled_idxs), 4))
+                )
+                proposals_per_image.gt_boxes = gt_boxes
+                
             num_bg_samples.append((gt_classes == self.num_classes).sum().item())
             num_fg_samples.append(gt_classes.numel() - num_bg_samples[-1])
             proposals_with_gt.append(proposals_per_image)
@@ -253,6 +260,7 @@ class Detector(ROIHeads):
         """
 
         if is_training:
+            # These proposals have attribute gt_classes and gt_boxes added for training
             proposals = self.label_and_sample_proposals(proposals, targets)
         
         # del targets
@@ -275,7 +283,8 @@ class Detector(ROIHeads):
 
 
         if is_training:
-            losses = outputs.losses()
+            # losses = outputs.losses()
+            losses = {}
             pred_instances, _ = outputs.inference(
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
             )

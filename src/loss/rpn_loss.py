@@ -90,11 +90,14 @@ def rpn_losses(
     Returns:
         objectness_loss, localization_loss, both unnormalized (summed over samples).
     """
+
+    #index for fg 
     pos_masks = gt_objectness_logits == 1
     localization_loss = smooth_l1_loss(
         pred_anchor_deltas[pos_masks], gt_anchor_deltas[pos_masks], smooth_l1_beta, reduction="sum"
     )
 
+    #index for fg and bg classes
     valid_masks = gt_objectness_logits >= 0
     objectness_loss = F.binary_cross_entropy_with_logits(
         pred_objectness_logits[valid_masks],

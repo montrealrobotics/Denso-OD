@@ -6,6 +6,40 @@ from yacs.config import CfgNode as CN
 
 conf_params = CN()
 
+conf_params.SEED = 5
+conf_params.USE_CUDA = True
+conf_params.DATASET = CN()
+conf_params.DATASET.NAME = "detection" #option: "detections", "tracking"
+conf_params.DATASET.PATH = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
+conf_params.DATASET.LENGTH = 7000
+ 
+conf_params.LOGS = CN()
+conf_params.LOGS.BASE_PATH = "/network/home/bansaldi/Denso-OD/logs"
+
+conf_params.TRAIN = CN()
+conf_params.TRAIN.SEQUENCE_LENGTH = 3
+conf_params.TRAIN.BATCH_SIZE = 10
+conf_params.TRAIN.EPOCHS = 50
+conf_params.TRAIN.LR = 1e-3
+conf_params.TRAIN.LR_DECAY = 0.5
+conf_params.TRAIN.MOMENTUM = 0.9
+conf_params.TRAIN.MILESTONES = (10,20)
+conf_params.TRAIN.DSET_SHUFFLE = False
+conf_params.TRAIN.SAVE_MODEL_EPOCHS = 5
+conf_params.TRAIN.DATASET_DIVIDE = 0.9
+
+conf_params.INPUT = CN()
+conf_params.INPUT.IMAGE_SIZE = (375,1242)
+conf_params.INPUT.LABELS_TO_TRAIN = ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
+conf_params.INPUT.NUM_CLASSES = 7
+
+
+"""
+Model
+"""
+conf_params.ARCHITECTURE = CN()
+conf_params.ARCHITECTURE.MODEL = "FasterRCNN_KF"
+
 """
 For Backbone
 """
@@ -89,7 +123,7 @@ conf_params.ROI_HEADS.IOU_THRESHOLDS = [0.5]
 conf_params.ROI_HEADS.IOU_LABELS = [0, 1]
 # conf_params.ROI_HEADS.POOLER_TYPE = "ROIPool"
 conf_params.ROI_HEADS.POOLER_TYPE = "ROIAlign"
-conf_params.ROI_HEADS.LOSS_TYPE = "loss_attenuation" # Options: "deterministic, loss_attenuation, loss_attenuation_with_calibration"
+conf_params.ROI_HEADS.LOSS_TYPE = "deterministic" # Options: "deterministic, loss_attenuation, loss_attenuation_with_calibration"
 conf_params.ROI_HEADS.FC_DIM = 1024
 conf_params.ROI_HEADS.CLS_AGNOSTIC_BBOX_REG = True
 conf_params.ROI_HEADS.SMOOTH_L1_BETA = 0.0
@@ -100,9 +134,19 @@ conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 10.0, 10.0)
 conf_params.ROI_HEADS.DETECTIONS_PER_IMAGE = 50
 
 """
+Tracker
+"""
+conf_params.TRACKING = CN()
+conf_params.TRACKING.IOU_DISTANCE = 0.85
+conf_params.TRACKING.MAX_AGE = 1
+conf_params.TRACKING.N_INIT = 2
+
+"""
 Solver
 """
 
+conf_params.SOLVER = CN() #options: "adam", "sgd"
 conf_params.SOLVER.OPTIM = "adam" #options: "adam", "sgd"
+
 
 

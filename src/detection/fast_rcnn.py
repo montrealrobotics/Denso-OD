@@ -224,6 +224,7 @@ class FastRCNNOutputs(object):
         self.loss_type = loss_type
 
         box_type = type(proposals[0].proposal_boxes)
+
         # cat(..., dim=0) concatenates over all images in the batch
         self.proposals = box_type.cat([p.proposal_boxes for p in proposals])
         assert not self.proposals.tensor.requires_grad, "Proposals should not require gradients!"
@@ -231,6 +232,7 @@ class FastRCNNOutputs(object):
 
         # The following fields should exist only when training.
         if proposals[0].has("gt_boxes"):
+            # concatenates over all images in the batch
             self.gt_boxes = box_type.cat([p.gt_boxes for p in proposals])
             assert proposals[0].has("gt_classes")
             self.gt_classes = torch.cat([p.gt_classes for p in proposals], dim=0)
@@ -283,7 +285,7 @@ class FastRCNNOutputs(object):
         ### 
 
         ## Computing the loss attenuation
-        loss_attenuation_final = ((self.pred_bbox_deltas[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2/(self.pred_delta_variance[fg_inds[:, None], gt_class_cols]) + 0.5*torch.log(self.pred_delta_variance[fg_inds[:, None], gt_class_cols])).sum()/self.gt_classes.numel()
+        loss_attenuation_final = ((self.pred_bbox_deltas[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2/(self.pred_delta_variance[fg_inds[:, None], gt_class_cols]) + torch.log(self.pred_delta_variance[fg_inds[:, None], gt_class_cols])).sum()/self.gt_classes.numel()
 
         return loss_attenuation_final
 
@@ -383,7 +385,7 @@ class FastRCNNOutputs(object):
 
         ## Computing the loss attenuation
         error_loss = (self.pred_delta_variance[fg_inds[:, None], gt_class_cols] - (self.pred_bbox_deltas.clone().detach()[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2).sum()
-        loss_cal_final = (((self.pred_bbox_deltas[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2/(self.pred_delta_variance[fg_inds[:, None], gt_class_cols]) + 0.5*torch.log(self.pred_delta_variance[fg_inds[:, None], gt_class_cols])).sum() + error_loss)/self.gt_classes.numel() 
+        loss_cal_final = (((self.pred_bbox_deltas[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2/(self.pred_delta_variance[fg_inds[:, None], gt_class_cols]) + torch.log(self.pred_delta_variance[fg_inds[:, None], gt_class_cols])).sum() + error_loss)/self.gt_classes.numel() 
 
         return loss_cal_final
 

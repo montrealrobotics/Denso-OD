@@ -2,27 +2,24 @@
 Faster R-CNN class
 """
 
+import sys
 import torch
 import torch.nn as nn
-import sys
 
-# sys.path.insert(1, '../')
 from src.backbone import Backbone
 from src.rpn import RPN
 from src.detection import Detector
-# from src.NMS import batched_nms
-import torch.nn.functional as F
-from src.utils import utils
+from src.tracker import MultiObjTracker
+
 
 class FasterRCNN(nn.Module):
 	"""docstring for generalized_faster_rcnn"""
 	def __init__(self, cfg):
 		super(FasterRCNN, self).__init__()
-		self.cfg = cfg
-		self.backbone = Backbone(self.cfg)
+		self.backbone = Backbone(cfg)
 		# print(self.backbone)
-		self.rpn = RPN(self.cfg, self.backbone.out_channels)
-		self.detector = Detector(self.cfg, self.backbone.stride, self.backbone.out_channels)
+		self.rpn = RPN(cfg, self.backbone.out_channels)
+		self.detector = Detector(cfg, self.backbone.stride, self.backbone.out_channels)
 
 
 	def forward(self, image, gt_target=None, is_training=False):
@@ -50,16 +47,14 @@ class FasterRCNN(nn.Module):
 
 		return rpn_proposals, detections, rpn_losses, detection_loss 
 
-class FasterRCNN_KF(nn.Module)
+class FasterRCNN_KF(nn.Module):
 	"""docstring for generalized_faster_rcnn"""
 	def __init__(self, cfg):
-		super(FasterRCNN, self).__init__()
-		self.cfg = cfg
-		self.backbone = Backbone(self.cfg)
-		# print(self.backbone)
-		self.rpn = RPN(self.cfg, self.backbone.out_channels)
-		self.detector = Detector(self.cfg, self.backbone.stride, self.backbone.out_channels)
-		self.tracker = MultiObjTracker(max_age=1)
+		super(FasterRCNN_KF, self).__init__()
+		self.backbone = Backbone(cfg)
+		self.rpn = RPN(cfg, self.backbone.out_channels)
+		self.detector = Detector(cfg, self.backbone.stride, self.backbone.out_channels)
+		self.tracker = MultiObjTracker(cfg)
 
 
 	def forward(self, image, gt_target=None, is_training=False):
@@ -85,5 +80,7 @@ class FasterRCNN_KF(nn.Module)
 		
 		detections, detection_loss = self.detector(feature_map, rpn_proposals, gt_target, is_training)
 
-		return rpn_proposals, detections, rpn_losses, detection_loss 
+		tracks, track_loss = self.tracker(detections, gt_target, is_training)
+
+		return rpn_proposals, detections, tracks, rpn_losses, detection_loss, track_loss 
 

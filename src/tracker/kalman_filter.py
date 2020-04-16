@@ -61,18 +61,21 @@ class KalmanFilter(object):
             dimensional) of the new track. Unobserved velocities are initialized
             to 0 mean.
         """
+        device = measurement.device
+        self._motion_mat = self._motion_mat.to(device)
+        self._update_mat = self._update_mat.to(device)
 
         mean_pos = measurement
         mean_vel = torch.zeros_like(mean_pos)
-        mean = torch.cat((mean_pos, mean_vel))
+        mean = torch.cat([mean_pos, mean_vel])
 
 
         vel_std = torch.tensor([10 * self._std_weight_velocity * measurement[3],
                     10 * self._std_weight_velocity * measurement[3],
                     10 * self._std_weight_velocity * measurement[3],
-                    10 * self._std_weight_velocity * measurement[3]])
+                    10 * self._std_weight_velocity * measurement[3]], device=device)
         
-        var = torch.cat((measurement_var, vel_std**2))
+        var = torch.cat([measurement_var, vel_std**2])
 
         # var = [
         #     2 * self._std_weight_position * measurement[3],
@@ -103,20 +106,23 @@ class KalmanFilter(object):
             Returns the mean vector and covariance matrix of the predicted
             state. Unobserved velocities are initialized to 0 mean.
         """
-        std_pos = [
+        device = mean.device
+
+        std_pos = torch.tensor([
             self._std_weight_position * mean[3],  
             self._std_weight_position * mean[3],
             self._std_weight_position * mean[3],
-            self._std_weight_position * mean[3]]
+            self._std_weight_position * mean[3]], device =device)
 
-        std_vel = [
+        std_vel = torch.tensor([
             self._std_weight_velocity * mean[3],
             self._std_weight_velocity * mean[3],
             self._std_weight_velocity * mean[3],
-            self._std_weight_velocity * mean[3]]
+            self._std_weight_velocity * mean[3]], device=device)
 
-        motion_cov = torch.diag(torch.cat((std_pos, std_vel))**2)0
+        motion_cov = torch.diag(torch.cat([std_pos, std_vel])**2)
         # motion_cov = 0
+
 
         mean = torch.matmul(self._motion_mat, mean)
  
@@ -139,6 +145,7 @@ class KalmanFilter(object):
             Returns the projected mean and covariance matrix of the given state
             estimate.
         """
+        device = mean.device
 
         mean = torch.matmul(self._update_mat, mean)
         covariance = torch.chain_matmul(

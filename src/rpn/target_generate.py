@@ -84,6 +84,8 @@ class RPNProcessing(object):
             # Acnhors are assosiated with their ground truths, matched_idxs: [num_of_anchor], 
             # each element is index of gt with which the anchor is matched
             # gt_objectness_logits_i: [num_of_achors], each anchor is labeled as 0,-1,1. 
+            # Note: Anchor with didn;t overlapped with any gt have been assigned garbage gt 
+            # i.e their assigned gt index is of no significance. We will filter them later using 0,-1,1 
             matched_idxs, gt_objectness_logits_i = self.anchor_matcher(match_quality_matrix) 
 
             if (self.boundary_threshold >= 0) & (self.image_size is not None):
@@ -98,7 +100,10 @@ class RPNProcessing(object):
 
             else:
                 # TODO wasted computation for ignored boxes
+                # matched_gt_boxes: Boxes of length num_anchors. Each element is corresponds to its matched gt_box
                 matched_gt_boxes = gt_boxes_i[matched_idxs]
+
+                # gt_anchor_deltas_i: Tensor(num_anchors, 4) - Have delta corresponding to each anchor. 
                 gt_anchor_deltas_i = self.box2box_transform.get_deltas(
                     anchors_i.tensor, matched_gt_boxes.tensor
                 )

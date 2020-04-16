@@ -29,6 +29,8 @@ def subsample_labels(labels, num_samples, positive_fraction, bg_label):
             1D indices. The total number of indices is `num_samples` if possible.
             The fraction of positive indices is `positive_fraction` if possible.
     """
+
+    # indexes of fg anchors and bf anchors
     positive = torch.nonzero((labels != -1) & (labels != bg_label)).squeeze(1)
     negative = torch.nonzero(labels == bg_label).squeeze(1)
 

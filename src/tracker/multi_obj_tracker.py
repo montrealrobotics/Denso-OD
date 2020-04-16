@@ -1,0 +1,276 @@
+from __future__ import absolute_import
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.utils.linear_assignment_ import linear_assignment as assignment
+
+from .kalman_filter import KalmanFilter
+from . import linear_assignment
+from . import iou_matching
+from .track import Track
+
+from ..utils import Boxes, pairwise_iou, Matcher
+
+class MultiObjTracker(object):
+    """
+    This is the multi-target tracker.
+    Parameters
+    ----------
+    metric : nn_matching.NearestNeighborDistanceMetric
+        A distance metric for measurement-to-track association.
+    max_age : int
+        Maximum number of missed misses before a track is deleted.
+    n_init : int
+        Number of consecutive detections before the track is confirmed. The
+        track state is set to `Deleted` if a miss occurs within the first
+        `n_init` frames.
+    Attributes
+    ----------
+    metric : nn_matching.NearestNeighborDistanceMetric
+        The distance metric used for measurement to track association.
+    max_age : int
+        Maximum number of missed misses before a track is deleted.
+    n_init : int
+        Number of frames that a track remains in initialization phase.
+    kf : kalman_filter.KalmanFilter
+        A Kalman filter to filter target trajectories in image space.
+    tracks : List[Track]
+        The list of active tracks at the current time step.
+    """
+
+    def __init__(self, cfg):
+        self.max_iou_distance = cfg.TRACKING.IOU_DISTANCE 
+        self.max_age          = cfg.TRACKING.MAX_AGE
+        self.n_init           = cfg.TRACKING.N_INIT
+
+        self.kf = KalmanFilter()
+        self.tracks_matcher = Matcher(
+            cfg.ROI_HEADS.IOU_THRESHOLDS,
+            cfg.ROI_HEADS.IOU_LABELS,
+            allow_low_quality_matches=False,
+        )
+
+        self.batch_size = cfg.TRAIN.BATCH_SIZE
+        # Each element of self.tracks is list of all tracked object of that sequence.
+        # Each batch index correspond to one sequence.
+        self.tracks = [[] for _ in range(self.batch_size) ]
+        self._next_id = [1 for _ in range(self.batch_size)]
+
+    def reinit_state(self):
+        # Each element of self.tracks is list of all tracked object of that sequence.
+        # Each batch index correspond to one sequence.
+        self.tracks = [[] for _ in range(self.batch_size)]
+        self._next_id = [1 for _ in range(self.batch_size)]
+
+    # def forward(self, detections, gt_target, is_training):
+    def __call__(self, detections, gt_target, is_training):
+
+        for idx, detect in enumerate(detections):
+            boxes = detect.pred_boxes.tensor
+            variance = detect.pred_variance
+            self._predict(idx)
+            self._update(boxes, variance, idx)
+
+        if sum([len(x) for x in detections])==0:
+            return self.tracks, {}
+
+        if is_training:
+            loss = self.loss(gt_target)
+            return self.tracks, {"track_loss": loss}
+        
+        return self.tracks, {}
+
+
+    def _predict(self, idx):
+        """Propagate track state distributions one time step forward.
+        This function should be called once every time step, before `update`.
+        """
+        for track in self.tracks[idx]:
+            track.predict(self.kf)
+
+    def _update(self, detections, measurement_var, idx):
+        """Perform measurement update and track management.
+        Parameters
+        ----------
+        detections : List[N,4]
+            A list of detections at the current time step.
+        measurement_var : 
+            A list of measurement noise of each bounding box at current time step.
+        """
+
+        # Run matching cascade.
+        # matches, unmatched_tracks, unmatched_detections = \
+        #     self._match(detections)
+
+       
+        matches, unmatched_tracks, unmatched_detections = \
+            self._associate_detections_to_trackers(detections, self.tracks[idx])
+
+        # print("Update state print:")
+        # print(matches, unmatched_tracks, unmatched_detections)
+        # Update track set.
+        for track_idx, detection_idx in matches:
+            self.tracks[idx][track_idx].update(
+                self.kf, detections[detection_idx], measurement_var[detection_idx])
+        for track_idx in unmatched_tracks:
+            self.tracks[idx][track_idx].mark_missed()
+        for detection_idx in unmatched_detections:
+            self._initiate_track(detections[detection_idx], measurement_var[detection_idx], idx)
+        
+        self.tracks[idx] = [t for t in self.tracks[idx] if not t.is_deleted()]
+
+    def _match(self, detections):
+
+        def gated_metric(tracks, dets, track_indices, detection_indices):
+            cost_matrix = iou_matching.iou_cost(tracks, dets, track_indices, detection_indices)
+            cost_matrix = linear_assignment.gate_cost_matrix(
+                self.kf, cost_matrix, tracks, dets, track_indices,
+                detection_indices)
+
+            return cost_matrix
+
+        # Split track set into confirmed and unconfirmed tracks.
+        confirmed_tracks_idx = [
+            i for i, t in enumerate(self.tracks) if t.is_confirmed()]
+        unconfirmed_tracks_idx = [
+            i for i, t in enumerate(self.tracks) if not t.is_confirmed()]
+
+        # Associate confirmed tracks using appearance features.
+        matches_a, unmatched_tracks_a, unmatched_detections = \
+            linear_assignment.matching_cascade(
+                gated_metric, self.max_iou_distance, self.max_age,
+                self.tracks, detections, confirmed_tracks_idx)
+
+        # Associate remaining tracks together with unconfirmed tracks using IOU.
+        iou_track_candidates = unconfirmed_tracks_idx + [
+            k for k in unmatched_tracks_a if
+            self.tracks[k].time_since_update == 1]
+        unmatched_tracks_a = [
+            k for k in unmatched_tracks_a if
+            self.tracks[k].time_since_update != 1]
+        matches_b, unmatched_tracks_b, unmatched_detections = \
+            linear_assignment.min_cost_matching(
+                iou_matching.iou_cost, self.max_iou_distance, self.tracks,
+                detections, iou_track_candidates, unmatched_detections)
+
+        matches = matches_a + matches_b
+        unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
+
+        
+        return matches, unmatched_tracks, unmatched_detections
+
+    def _associate_detections_to_trackers(self, detections, trackers,iou_threshold = 0.3):
+        """
+        Assigns detections to tracked object (both represented as bounding boxes)
+        Returns 3 lists of matches, unmatched_detections and unmatched_trackers
+        """
+        
+        if(len(trackers)==0):
+            return np.empty((0,2),dtype=int), np.empty((0,5),dtype=int), np.arange(len(detections))
+    
+        iou_matrix = np.zeros((len(detections),len(trackers)),dtype=np.float32)
+
+        for d,det in enumerate(detections):
+            for t,trk in enumerate(trackers):
+                iou_matrix[d,t] = self._iou(det,trk.to_xyxy())
+        
+        matched_indices = assignment(-iou_matrix)
+
+        unmatched_detections = []
+        for d,det in enumerate(detections):
+            if(d not in matched_indices[:,0]):
+                unmatched_detections.append(d)
+        
+        unmatched_trackers = []
+        for t,trk in enumerate(trackers):
+            if(t not in matched_indices[:,1]):
+                unmatched_trackers.append(t)
+
+        #filter out matched with low IOU
+        matches = []
+        for m in matched_indices:
+            if(iou_matrix[m[0],m[1]]<iou_threshold):
+                unmatched_detections.append(m[0])
+                unmatched_trackers.append(m[1])
+            else:
+                matches.append(m.reshape(1,2))
+        if(len(matches)==0):
+            matches = np.empty((0,2),dtype=int)
+        else:
+            matches = np.concatenate(matches,axis=0)
+
+        matches = matches[:,[1,0]] # 0th col is tracking, 1st col is detection
+        
+        return matches, np.array(unmatched_trackers), np.array(unmatched_detections)
+
+
+    def _initiate_track(self, detection, detection_noise,idx):
+        mean, covariance = self.kf.initiate(detection, detection_noise)
+        # print("initiate tracks", mean, covariance)
+        self.tracks[idx].append(Track(
+            mean, covariance, self._next_id[idx], self.n_init, self.max_age))
+        self._next_id[idx] += 1
+
+    def _iou(self, bb_test,bb_gt):
+        """
+        Computes IUO between two bboxes in the form [x1,y1,x2,y2]
+        """
+        bb_test = bb_test.detach().cpu().numpy()
+        bb_gt = bb_gt.detach().cpu().numpy()
+
+        xx1 = np.maximum(bb_test[0], bb_gt[0])
+        yy1 = np.maximum(bb_test[1], bb_gt[1])
+        xx2 = np.minimum(bb_test[2], bb_gt[2])
+        yy2 = np.minimum(bb_test[3], bb_gt[3])
+        w = np.maximum(0.0, xx2 - xx1)
+        h = np.maximum(0.0, yy2 - yy1)
+        wh = w * h
+        o = wh / ((bb_test[2]-bb_test[0])*(bb_test[3]-bb_test[1])
+            + (bb_gt[2]-bb_gt[0])*(bb_gt[3]-bb_gt[1]) - wh)
+        return(o)
+
+    def loss(self, gt_targets):
+        """
+                Loss attenuation implementation
+        Returns:
+            scalar Tensor
+        """
+        tracks_box_list = []
+        tracks_var_list = []
+        target_box_list = []
+
+        for track, target in zip(self.tracks, gt_targets):
+
+            if len(track)==0:
+                continue
+
+            track_boxes = torch.stack([x.mean[:4] for x in track], dim=0)
+            track_boxes = Boxes(track_boxes)
+            track_var = torch.stack([x.get_diag_var()[:4] for x in track], dim=0)
+            
+            match_quality_matrix = pairwise_iou(
+                                target.gt_boxes, track_boxes)
+
+            matched_idxs, matched_labels = self.tracks_matcher(match_quality_matrix)
+
+            target_boxes = target.gt_boxes[matched_idxs]
+
+            fg_inds = torch.nonzero(matched_labels==1).squeeze(1)
+
+            track_boxes = track_boxes[fg_inds]
+            track_var = track_var[fg_inds]
+            target_boxes = target_boxes[fg_inds]
+
+            tracks_box_list.append(track_boxes)
+            tracks_var_list.append(track_var)
+            target_box_list.append(target_boxes)
+
+        tracks_var_batch = torch.cat(tracks_var_list)
+        tracks_boxes_batch = Boxes.cat(tracks_box_list)
+        target_boxes_batch = Boxes.cat(target_box_list)
+        ## Computing the loss attenuation
+        mse = (tracks_boxes_batch.tensor - target_boxes_batch.tensor)**2
+        # print(mse, tracks_var_batch)
+        loss_attenuation_final = (mse/tracks_var_batch + torch.log(tracks_var_batch)).mean()
+
+        return loss_attenuation_final
