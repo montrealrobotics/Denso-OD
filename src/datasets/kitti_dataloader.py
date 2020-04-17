@@ -229,9 +229,6 @@ class KittiDataset(Dataset):
 		# # 	self.data_list = data_list[:self.cfg.TRAIN.DATASET_LENGTH]
 		# else:
 		# 	self.data_list = data_list
-		
-
-	
 
 	def _read_label(self, file_name):
 		ob_list = []
@@ -254,18 +251,18 @@ class KittiDataset(Dataset):
 	def _makedata(self, root_dir):
 		data= {}
 		# image_names = glob.glob(root_dir+"/images/training/*.png")
-		image_names = glob.glob(root_dir+"/training/image_02/*.png")
-
+		image_names = glob.glob(os.path.join(root_dir,"image_02/*.png"))
 		# if self.cfg.TRAIN.DATASET_LENGTH != None:
 		# 	image_names = image_names[:self.cfg.TRAIN.DATASET_LENGTH]
 		# print(image_names)
 		i = 0
 		for name in image_names:
 			img_size = Image.open(name).size
-			if  img_size == (1242,375) and i<self.cfg.TRAIN.DATASET_LENGTH:
+			if  img_size == (1242,375) and i<self.cfg.DATASET.LENGTH:
 				# print("Got here")
 				# label_name = root_dir+"/labels/training/"+name[-10:-3]+"txt"
-				label_name = root_dir+"/training/label_02/"+name[-10:-3]+"txt"
+				label_name = os.path.join(root_dir,"label_02",name[-10:-3]+"txt")
+				# print(label_name)
 				bbox_list, class_list = self._read_label(label_name)
 				# print(len(bbox_list), len(class_list))
 				if len(bbox_list)!=0:
@@ -298,14 +295,16 @@ class KittiDataset(Dataset):
 
 		return sample
 
+	# A collate function to enable loading the kitti labels in batch
+	def collate_fn(self, batch): #batch is the list of samples
+
+		elem = batch[0]
+		batch = {key:[x[key] for x in batch] for key in elem}
+		batch["image"] = torch.stack(batch["image"], dim=0)
+
+		return batch
 
 
-# A collate function to enable loading the kitti labels in batch
-def kitti_collate_fn(batch): #batch is the list of samples
 
-	elem = batch[0]
-	batch = {key:[x[key] for x in batch] for key in elem}
-	batch["image"] = torch.stack(batch["image"], dim=0)
 
-	return batch
 
