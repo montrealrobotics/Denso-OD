@@ -83,11 +83,13 @@ class General_Solver(object):
         batch_size = cfg.TRAIN.BATCH_SIZE
 
         print("--- Loading Training Dataset \n ")
-        tracks = [str(i).zfill(4) for i in range(11)]
+        # tracks = [str(i).zfill(4) for i in range(11)]
+        tracks = ["0001"]
         train_dataset = dataset(dataset_path, tracks,transform = transform, cfg = cfg) #---- Dataloader
         
         print("--- Loading Validation Dataset \n ")
-        tracks = [str(i).zfill(4) for i in range(11,14)]
+        # tracks = [str(i).zfill(4) for i in range(11,14)]
+        tracks = ["0002"]
         val_dataset = dataset(dataset_path, tracks, transform=transform, cfg=cfg)
 
         print("--- Data Loaded---")
@@ -148,19 +150,20 @@ class General_Solver(object):
             for idx, batch_sample in enumerate(self.train_loader):
                 loss_dict = self.train_step(batch_sample)
                 
-                if bool(loss_dict):                
-                    if (idx)%10==0:
-                        with torch.no_grad():
-                            #----------- Logging and Printing ----------#
-                            print("{:<8d} {:<9d} {:<7.4f}".format(epoch, idx, loss_dict['tot_loss'].item()))
-                            for loss_name, value in loss_dict.items():
-                                self.tb_writer.add_scalar('Loss/'+loss_name, value.item(), epoch+0.01*idx)
-                            for key, value in loss_dict.items():
-                                if len(running_loss)<len(loss_dict):
-                                    running_loss[key] = 0.0
-                                running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
-                            # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
-                        #------------------------------------------------#
+                print(loss_dict)
+                
+                if (idx)%10==0:
+                    with torch.no_grad():
+                        #----------- Logging and Printing ----------#
+                        print("{:<8d} {:<9d} {:<7.4f}".format(epoch, idx, loss_dict['tot_loss'].item()))
+                        for loss_name, value in loss_dict.items():
+                            self.tb_writer.add_scalar('Loss/'+loss_name, value.item(), epoch+0.01*idx)
+                        for key, value in loss_dict.items():
+                            if len(running_loss)<len(loss_dict):
+                                running_loss[key] = 0.0
+                            running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
+                        # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
+                    #------------------------------------------------#
             val_loss = self.validation_step()
             
             for key in val_loss.keys():
@@ -191,10 +194,15 @@ class BackpropKF_Solver(General_Solver):
 
     def train_step(self, batch_sample):
         self.model.tracker.reinit_state()
-        for seq in batch_sample:
+        for i, seq in enumerate(batch_sample):
+            print("seq: ", i)
+            print("Tracks Before update: ", self.model.tracker.tracks)
             in_images = seq['image'].to(self.device)
             target = [x.to(self.device) for x in seq['target']]
+            print("Target: ", [len(x) for x in target], [x.img_path for x in target])
             rpn_proposals, instances, tracks, _, _, track_loss = self.model(in_images, target, self.is_training)
+            # print("Tracks : ", self.model.tracker.tracks)
+            print(track_loss)
         
         loss_dict = {}
         loss_dict.update(track_loss)
@@ -205,10 +213,12 @@ class BackpropKF_Solver(General_Solver):
             loss += v
         loss_dict.update({'tot_loss':loss})
 
+
         self.optimizer.zero_grad()
-        if loss!=0.0:
-            loss.backward()
-        self.optimizer.step()
+        # loss.backward()
+        # for x in self.model.parameters():
+        #     print(x, x.grad)
+        # self.optimizer.step()
 
         return loss_dict
 
@@ -253,34 +263,34 @@ class BackpropKF_Solver(General_Solver):
 
             #batch_sample: [seq_length, batch_size, input_size]
             for idx, batch_sample in enumerate(self.train_loader):
+                print("Iteration: ", idx)
                 loss_dict = self.train_step(batch_sample)
 
-                if idx%10==0:
-                    print(loss_dict['tot_loss'])
+                # if idx%10==0:
+                # print(loss_dict)
                 
-            #     if loss_dict['tot_loss']!=0:
-            #         if (idx)%10==0:
-            #             with torch.no_grad():
-            #                 #----------- Logging and Printing ----------#
-            #                 print("{:<8d} {:<9d} {:<7.4f}".format(self.epoch, idx, loss_dict['tot_loss'].item()))
-            #                 for loss_name, value in loss_dict.items():
-            #                     self.tb_writer.add_scalar('Loss/'+loss_name, value.item(), self.epoch+0.01*idx)
-            #                 for key, value in loss_dict.items():
-            #                     if len(running_loss)<len(loss_dict):
-            #                         running_loss[key] = 0.0
-            #                     running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
-            #                 # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
-            #         #------------------------------------------------#
-            # val_loss = self.validation_step()
+                if (idx)%10==0:
+                    with torch.no_grad():
+                        #----------- Logging and Printing ----------#
+                        print("{:<8d} {:<9d} {:<7.4f}".format(self.epoch, idx, loss_dict['tot_loss'].item()))
+                        for loss_name, value in loss_dict.items():
+                            self.tb_writer.add_scalar('Loss/'+loss_name, value.item(), self.epoch+0.01*idx)
+                        for key, value in loss_dict.items():
+                            if len(running_loss)<len(loss_dict):
+                                running_loss[key] = 0.0
+                            running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
+                        # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
+                    #------------------------------------------------#
+            val_loss = self.validation_step()
             
-            # for key in val_loss.keys():
-            #     tb_writer.add_scalars('loss/'+key, {'validation': val_loss[key], 'train': running_loss[key]}, self.epoch)
+            for key in val_loss.keys():
+                self.tb_writer.add_scalars('loss/'+key, {'validation': val_loss[key], 'train': running_loss[key]}, self.epoch)
 
-            # # print("Epoch ---- {} ".format(self.epoch))
-            # print("Epoch      Training   Validation")
-            # print("{} {:>13.4f}    {:0.4f}".format(self.epoch, running_loss['tot_loss'], val_loss['tot_loss']))
+            # print("Epoch ---- {} ".format(self.epoch))
+            print("Epoch      Training   Validation")
+            print("{} {:>13.4f}    {:0.4f}".format(self.epoch, running_loss['tot_loss'], val_loss['tot_loss']))
 
-            ## Decaying learning rate
+            # Decaying learning rate
             self.lr_scheduler.step()
 
             # print("Epoch Complete: ", self.epoch)

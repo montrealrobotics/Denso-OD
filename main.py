@@ -11,7 +11,7 @@ import torchvision
 from torch.utils import tensorboard
 
 from src.config import Cfg as cfg # Configuration file
-from src.tools.trainer import BackpropKF_Solver
+from src.engine.trainer import BackpropKF_Solver
 
 matplotlib.use('agg')
 

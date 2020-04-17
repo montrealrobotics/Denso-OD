@@ -2,7 +2,7 @@
 
 DATASET:
   NAME: "KittiDataset" #option: "detections", "tracking"
-  PATH: "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
+  PATH: "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset/training"
   LENGTH: 7000
   # TRACKS: 
 

@@ -59,7 +59,9 @@ class MultiObjTracker(object):
     def reinit_state(self):
         # Each element of self.tracks is list of all tracked object of that sequence.
         # Each batch index correspond to one sequence.
-        self.tracks = [[] for _ in range(self.batch_size)]
+        for x in self.tracks:
+            x.clear()
+            
         self._next_id = [1 for _ in range(self.batch_size)]
 
     # def forward(self, detections, gt_target, is_training):
@@ -71,8 +73,8 @@ class MultiObjTracker(object):
             self._predict(idx)
             self._update(boxes, variance, idx)
 
-        if sum([len(x) for x in detections])==0:
-            return self.tracks, {}
+        # if sum([len(x) for x in detections])==0:
+        #     return self.tracks, {}
 
         if is_training:
             loss = self.loss(gt_target)
