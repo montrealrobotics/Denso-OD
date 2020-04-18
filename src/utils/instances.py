@@ -102,12 +102,13 @@ class Instances:
         return self._fields
 
     # Converts list fields to tensor
-    def toTensor(self):
+    def tensor(self):
         for k, v in self._fields.items():
             if isinstance(v, list):
                 self._fields[k] = torch.tensor(v)
 
-    def toList(self):
+    #converts field to numpy
+    def numpy(self):
         for k, v in self._fields.items():
             if isinstance(v, torch.Tensor):
                 self._fields[k] = v.cpu().numpy()

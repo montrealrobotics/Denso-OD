@@ -16,7 +16,7 @@ SEED: 5
 USE_CUDA: True
 
 TRAIN:
-  BATCH_SIZE: 10
+  BATCH_SIZE: 6
   EPOCHS: 50
   LR: 1e-3
   LR_DECAY: 0.5
@@ -30,3 +30,6 @@ INPUT:
   IMAGE_SIZE: (375,1242)
   LABELS_TO_TRAIN: ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
   NUM_CLASSES: 7
+
+ROI_HEADS:
+  LOSS_TYPE: "deterministic"

@@ -8,8 +8,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 #Gave coordinates in cam2 frame I guess. Not sure though. 
 def TwoDtoThreeD_cam2(samples, matrix):
     Threedboxes = []
-    CAM_HEIGHT = 1.72
-    # CAM_HEIGHT = 1.65
+    # CAM_HEIGHT = 1.72
+    CAM_HEIGHT = 1.65
     for bottom_xy in samples:
         bottom_xy = np.append(bottom_xy, 1.0).T
         n = np.asarray([0, 1.0, 0])
@@ -22,8 +22,8 @@ def TwoDtoThreeD_cam2(samples, matrix):
 # Coordinates in cam0 frame
 def TwoDtoThreeD_cam0(samples, p_matrix, rect_matrix=0):
     Threedboxes = []
-    CAM_HEIGHT = 1.72
-    # CAM_HEIGHT = 1.65
+    # CAM_HEIGHT = 1.72
+    CAM_HEIGHT = 1.65
     A = np.array([[1,0,0],[0,0,CAM_HEIGHT], [0,1,0], [0,0,1]])
     p_matrix = np.matmul(p_matrix, A)
     for bottom_xy in samples:

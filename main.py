@@ -11,7 +11,7 @@ import torchvision
 from torch.utils import tensorboard
 
 from src.config import Cfg as cfg # Configuration file
-from src.engine.trainer import BackpropKF_Solver
+from src.engine.trainer import BackpropKF_Solver, General_Solver
 
 matplotlib.use('agg')
 
@@ -45,7 +45,8 @@ mode = args.mode
 #---------Training/Testing Cycle-----------#
 epochs = cfg.TRAIN.EPOCHS
 saving_freq = cfg.TRAIN.SAVE_MODEL_EPOCHS
-solver = BackpropKF_Solver(cfg, mode, args)
+# solver = BackpropKF_Solver(cfg, mode, args)
+solver = General_Solver(cfg, mode, args)
 solver.train(epochs, saving_freq)
 
 #-----------------------------------------------#
