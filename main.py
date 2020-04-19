@@ -22,7 +22,7 @@ print("\n--- Setting up Trainer/Tester \n")
 ap = argparse.ArgumentParser()
 ap.add_argument("-name", "--name", required = True, 
                 help="Comments for the experiment")
-ap.add_argument("-config", "--config", required=True,
+ap.add_argument("-config", "--config", required=False, default=None,
                 help="Give your experiment configuration file")
 ap.add_argument("-mode", "--mode",required = True, 
                 choices=['train', 'test'])
@@ -31,8 +31,8 @@ ap.add_argument("-resume", "--resume", default = False)
 ap.add_argument("-epoch", "--epoch")
 args = ap.parse_args()
 
-
-cfg.merge_from_file(args.config)
+if args.config:
+	cfg.merge_from_file(args.config)
 cfg.freeze()
 
 torch.manual_seed(cfg.SEED)
@@ -47,6 +47,9 @@ epochs = cfg.TRAIN.EPOCHS
 saving_freq = cfg.TRAIN.SAVE_MODEL_EPOCHS
 # solver = BackpropKF_Solver(cfg, mode, args)
 solver = General_Solver(cfg, mode, args)
-solver.train(epochs, saving_freq)
+if mode=="train":
+	solver.train(epochs, saving_freq)
+else:
+	solver.test()
 
 #-----------------------------------------------#

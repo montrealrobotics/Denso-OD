@@ -30,21 +30,21 @@ class General_Solver(object):
         print("--- Using the device for training: {} \n".format(self.device))
         self.setup_dirs(cfg, args.name)
 
-        if mode=="train":
-            with open(os.path.join(self.exp_dir,"config.yaml"), 'w') as file:
-                cfg.dump(file, default_flow_style=False)
+        # if mode=="train":
+        #     with open(os.path.join(self.exp_dir,"config.yaml"), 'w') as file:
+        #         cfg.dump(file, default_flow_style=False)
 
         self.model = self.get_model(cfg)
         self.optimizer, self.lr_scheduler = self.build_optimizer(cfg)
+        self.epoch = 0
+        self.is_training = True
 
-        if args.weights or args.resume:
+        if mode=="test" or args.weights or args.resume:
             self.load_checkpoint(cfg, args)
 
         self.train_loader, self.val_loader = self.get_dataloader(cfg, mode)
         
         self.tb_writer = tensorboard.SummaryWriter(os.path.join(self.exp_dir,"tf_summary"))
-        self.is_training = True
-        self.epoch = 0
 
     def get_model(self, cfg):
         print("--- Building the Model \n")
@@ -70,12 +70,18 @@ class General_Solver(object):
 
         elif args.resume:
             print("    :Resuming the training \n")
-            self.epoch = args['epoch'] #With which epoch you want to resume the training.
-            checkpoint = torch.load(model_save_dir + "/epoch_" +  str(epoch).zfill(5) + '.model')
+            self.epoch = args.epoch #With which epoch you want to resume the training.
+            checkpoint = torch.load(model_save_dir + "/epoch_" +  str(self.epoch).zfill(5) + '.model')
             
             self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
+
+        else:
+            print("--- Loading weights for testing")
+            weight_path = os.path.join(self.exp_dir, "models", "epoch_" + str(args.epoch).zfill(5) + '.model')
+            checkpoint = torch.load(weight_path)
+            self.model.load_state_dict(checkpoint['model_state_dict'])
 
     def build_optimizer(self, cfg):
         if cfg.SOLVER.OPTIM.lower() == 'adam':
@@ -134,12 +140,12 @@ class General_Solver(object):
         in_images = batch_sample['image'].to(self.device)
         target = [x.to(self.device) for x in batch_sample['target']]
 
-        rpn_proposals, instances, rpn_losses, detector_losses = self.model(in_images, target, self.is_training)
-        print(len(instances))
+        rpn_proposals, instances, rpn_losses, detection_losses = self.model(in_images, target, self.is_training)
+        # print(len(instances))
         
         loss_dict = {}
         loss_dict.update(rpn_losses)
-        loss_dict.update(detector_losses)
+        loss_dict.update(detection_losses)
         
         loss = 0.0
         for k, v in loss_dict.items():
@@ -147,8 +153,8 @@ class General_Solver(object):
         loss_dict.update({'tot_loss':loss})
 
         self.optimizer.zero_grad()
-        # loss.backward()
-        # self.optimizer.step()
+        loss.backward()
+        self.optimizer.step()
 
         return loss_dict
 
@@ -192,7 +198,7 @@ class General_Solver(object):
 
             for idx, batch_sample in enumerate(self.train_loader):
                 loss_dict = self.train_step(batch_sample)
-
+                
                 if (idx)%10==0:
                     with torch.no_grad():
                         #----------- Logging and Printing ----------#
@@ -228,18 +234,18 @@ class General_Solver(object):
         self.tb_writer.close()
 
     def test(self):
-        is_training= False
+        self.is_training= False
         mAP = DetectionMAP(7)
         with torch.no_grad():
             for idx, batch_sample in enumerate(self.val_loader):
 
-                in_images = batch_sample['image'].to(device)
-                targets = [x.to(device) for x in batch_sample['target']]
+                in_images = batch_sample['image'].to(self.device)
+                targets = [x.to(self.device) for x in batch_sample['target']]
 
                 img_paths = batch_sample['image_path']
 
                 # start = time.time()
-                rpn_proposals, instances, proposal_losses, detector_losses = model(in_images, targets, is_training)
+                rpn_proposals, instances, proposal_losses, detector_losses = self.model(in_images, targets, self.is_training)
                 # print(time.time() - start)
 
                 instances = [x.numpy() for x in instances]

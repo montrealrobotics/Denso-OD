@@ -283,8 +283,7 @@ class Detector(ROIHeads):
 
 
         if is_training:
-            # losses = outputs.losses()
-            losses = {}
+            losses = outputs.losses()
             pred_instances, _ = outputs.inference(
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
             )

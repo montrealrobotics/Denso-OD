@@ -398,13 +398,12 @@ class FastRCNNOutputs(object):
             A dict of losses (scalar tensors) containing keys "loss_cls" and "loss_box_reg".
         """
 
-        regress_loss_dir = {"deterministic": self.smooth_l1_loss(), 
-                            "loss_attenuation": self.loss_attenuation() , 
-                            "loss_attenuation_with_calibration": self.loss_calibration()}
-
+        regress_loss_dir = {"deterministic": self.smooth_l1_loss, 
+                            "loss_attenuation": self.loss_attenuation , 
+                            "loss_attenuation_with_calibration": self.loss_calibration}
         return {
             "loss_cls": self.softmax_cross_entropy_loss(),
-            "loss_box_reg": regress_loss_dir[self.loss_type],
+            "loss_box_reg": regress_loss_dir[self.loss_type](),
         }
 
     def predict_boxes(self):
