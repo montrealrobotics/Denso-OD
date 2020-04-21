@@ -45,8 +45,8 @@ mode = args.mode
 #---------Training/Testing Cycle-----------#
 epochs = cfg.TRAIN.EPOCHS
 saving_freq = cfg.TRAIN.SAVE_MODEL_EPOCHS
-# solver = BackpropKF_Solver(cfg, mode, args)
-solver = General_Solver(cfg, mode, args)
+solver = BackpropKF_Solver(cfg, mode, args)
+# solver = General_Solver(cfg, mode, args)
 if mode=="train":
 	solver.train(epochs, saving_freq)
 else:

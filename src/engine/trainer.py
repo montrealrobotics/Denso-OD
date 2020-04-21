@@ -28,15 +28,20 @@ class General_Solver(object):
 
         self.device = torch.device("cuda") if (torch.cuda.is_available() and cfg.USE_CUDA) else torch.device("cpu")
         print("--- Using the device for training: {} \n".format(self.device))
+        
         self.setup_dirs(cfg, args.name)
 
-        # if mode=="train":
-        #     with open(os.path.join(self.exp_dir,"config.yaml"), 'w') as file:
-        #         cfg.dump(file, default_flow_style=False)
+        if mode=="train":
+            file = open(os.path.join(self.exp_dir,"config.yaml"), 'w')
+            cfg.dump(stream=file, default_flow_style=False)
 
         self.model = self.get_model(cfg)
         self.optimizer, self.lr_scheduler = self.build_optimizer(cfg)
+        
+        #From where to start the training
         self.epoch = 0
+
+        #Very important parameter for internal model calculations. 
         self.is_training = True
 
         if mode=="test" or args.weights or args.resume:
@@ -67,6 +72,9 @@ class General_Solver(object):
             print("--- Using pretrainted weights from: {}".format(args.weights))
             checkpoint = torch.load(args.weights)
             self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            # print("Optimizer State: ", self.optimizer.state_dict())
+            # print("Loaded cfg: ", checkpoint['cfg'])
 
         elif args.resume:
             print("    :Resuming the training \n")
@@ -139,9 +147,12 @@ class General_Solver(object):
     def train_step(self, batch_sample):
         in_images = batch_sample['image'].to(self.device)
         target = [x.to(self.device) for x in batch_sample['target']]
+        img_paths = batch_sample['image_path']
 
         rpn_proposals, instances, rpn_losses, detection_losses = self.model(in_images, target, self.is_training)
-        # print(len(instances))
+        print("Images:", img_paths)
+        print("Target:", [len(x) for x in target])
+        print("Output:", [len(x) for x in instances])
         
         loss_dict = {}
         loss_dict.update(rpn_losses)
@@ -165,7 +176,9 @@ class General_Solver(object):
             for idx, batch_sample in enumerate(self.val_loader):
                 in_images = batch_sample['image'].to(self.device)
                 target = [x.to(self.device) for x in batch_sample['target']]
+
                 rpn_proposals, instances, rpn_losses, detector_losses = self.model(in_images, target, self.is_training)
+                
                 loss_dict = {}
                 loss_dict.update(rpn_losses)
                 loss_dict.update(detector_losses)
@@ -189,7 +202,8 @@ class General_Solver(object):
         return val_loss
     
     def train(self, epochs, saving_freq):
-        assert self.model.train
+        assert self.model.training
+        # self.model.eval()
         self.is_training = True
         while self.epoch <= epochs:
 
@@ -197,21 +211,24 @@ class General_Solver(object):
             print("Epoch | Iteration | Loss ")
 
             for idx, batch_sample in enumerate(self.train_loader):
+                # print("Iteration:", idx)
                 loss_dict = self.train_step(batch_sample)
                 
-                if (idx)%10==0:
-                    with torch.no_grad():
-                        #----------- Logging and Printing ----------#
-                        print("{:<8d} {:<9d} {:<7.4f}".format(self.epoch, idx, loss_dict['tot_loss'].item()))
-                        for loss_name, value in loss_dict.items():
-                            self.tb_writer.add_scalar('Loss/'+loss_name, value.item(), self.epoch+0.01*idx)
+                if idx%10==0:
+                    # with torch.no_grad():
+                    #----------- Logging and Printing ----------#
+                    print("{:<8d} {:<9d} {:<7.4f}".format(self.epoch, idx, loss_dict['tot_loss'].item()))
+               
+                for loss_name, value in loss_dict.items():
+                    self.tb_writer.add_scalar('Loss/'+loss_name, value.item())
 
-                        for key, value in loss_dict.items():
-                            if len(running_loss)<len(loss_dict):
-                                running_loss[key] = 0.0
-                            running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
-                        # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
-                    #------------------------------------------------#
+                for key, value in loss_dict.items():
+                    if idx==0:
+                        running_loss[key] = 0.0
+                    running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
+                # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
+                #------------------------------------------------#
+           
             val_loss = self.validation_step()
             
             for key in val_loss.keys():
@@ -234,6 +251,7 @@ class General_Solver(object):
         self.tb_writer.close()
 
     def test(self):
+        self.model.eval()
         self.is_training= False
         mAP = DetectionMAP(7)
         with torch.no_grad():
@@ -241,8 +259,8 @@ class General_Solver(object):
 
                 in_images = batch_sample['image'].to(self.device)
                 targets = [x.to(self.device) for x in batch_sample['target']]
-
                 img_paths = batch_sample['image_path']
+
 
                 # start = time.time()
                 rpn_proposals, instances, proposal_losses, detector_losses = self.model(in_images, targets, self.is_training)
@@ -279,13 +297,13 @@ class BackpropKF_Solver(General_Solver):
         batch_size = cfg.TRAIN.BATCH_SIZE
 
         print("--- Loading Training Dataset \n ")
-        # tracks = [str(i).zfill(4) for i in range(11)]
-        tracks = ["0001"]
+        tracks = [str(i).zfill(4) for i in range(11)]
+        # tracks = ["0001"]
         train_dataset = dataset(dataset_path, tracks,transform = transform, cfg = cfg) #---- Dataloader
         
         print("--- Loading Validation Dataset \n ")
-        # tracks = [str(i).zfill(4) for i in range(11,14)]
-        tracks = ["0002"]
+        tracks = [str(i).zfill(4) for i in range(11,14)]
+        # tracks = ["0002"]
         val_dataset = dataset(dataset_path, tracks,transform=transform, cfg=cfg)
 
         print("--- Data Loaded---")
@@ -308,18 +326,23 @@ class BackpropKF_Solver(General_Solver):
 
     def train_step(self, batch_sample):
         self.model.tracker.reinit_state()
+        
         for i, seq in enumerate(batch_sample):
-            print("seq: ", i)
-            print("Tracks Before update: ", self.model.tracker.tracks)
+            # print("seq: ", i)
+            # print("Tracks Before update: ", self.model.tracker.tracks)
             in_images = seq['image'].to(self.device)
             target = [x.to(self.device) for x in seq['target']]
-            print("Target: ", [len(x) for x in target], [x.img_path for x in target])
-            rpn_proposals, instances, tracks, _, _, track_loss = self.model(in_images, target, self.is_training)
-            # print("Tracks : ", self.model.tracker.tracks)
-            print(track_loss)
+           
+            # print("Target: ", [len(x) for x in target], [x.img_path for x in target])
+            rpn_proposals, instances, tracks, rpn_losses, detection_losses, track_loss = self.model(in_images, target, self.is_training)
+            # print("Tracks : ", [len(x) for x in self.model.tracker.tracks])
+            # print(track_loss)
+            # print(instances)
         
         loss_dict = {}
         loss_dict.update(track_loss)
+        # loss_dict.update(rpn_losses)
+        # loss_dict.update(detection_losses)
         
         loss = 0.0
         for k, v in loss_dict.items():
@@ -353,19 +376,20 @@ class BackpropKF_Solver(General_Solver):
                 loss_dict.update({'tot_loss':loss})
 
                 for key, value in loss_dict.items():
-                    if len(val_loss)<len(loss_dict):
+                    if idx==0:
                         val_loss[key] = [loss_dict[key].item()]
                     val_loss[key].append(loss_dict[key].item())
 
                 # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Validation")
-
-            for key, value in  val_loss.items():
+            print(val_loss)
+            for key, value in val_loss.items():
                 val_loss[key] = np.mean(val_loss[key])
 
         self.model.train()
         return val_loss
 
-
+    def test():
+        pass
 
 
         

@@ -8,6 +8,7 @@ DATASET:
 
 ARCHITECTURE:
   MODEL: "FasterRCNN_KF"
+  # MODEL: "FasterRCNN"
 
 LOGS:
   BASE_PATH: "/network/home/bansaldi/Denso-OD/logs"
@@ -17,8 +18,8 @@ USE_CUDA: True
 
 TRAIN:
   SEQUENCE_LENGTH: 3
-  BATCH_SIZE: 3
-  EPOCHS: 50
+  BATCH_SIZE: 4
+  EPOCHS: 30
   LR: 1e-3
   LR_DECAY: 0.5
   MOMENTUM: 0.9

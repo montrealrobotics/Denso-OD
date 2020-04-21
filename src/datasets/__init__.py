@@ -5,5 +5,4 @@ def build_dataset(data_name):
 	all_datasets = {"KittiDataset": KittiDataset,
 					"KittiMOTDataset":KittiMOTDataset,
 					"KittiMOTDataset_KF": KittiMOTDataset_KF}
-	print(data_name)
 	return all_datasets[data_name]

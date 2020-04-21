@@ -114,13 +114,20 @@ class KittiMOTDataset_KF(Dataset):
         # self.data_keys = list(self.data_ dict.keys())
     
     def sample_data(self, tracks_data, seq_len):
-        sample_data = []
+        sequenced_data = []
         # print(tracks_data)
         for track in tracks_data:
             sampled_points = np.array([np.arange(x,x+seq_len) for x in range(0,len(track)-2, 2*seq_len)])
             track = np.array(track)
-            sample_data.append(np.array(track)[sampled_points])
-        return np.concatenate(sample_data)
+            sequenced_data.append(track[sampled_points])
+
+        # Contenate sequences from all tracks
+        sequenced_data = np.concatenate(sequenced_data)
+
+        #Remove any sequence with no boxes
+        idx = [True if np.all([len(x) for x in seq]) else False for seq in sequenced_data]
+
+        return sequenced_data[idx]
 
     def _makedata(self, root_dir, tracks=["0001"]):
         data_list = []
@@ -146,8 +153,8 @@ class KittiMOTDataset_KF(Dataset):
                                 track_list.append(int(obj[1]))
                         else:
                             data_point = Instances(img_size[::-1], gt_boxes=Boxes(torch.tensor(box_list)), 
-                                gt_classes=torch.tensor(class_list), gt_trackid = torch.tensor(track_list), 
-                                img_path=name)
+                                        gt_classes=torch.tensor(class_list), gt_trackid = torch.tensor(track_list), 
+                                        img_path=name)
                             data.append(data_point)
                             object_rows = object_rows[j:]
                             break

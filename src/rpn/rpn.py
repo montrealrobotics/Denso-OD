@@ -66,7 +66,7 @@ class RPN(nn.Module):
         self.min_box_side_len        = cfg.RPN.MIN_SIZE_PROPOSAL
         self.nms_thresh              = cfg.RPN.NMS_THRESH
         self.loss_weight             = cfg.RPN.LOSS_WEIGHT
-        self.num_anchors             = cfg.RPN.N_ANCHORS_PER_LOCATION
+        self.num_anchors             = cfg.ANCHORS.N_ANCHORS_PER_LOCATION
         # fmt: on
 
         # Map from is_training state to train/test settings
@@ -82,8 +82,8 @@ class RPN(nn.Module):
 
         self.box2box_transform = Box2BoxTransform(weights=cfg.RPN.BBOX_REG_WEIGHTS)
         self.anchor_matcher = Matcher(cfg.RPN.IOU_THRESHOLDS, cfg.RPN.IOU_LABELS, allow_low_quality_matches=True)
-        self.rpn_head = RPNHead(cfg, in_channels, self.num_anchors)
         self.anchors_generator = AnchorGenerator(cfg)
+        self.rpn_head = RPNHead(cfg, in_channels, self.num_anchors)
 
     def forward(self, features, gt_target=None, image_sizes=None, is_training=True):
         """

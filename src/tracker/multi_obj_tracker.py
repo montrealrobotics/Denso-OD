@@ -53,9 +53,10 @@ class MultiObjTracker(object):
         self.batch_size = cfg.TRAIN.BATCH_SIZE
         # Each element of self.tracks is list of all tracked object of that sequence.
         # Each batch index correspond to one sequence.
+        
         self.tracks = [[] for _ in range(self.batch_size) ]
         self._next_id = [1 for _ in range(self.batch_size)]
-
+    
     def reinit_state(self):
         # Each element of self.tracks is list of all tracked object of that sequence.
         # Each batch index correspond to one sequence.

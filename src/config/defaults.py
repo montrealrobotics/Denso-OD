@@ -8,9 +8,10 @@ conf_params = CN()
 
 conf_params.SEED = 5
 conf_params.USE_CUDA = True
+
 conf_params.DATASET = CN()
 conf_params.DATASET.NAME = "detection" #option: "detections", "tracking"
-conf_params.DATASET.PATH = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset"
+conf_params.DATASET.PATH = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset/training"
 conf_params.DATASET.LENGTH = 7000
  
 conf_params.LOGS = CN()
@@ -18,6 +19,7 @@ conf_params.LOGS.BASE_PATH = "/network/home/bansaldi/Denso-OD/logs"
 
 conf_params.TRAIN = CN()
 conf_params.TRAIN.SEQUENCE_LENGTH = 3
+conf_params.TRAIN.EVERY_FRAME = 1
 conf_params.TRAIN.BATCH_SIZE = 10
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.LR = 1e-3
@@ -78,6 +80,7 @@ For Anchor Generator
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = [0.5,1,2]
 conf_params.ANCHORS.ANCHOR_SCALES = [64, 128, 256]
+conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 conf_params.ANCHORS.POS_PROPOSAL_THRES = 0.7
 conf_params.ANCHORS.NEG_PROPOSAL_THRES = 0.3
 
@@ -86,7 +89,6 @@ conf_params.ANCHORS.NEG_PROPOSAL_THRES = 0.3
 For Region Proposal Network
 """
 conf_params.RPN = CN()
-conf_params.RPN.N_ANCHORS_PER_LOCATION = 9
 conf_params.RPN.CONV_MEAN = 0.01
 conf_params.RPN.CONV_VAR = 0.02
 conf_params.RPN.BIAS = 0.01
@@ -116,19 +118,19 @@ For ROI and Detection
 conf_params.ROI_HEADS = CN()
 conf_params.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
 conf_params.ROI_HEADS.POSITIVE_FRACTION = 0.25
-conf_params.ROI_HEADS.SCORE_THRESH_TEST = 0.6
+conf_params.ROI_HEADS.SCORE_THRESH_TEST = 0.3
 conf_params.ROI_HEADS.NMS_THRESH_TEST = 0.5	
 conf_params.ROI_HEADS.PROPOSAL_APPEND_GT = True
 conf_params.ROI_HEADS.IOU_THRESHOLDS = [0.5]
 conf_params.ROI_HEADS.IOU_LABELS = [0, 1]
 # conf_params.ROI_HEADS.POOLER_TYPE = "ROIPool"
 conf_params.ROI_HEADS.POOLER_TYPE = "ROIAlign"
-conf_params.ROI_HEADS.LOSS_TYPE = "deterministic" # Options: "deterministic, loss_attenuation, loss_attenuation_with_calibration"
-conf_params.ROI_HEADS.FC_DIM = 1024
-conf_params.ROI_HEADS.CLS_AGNOSTIC_BBOX_REG = True
-conf_params.ROI_HEADS.SMOOTH_L1_BETA = 0.0
 conf_params.ROI_HEADS.POOLER_RESOLUTION = 14 # After this there is MaxPool2D, so final resolution is 7x7
 conf_params.ROI_HEADS.POOLER_SAMPLING_RATIO = 0
+conf_params.ROI_HEADS.FC_DIM = 1024
+conf_params.ROI_HEADS.CLS_AGNOSTIC_BBOX_REG = True
+conf_params.ROI_HEADS.LOSS_TYPE = "deterministic" # Options: "deterministic, loss_attenuation, loss_attenuation_with_calibration"
+conf_params.ROI_HEADS.SMOOTH_L1_BETA = 0.0
 conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 10.0, 10.0)
 # conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
 conf_params.ROI_HEADS.DETECTIONS_PER_IMAGE = 50
@@ -146,7 +148,7 @@ Solver
 """
 
 conf_params.SOLVER = CN() #options: "adam", "sgd"
-conf_params.SOLVER.OPTIM = "adam" #options: "adam", "sgd"
+conf_params.SOLVER.OPTIM = "sgd" #options: "adam", "sgd"
 
 
 
