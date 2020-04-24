@@ -58,6 +58,7 @@ class Visualizer(object):
                 sigma = np.sqrt(instance.pred_variance)
                 drawer.ellipse([box[0]-2*sigma[0], box[1]-2*sigma[1], box[0]+2*sigma[0], box[1]+2*sigma[1]], outline='blue', width=3)
                 drawer.ellipse([box[2]-2*sigma[2], box[3]-2*sigma[3], box[2]+2*sigma[2], box[3]+2*sigma[3]], outline='blue', width=3)
+        
         ax = self.output.add_subplot(self.grid_spec[0,0])
         ax.imshow(img)
 
@@ -85,7 +86,7 @@ class Visualizer(object):
             drawer.rectangle(box, outline ='red' ,width=3)
 
     def draw_projection(self):
-        xy_coords, variance = ground_project(self.instances, self.path)
+        xy_coords, variance = ground_project(self.instances, "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset/training/calib/"+self.path[-10:-3]+"txt")
         ax = self.output.add_subplot(self.grid_spec[0,1])
 
         for xy, xy_var in zip(xy_coords, variance):

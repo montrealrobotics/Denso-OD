@@ -115,6 +115,8 @@ class Instances:
             if isinstance(v, Boxes):
                 self._fields[k] = v.tensor.cpu().numpy()
 
+        return self
+
 
     # Tensor-like methods
     def to(self, device: str) -> "Instances":

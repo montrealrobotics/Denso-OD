@@ -268,7 +268,6 @@ class KittiDataset(Dataset):
 				if len(bbox_list)!=0:
 					# print(name[-10:], " : Yes got an Object")
 					data_point = Instances(img_size[::-1], gt_boxes=Boxes(torch.tensor(bbox_list)), gt_classes=torch.tensor(class_list))
-					# data_point = Instances(img_size[::-1], gt_boxes=bbox_list, gt_classes=class_list)
 					data[name] = data_point
 					i+=1 
 		return data	

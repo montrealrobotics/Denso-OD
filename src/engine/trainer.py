@@ -9,6 +9,7 @@ import torch
 from torch import optim
 from torch.utils import tensorboard
 from torchvision import transforms as T
+from torchviz import make_dot
 
 from ..architecture import build_model
 from ..datasets import build_dataset
@@ -74,7 +75,6 @@ class General_Solver(object):
             self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             # print("Optimizer State: ", self.optimizer.state_dict())
-            # print("Loaded cfg: ", checkpoint['cfg'])
 
         elif args.resume:
             print("    :Resuming the training \n")
@@ -89,7 +89,8 @@ class General_Solver(object):
             print("--- Loading weights for testing")
             weight_path = os.path.join(self.exp_dir, "models", "epoch_" + str(args.epoch).zfill(5) + '.model')
             checkpoint = torch.load(weight_path)
-            self.model.load_state_dict(checkpoint['model_state_dict'])
+            self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+            print("Loaded cfg: ", checkpoint['cfg'])
 
     def build_optimizer(self, cfg):
         if cfg.SOLVER.OPTIM.lower() == 'adam':
@@ -150,9 +151,9 @@ class General_Solver(object):
         img_paths = batch_sample['image_path']
 
         rpn_proposals, instances, rpn_losses, detection_losses = self.model(in_images, target, self.is_training)
-        print("Images:", img_paths)
-        print("Target:", [len(x) for x in target])
-        print("Output:", [len(x) for x in instances])
+        # print("Images:", img_paths)
+        # print("Target:", [len(x) for x in target])
+        # print("Output:", [len(x) for x in instances])
         
         loss_dict = {}
         loss_dict.update(rpn_losses)
@@ -203,10 +204,8 @@ class General_Solver(object):
     
     def train(self, epochs, saving_freq):
         assert self.model.training
-        # self.model.eval()
         self.is_training = True
         while self.epoch <= epochs:
-
             running_loss = {}
             print("Epoch | Iteration | Loss ")
 
@@ -254,9 +253,10 @@ class General_Solver(object):
         self.model.eval()
         self.is_training= False
         mAP = DetectionMAP(7)
+        var_error = []
         with torch.no_grad():
             for idx, batch_sample in enumerate(self.val_loader):
-
+                print(idx)
                 in_images = batch_sample['image'].to(self.device)
                 targets = [x.to(self.device) for x in batch_sample['target']]
                 img_paths = batch_sample['image_path']
@@ -265,20 +265,25 @@ class General_Solver(object):
                 # start = time.time()
                 rpn_proposals, instances, proposal_losses, detector_losses = self.model(in_images, targets, self.is_training)
                 # print(time.time() - start)
+                # print(instances)
 
                 instances = [x.numpy() for x in instances]
                 rpn_proposals = [x.numpy() for x in rpn_proposals]
-                
-                utils.disk_logger(in_images, os.path.join(self.exp_dir,"results"), instances, rpn_proposals, img_paths)
+                targets = [x.numpy() for x in targets]
+                # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results"), instances, rpn_proposals, img_paths)
 
                 for instance, target in zip(instances, targets):
                     pred_bb1 = instance.pred_boxes
                     pred_cls1 = instance.pred_classes 
                     pred_conf1 = instance.scores
-                    gt_bb1 = target.gt_boxes.tensor.cpu().numpy()
-                    gt_cls1 = target.gt_classes.cpu().numpy()
+                    gt_bb1 = target.gt_boxes
+                    gt_cls1 = target.gt_classes
                     mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
 
+                    # print(instance.pred_boxes, target.gt_boxes)
+                    # var_error.append(instance.pred_variance**2-(instance.pred_boxes - target.gt_boxes)**2)
+
+        # print("Variance metric: ", np.array(var_error).mean(axis=0))
         mAP.plot()
         plt.show()
 
@@ -297,13 +302,13 @@ class BackpropKF_Solver(General_Solver):
         batch_size = cfg.TRAIN.BATCH_SIZE
 
         print("--- Loading Training Dataset \n ")
-        tracks = [str(i).zfill(4) for i in range(11)]
-        # tracks = ["0001"]
+        # tracks = [str(i).zfill(4) for i in range(11)]
+        tracks = ["0001"]
         train_dataset = dataset(dataset_path, tracks,transform = transform, cfg = cfg) #---- Dataloader
         
         print("--- Loading Validation Dataset \n ")
-        tracks = [str(i).zfill(4) for i in range(11,14)]
-        # tracks = ["0002"]
+        # tracks = [str(i).zfill(4) for i in range(11,14)]
+        tracks = ["0002"]
         val_dataset = dataset(dataset_path, tracks,transform=transform, cfg=cfg)
 
         print("--- Data Loaded---")
@@ -325,24 +330,27 @@ class BackpropKF_Solver(General_Solver):
         return train_loader, val_loader
 
     def train_step(self, batch_sample):
-        self.model.tracker.reinit_state()
         
+
+        self.model.tracker.reinit_state()
         for i, seq in enumerate(batch_sample):
             # print("seq: ", i)
             # print("Tracks Before update: ", self.model.tracker.tracks)
             in_images = seq['image'].to(self.device)
             target = [x.to(self.device) for x in seq['target']]
-           
-            # print("Target: ", [len(x) for x in target], [x.img_path for x in target])
+            img_paths = [x.img_path for x in seq['target']]  
+
+            print("Target: ", [len(x) for x in target])
             rpn_proposals, instances, tracks, rpn_losses, detection_losses, track_loss = self.model(in_images, target, self.is_training)
             # print("Tracks : ", [len(x) for x in self.model.tracker.tracks])
             # print(track_loss)
             # print(instances)
         
+        make_dot(track_loss['track_loss'], dict(self.model.named_parameters())).render("attached", format="png")
         loss_dict = {}
+        loss_dict.update(detection_losses)
         loss_dict.update(track_loss)
         # loss_dict.update(rpn_losses)
-        # loss_dict.update(detection_losses)
         
         loss = 0.0
         for k, v in loss_dict.items():
@@ -354,6 +362,12 @@ class BackpropKF_Solver(General_Solver):
         loss.backward()
         self.optimizer.step()
 
+        with torch.no_grad():
+            instances = [x.numpy() for x in instances]
+            rpn_proposals = [x.numpy() for x in rpn_proposals]
+                    
+            utils.disk_logger(in_images, os.path.join(self.exp_dir,"results"), instances, rpn_proposals, img_paths)
+        
         return loss_dict
 
     def validation_step(self):

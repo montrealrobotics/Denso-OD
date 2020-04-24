@@ -58,7 +58,7 @@ def disk_logger(images, direc, instances=None, rpn_proposals=None, image_paths=N
         print("{} written to disk".format(path[-10:]))
         output_images.append(img_visualizer.get_image())
 
-        return output_images
+    return output_images
 
 def single_disk_logger(img, instances=None, rpn_proposals=None, image_path=None):
     img = img.cpu()

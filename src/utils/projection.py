@@ -36,8 +36,7 @@ def TwoDtoThreeD_cam0(samples, p_matrix, rect_matrix=0):
 
 
 def read_matrix(path):
-    file_path = "/home/dishank/denso-ws/src/denso/datasets/kitti_tracking/training/calib/0001.txt"
-    file = open(file_path)
+    file = open(path)
     lines = file.read().splitlines()
     p_matrix = lines[2].split(':', 1)[1].strip()
     p_matrix = np.array(p_matrix.split(' '), dtype='float').reshape((3,4))
