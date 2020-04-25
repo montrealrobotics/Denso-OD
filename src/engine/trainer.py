@@ -13,7 +13,7 @@ from torchviz import make_dot
 
 from ..architecture import build_model
 from ..datasets import build_dataset
-from ..eval.detection_map import DetectionMAP
+from ..eval.evaluator import Evaluator
 from ..tracker import MultiObjTracker
 from ..utils import Instances, Boxes, utils
 
@@ -90,7 +90,6 @@ class General_Solver(object):
             weight_path = os.path.join(self.exp_dir, "models", "epoch_" + str(args.epoch).zfill(5) + '.model')
             checkpoint = torch.load(weight_path)
             self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-            print("Loaded cfg: ", checkpoint['cfg'])
 
     def build_optimizer(self, cfg):
         if cfg.SOLVER.OPTIM.lower() == 'adam':
@@ -252,40 +251,25 @@ class General_Solver(object):
     def test(self):
         self.model.eval()
         self.is_training= False
-        mAP = DetectionMAP(7)
-        var_error = []
+        evaluator = Evaluator(7)
         with torch.no_grad():
             for idx, batch_sample in enumerate(self.val_loader):
-                print(idx)
                 in_images = batch_sample['image'].to(self.device)
                 targets = [x.to(self.device) for x in batch_sample['target']]
                 img_paths = batch_sample['image_path']
-
 
                 # start = time.time()
                 rpn_proposals, instances, proposal_losses, detector_losses = self.model(in_images, targets, self.is_training)
                 # print(time.time() - start)
                 # print(instances)
 
-                instances = [x.numpy() for x in instances]
-                rpn_proposals = [x.numpy() for x in rpn_proposals]
-                targets = [x.numpy() for x in targets]
                 # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results"), instances, rpn_proposals, img_paths)
 
-                for instance, target in zip(instances, targets):
-                    pred_bb1 = instance.pred_boxes
-                    pred_cls1 = instance.pred_classes 
-                    pred_conf1 = instance.scores
-                    gt_bb1 = target.gt_boxes
-                    gt_cls1 = target.gt_classes
-                    mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
-
-                    # print(instance.pred_boxes, target.gt_boxes)
-                    # var_error.append(instance.pred_variance**2-(instance.pred_boxes - target.gt_boxes)**2)
-
-        # print("Variance metric: ", np.array(var_error).mean(axis=0))
-        mAP.plot()
+                evaluator.evaluate(in_images, instances, targets)
+                    
+        evaluator.print()
         plt.show()
+
 
 class BackpropKF_Solver(General_Solver):
     """docstring for BackpropKF_Solver"""
