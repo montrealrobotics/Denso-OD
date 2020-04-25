@@ -308,7 +308,7 @@ class BackpropKF_Solver(General_Solver):
         
         print("--- Loading Validation Dataset \n ")
         # tracks = [str(i).zfill(4) for i in range(11,14)]
-        tracks = ["0002"]
+        tracks = ["0001"]
         val_dataset = dataset(dataset_path, tracks,transform=transform, cfg=cfg)
 
         print("--- Data Loaded---")
@@ -330,8 +330,6 @@ class BackpropKF_Solver(General_Solver):
         return train_loader, val_loader
 
     def train_step(self, batch_sample):
-        
-
         self.model.tracker.reinit_state()
         for i, seq in enumerate(batch_sample):
             # print("seq: ", i)
@@ -346,7 +344,8 @@ class BackpropKF_Solver(General_Solver):
             # print(track_loss)
             # print(instances)
         
-        make_dot(track_loss['track_loss'], dict(self.model.named_parameters())).render("attached", format="png")
+        # make_dot(track_loss['track_loss'], dict(self.model.named_parameters())).render("attached", format="png")
+
         loss_dict = {}
         loss_dict.update(detection_losses)
         loss_dict.update(track_loss)
@@ -366,7 +365,7 @@ class BackpropKF_Solver(General_Solver):
             instances = [x.numpy() for x in instances]
             rpn_proposals = [x.numpy() for x in rpn_proposals]
                     
-            utils.disk_logger(in_images, os.path.join(self.exp_dir,"results"), instances, rpn_proposals, img_paths)
+            # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results"), instances, rpn_proposals, img_paths)
         
         return loss_dict
 
@@ -402,8 +401,48 @@ class BackpropKF_Solver(General_Solver):
         self.model.train()
         return val_loss
 
-    def test():
-        pass
+    def test(self):
+        self.model.eval()
+        self.is_training= False
+        mAP = DetectionMAP(7)
+        var_error = []
+        with torch.no_grad():
+            for idx, batch_sample in enumerate(self.val_loader):
+                for seq in batch_sample:
+                    in_images = seq['image'].to(self.device)
+                    targets = [x.to(self.device) for x in seq['target']]
+                    img_paths = seq['image_path']
+
+                    # start = time.time()
+                    rpn_proposals, instances, tracks, rpn_losses, detection_losses, track_loss = self.model(in_images, targets, self.is_training)
+                    # print(time.time() - start)
+                    # print(instances)
+                    tracks = [Instances(image_size=(375,1242), pred_boxes=Boxes(torch.stack([y.mean[:4] for y in x])), 
+                        pred_variance=torch.stack([y.get_diag_var()[:4] for y in x])) for x in tracks]
+
+                    instances = [x.numpy() for x in instances]
+                    rpn_proposals = [x.numpy() for x in rpn_proposals]
+                    tracks = [x.numpy() for x in tracks]
+
+                    targets = [x.numpy() for x in targets]
+
+                    utils.disk_logger(in_images, os.path.join(self.exp_dir,"results/normal"), instances, rpn_proposals, img_paths)
+                    utils.disk_logger(in_images, os.path.join(self.exp_dir,"results/tracks"), tracks, rpn_proposals, img_paths)
+
+                for instance, target in zip(instances, targets):
+                    pred_bb1 = instance.pred_boxes
+                    pred_cls1 = instance.pred_classes 
+                    pred_conf1 = instance.scores
+                    gt_bb1 = target.gt_boxes
+                    gt_cls1 = target.gt_classes
+                    mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
+
+                    # print(instance.pred_boxes, target.gt_boxes)
+                    # var_error.append(instance.pred_variance**2-(instance.pred_boxes - target.gt_boxes)**2)
+
+        # print("Variance metric: ", np.array(var_error).mean(axis=0))
+        mAP.plot()
+        plt.show()
 
 
         

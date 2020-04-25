@@ -103,21 +103,20 @@ class KittiMOTDataset_KF(Dataset):
         self.cfg = cfg
         self.transform = transform
         self.seq_len = cfg.TRAIN.SEQUENCE_LENGTH
-
+        step = cfg.TRAIN.STEP_BETWEEN_FRAME
         ## has all the annotations
         '''
         It's a dictionary, with keys() as absolute image_paths.
         Each key leads to a list of annotations, corresponding to that particular image
         '''
         self.data_list = self._makedata(root_dir, tracks)
-        self.data_list = self.sample_data(self.data_list, self.seq_len)
+        self.data_list = self.sample_data(self.data_list, self.seq_len, step)
         # self.data_keys = list(self.data_ dict.keys())
     
-    def sample_data(self, tracks_data, seq_len):
+    def sample_data(self, tracks_data, seq_len, step):
         sequenced_data = []
-        # print(tracks_data)
         for track in tracks_data:
-            sampled_points = np.array([np.arange(x,x+seq_len) for x in range(0,len(track)-2, 2*seq_len)])
+            sampled_points = np.array([np.arange(x,x+seq_len) for x in range(0,len(track)-2, step)])
             track = np.array(track)
             sequenced_data.append(track[sampled_points])
 
