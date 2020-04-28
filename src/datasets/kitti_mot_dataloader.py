@@ -111,14 +111,16 @@ class KittiMOTDataset_KF(Dataset):
         '''
         self.data_list = self._makedata(root_dir, tracks)
         self.data_list = self.sample_data(self.data_list, self.seq_len, step)
-        # self.data_keys = list(self.data_ dict.keys())
+        self.data_list = dict([(str(idx),item) for idx, item in enumerate(self.data_list)])
+        # self.data_keys = list(self.data_dict.keys())
     
     def sample_data(self, tracks_data, seq_len, step):
         sequenced_data = []
         for track in tracks_data:
             sampled_points = np.array([np.arange(x,x+seq_len) for x in range(0,len(track)-2, step)])
             track = np.array(track)
-            sequenced_data.append(track[sampled_points])
+            sampled_tracks = track[sampled_points]
+            sequenced_data.append(sampled_tracks)
 
         # Contenate sequences from all tracks
         sequenced_data = np.concatenate(sequenced_data)
@@ -167,7 +169,7 @@ class KittiMOTDataset_KF(Dataset):
             idx = idx.tolist()
 
         sample= {}
-        data_point = self.data_list[idx]
+        data_point = self.data_list[str(idx)]
         sample["image_path"] = np.array([x.image_path for x in data_point])
         sample["target"] = data_point
         ## loading the image

@@ -88,8 +88,14 @@ class MultiObjTracker(object):
     def tracks_to_instance(self, targets):
         batch_tracks =[]
         for tracks, target in zip(self.tracks, targets):
-            track_boxes = Boxes(torch.stack([x.box for x in tracks], dim=0))
-            track_var = torch.stack([x.box_var for x in tracks], dim=0)
+
+            #When there is not tracks.
+            if len(tracks)!=0:
+                track_boxes = Boxes(torch.stack([x.box for x in tracks], dim=0))
+                track_var = torch.stack([x.box_var for x in tracks], dim=0)
+            else:
+                track_boxes = Boxes(torch.Tensor())
+                track_var = torch.Tensor()    
 
             tracks = Instances(image_size=target.image_size, image_path=target.image_path, 
                             pred_boxes=track_boxes, pred_variance=track_var)
@@ -110,22 +116,27 @@ class MultiObjTracker(object):
 
         for track, target in zip(tracks, gt_targets):
 
+            # When in cases there is not tracks to calculate the loss
+            # we can add the target to the tracks, where loss will be
+            # zero and no gradient will flow and we wont get any error.
             if len(track)==0:
-                continue
+                track = Instances(image_size=target.image_size, image_path=target.image_path,
+                        pred_boxes = target.gt_boxes, pred_variance=torch.ones(len(target), 4, device=torch.device("cuda")))
 
-            match_quality_matrix = pairwise_iou(
-                                target.gt_boxes, track.pred_boxes)
+            else:
+                match_quality_matrix = pairwise_iou(
+                                    target.gt_boxes, track.pred_boxes)
 
-            matched_idxs, matched_labels = self.tracks_matcher(match_quality_matrix)
-            fg_inds = torch.nonzero(matched_labels==1).squeeze(1)
+                matched_idxs, matched_labels = self.tracks_matcher(match_quality_matrix)
+                fg_inds = torch.nonzero(matched_labels==1).squeeze(1)
 
-            target = target[matched_idxs]
+                target = target[matched_idxs]
 
-            track = track[fg_inds]
-            target = target[fg_inds]
+                track = track[fg_inds]
+                target = target[fg_inds]
 
-            # Used in drawing associated gt_boxes
-            track.gt_boxes = target.gt_boxes
+                # Used in drawing associated gt_boxes
+                track.gt_boxes = target.gt_boxes
 
             tracks_box_list.append(track.pred_boxes)
             tracks_var_list.append(track.pred_variance)
@@ -137,9 +148,9 @@ class MultiObjTracker(object):
         tracks_boxes_batch = Boxes.cat(tracks_box_list)
         target_boxes_batch = Boxes.cat(target_box_list)
 
-        print("Track Boxes:", tracks_boxes_batch)
-        print("Target Boxes:", target_boxes_batch)
-        print("Variance:", tracks_var_batch)
+        # print("Track Boxes:", tracks_boxes_batch)
+        # print("Target Boxes:", target_boxes_batch)
+        # print("Variance:", tracks_var_batch)
         ## Computing the loss attenuation
         mse = (tracks_boxes_batch.tensor - target_boxes_batch.tensor)**2
         # print(mse, tracks_var_batch)
@@ -147,7 +158,7 @@ class MultiObjTracker(object):
 
 
         # weighting scaling by 100.0.
-        return loss_attenuation_final/100.0
+        return loss_attenuation_final/50.0
     
     def _predict(self, idx):
         """Propagate track state distributions one time step forward.

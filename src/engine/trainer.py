@@ -225,7 +225,6 @@ class General_Solver(object):
                         running_loss[key] = 0.0
                     running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
                 # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
-                print("running RPN loss:", running_loss["loss_rpn_loc"])
                 #------------------------------------------------#
 
             val_loss = self.validation_step()
@@ -376,7 +375,7 @@ class BackpropKF_Solver(General_Solver):
 
                 # Below, so that detector loss doesn't get added with total 
                 # loss, for the consistency with train loss
-                loss_dict.update(detector_losses)
+                loss_dict.update(detection_losses)
 
                 for key, value in loss_dict.items():
                     if idx==0:
