@@ -1,13 +1,20 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+import os
 import itertools
 from typing import Any, Dict, List, Tuple, Union
-from PIL import Image, ImageDraw
 import torch
+
+import numpy as np
+from PIL import Image, ImageDraw
+
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+matplotlib.use('agg')
+
 from .boxes import Boxes
 
-
-
-class Instances:
+class Instances(object):
     """
     This class represents a list of instances in an image.
     It stores the attributes of instances (e.g., boxes, masks, labels, scores) as "fields".
@@ -29,13 +36,14 @@ class Instances:
        or a vector of integer indices.
     """
 
-    def __init__(self, image_size: Tuple[int, int], **kwargs: Any): #This Any is an class import from typing
+    def __init__(self, image_size: Tuple[int, int], image_path: str = "", **kwargs: Any): #This Any is an class import from typing
         """
         Args:
             image_size (height, width): the spatial size of the image.
             kwargs: fields to add to this `Instances`.
         """
         self._image_size = image_size
+        self._image_path = image_path
         # self._fields: Dict[str, Any] = {}
         self._fields = {}
         for k, v in kwargs.items():
@@ -48,6 +56,15 @@ class Instances:
             tuple: height, width
         """
         return self._image_size
+
+    @property
+    def image_path(self):
+        return self._image_path
+
+    @image_path.setter
+    def image_path(self, value):
+        print("setter called")
+        self._image_path = value
 
     def __setattr__(self, name: str, val: Any) -> None: #Overwriting default python function
         if name.startswith("_"):
@@ -117,6 +134,32 @@ class Instances:
 
         return self
 
+    def draw(self, direc, name=""):
+        if self._image_path:
+            img = plt.imread(self._image_path)
+        else :
+            img = np.ones(self.image_size, dtype=np.uint8)*255
+
+        fig, ax = plt.subplots(1)
+        ax.imshow(img)
+
+        color = {"pred_boxes":'b', "gt_boxes":'r', "proposal_boxes":'g'}
+
+        for key in self._fields:
+            if "box" in key:
+                for box in self._fields[key]:
+                    box = box.detach().cpu().numpy()
+                    width= box[2]- box[0]
+                    height = box[3]-box[1]
+                    rect = patches.Rectangle(box[:2], width=width, height=height,
+                        linewidth=1, fill=False, edgecolor=color[key])
+                    ax.add_patch(rect)
+
+        if self._image_path:
+            plt.savefig(os.path.join(direc, name+self._image_path[-10:-3]+"png"))
+        else:
+            plt.savefig(os.path.join(direc, name+".png"))                
+
 
     # Tensor-like methods
     def to(self, device: str) -> "Instances":
@@ -124,7 +167,7 @@ class Instances:
         Returns:
             Instances: all fields are called with a `to(device)`, if the field has this method.
         """
-        ret = Instances(self._image_size)
+        ret = Instances(self._image_size, self._image_path)
         for k, v in self._fields.items():
             if hasattr(v, "to"):
                 v = v.to(device)
@@ -140,7 +183,7 @@ class Instances:
             If `item` is a string, return the data in the corresponding field.
             Otherwise, returns an `Instances` where all fields are indexed by `item`.
         """
-        ret = Instances(self._image_size)
+        ret = Instances(self._image_size, self._image_path)
         for k, v in self._fields.items():
             ret.set(k, v[item])
         return ret
@@ -185,6 +228,7 @@ class Instances:
     def __str__(self) -> str:
         s = self.__class__.__name__ + "("
         s += "num_instances={}, ".format(len(self))
+        s += "image_path={}, ".format(self._image_path)
         s += "image_height={}, ".format(self._image_size[0])
         s += "image_width={}, ".format(self._image_size[1])
         s += "fields=[{}])".format(", ".join(self._fields.keys()))
@@ -195,6 +239,7 @@ class Instances:
         s += "num_instances={}, ".format(len(self))
         s += "image_height={}, ".format(self._image_size[0])
         s += "image_width={}, ".format(self._image_size[1])
+        s += "image_path={}, ".format(self._image_path)
         s += "fields=["
         for k, v in self._fields.items():
             s += "{} = {}, ".format(k, v)

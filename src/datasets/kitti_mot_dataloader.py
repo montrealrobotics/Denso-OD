@@ -151,9 +151,8 @@ class KittiMOTDataset_KF(Dataset):
                                 class_list.append(class_labels.index(obj[2]))
                                 track_list.append(int(obj[1]))
                         else:
-                            data_point = Instances(img_size[::-1], gt_boxes=Boxes(torch.tensor(box_list)), 
-                                        gt_classes=torch.tensor(class_list), gt_trackid = torch.tensor(track_list), 
-                                        img_path=name)
+                            data_point = Instances(img_size[::-1], image_path=name, gt_boxes=Boxes(torch.tensor(box_list)), 
+                                        gt_classes=torch.tensor(class_list), gt_trackid = torch.tensor(track_list))
                             data.append(data_point)
                             object_rows = object_rows[j:]
                             break
@@ -169,7 +168,7 @@ class KittiMOTDataset_KF(Dataset):
 
         sample= {}
         data_point = self.data_list[idx]
-        sample["image_path"] = np.array([x.img_path for x in data_point])
+        sample["image_path"] = np.array([x.image_path for x in data_point])
         sample["target"] = data_point
         ## loading the image
         images = []

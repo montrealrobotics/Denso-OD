@@ -19,7 +19,7 @@ conf_params.LOGS.BASE_PATH = "/network/home/bansaldi/Denso-OD/logs"
 
 conf_params.TRAIN = CN()
 conf_params.TRAIN.SEQUENCE_LENGTH = 3
-conf_params.TRAIN.EVERY_FRAME = 1
+conf_params.TRAIN.STEP_BETWEEN_FRAME = 3
 conf_params.TRAIN.BATCH_SIZE = 10
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.LR = 1e-3

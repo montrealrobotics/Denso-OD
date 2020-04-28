@@ -9,7 +9,7 @@ from . import linear_assignment
 from . import iou_matching
 from .track import Track
 
-from ..utils import Boxes, pairwise_iou, Matcher
+from ..utils import Boxes, pairwise_iou, Matcher, Instances
 
 class MultiObjTracker(object):
     """
@@ -72,18 +72,83 @@ class MultiObjTracker(object):
             boxes = detect.pred_boxes.tensor
             variance = detect.pred_variance
             self._predict(idx)
+            # if
+            # _ = [x.draw("./logs/backpropkf/results", "predict") for x in self.tracks_to_instance(gt_target)]
             self._update(boxes, variance, idx)
 
-        # if sum([len(x) for x in detections])==0:
-        #     return self.tracks, {}
+        tracks = self.tracks_to_instance(gt_target)
+        _ = [x.draw("./logs/backpropkf/results", "update") for x in tracks]
 
         if is_training:
-            loss = self.loss(gt_target)
-            return self.tracks, {"track_loss": loss}
+            loss = self.loss(tracks, gt_target)
+            return tracks, {"track_loss": loss}
         
-        return self.tracks, {}
+        return tracks, {}
+
+    def tracks_to_instance(self, targets):
+        batch_tracks =[]
+        for tracks, target in zip(self.tracks, targets):
+            track_boxes = Boxes(torch.stack([x.box for x in tracks], dim=0))
+            track_var = torch.stack([x.box_var for x in tracks], dim=0)
+
+            tracks = Instances(image_size=target.image_size, image_path=target.image_path, 
+                            pred_boxes=track_boxes, pred_variance=track_var)
+
+            batch_tracks.append(tracks)
+
+        return batch_tracks
+
+    def loss(self, tracks, gt_targets):
+        """
+                Loss attenuation implementation
+        Returns:
+            scalar Tensor
+        """
+        tracks_box_list = []
+        tracks_var_list = []
+        target_box_list = []
+
+        for track, target in zip(tracks, gt_targets):
+
+            if len(track)==0:
+                continue
+
+            match_quality_matrix = pairwise_iou(
+                                target.gt_boxes, track.pred_boxes)
+
+            matched_idxs, matched_labels = self.tracks_matcher(match_quality_matrix)
+            fg_inds = torch.nonzero(matched_labels==1).squeeze(1)
+
+            target = target[matched_idxs]
+
+            track = track[fg_inds]
+            target = target[fg_inds]
+
+            # Used in drawing associated gt_boxes
+            track.gt_boxes = target.gt_boxes
+
+            tracks_box_list.append(track.pred_boxes)
+            tracks_var_list.append(track.pred_variance)
+            target_box_list.append(target.gt_boxes)
+
+            track.draw("./logs/backpropkf/results")
+
+        tracks_var_batch = torch.cat(tracks_var_list)
+        tracks_boxes_batch = Boxes.cat(tracks_box_list)
+        target_boxes_batch = Boxes.cat(target_box_list)
+
+        print("Track Boxes:", tracks_boxes_batch)
+        print("Target Boxes:", target_boxes_batch)
+        print("Variance:", tracks_var_batch)
+        ## Computing the loss attenuation
+        mse = (tracks_boxes_batch.tensor - target_boxes_batch.tensor)**2
+        # print(mse, tracks_var_batch)
+        loss_attenuation_final = (mse/tracks_var_batch + torch.log(tracks_var_batch)).mean()
 
 
+        # weighting scaling by 100.0.
+        return loss_attenuation_final/100.0
+    
     def _predict(self, idx):
         """Propagate track state distributions one time step forward.
         This function should be called once every time step, before `update`.
@@ -175,7 +240,7 @@ class MultiObjTracker(object):
 
         for d,det in enumerate(detections):
             for t,trk in enumerate(trackers):
-                iou_matrix[d,t] = self._iou(det,trk.to_xyxy())
+                iou_matrix[d,t] = self._iou(det,trk.box)
         
         matched_indices = assignment(-iou_matrix)
 
@@ -231,49 +296,3 @@ class MultiObjTracker(object):
         o = wh / ((bb_test[2]-bb_test[0])*(bb_test[3]-bb_test[1])
             + (bb_gt[2]-bb_gt[0])*(bb_gt[3]-bb_gt[1]) - wh)
         return(o)
-
-    def loss(self, gt_targets):
-        """
-                Loss attenuation implementation
-        Returns:
-            scalar Tensor
-        """
-        tracks_box_list = []
-        tracks_var_list = []
-        target_box_list = []
-
-        for track, target in zip(self.tracks, gt_targets):
-
-            if len(track)==0:
-                continue
-
-            track_boxes = torch.stack([x.mean[:4] for x in track], dim=0)
-            track_boxes = Boxes(track_boxes)
-            track_var = torch.stack([x.get_diag_var()[:4] for x in track], dim=0)
-            
-            match_quality_matrix = pairwise_iou(
-                                target.gt_boxes, track_boxes)
-
-            matched_idxs, matched_labels = self.tracks_matcher(match_quality_matrix)
-
-            target_boxes = target.gt_boxes[matched_idxs]
-
-            fg_inds = torch.nonzero(matched_labels==1).squeeze(1)
-
-            track_boxes = track_boxes[fg_inds]
-            track_var = track_var[fg_inds]
-            target_boxes = target_boxes[fg_inds]
-
-            tracks_box_list.append(track_boxes)
-            tracks_var_list.append(track_var)
-            target_box_list.append(target_boxes)
-
-        tracks_var_batch = torch.cat(tracks_var_list)
-        tracks_boxes_batch = Boxes.cat(tracks_box_list)
-        target_boxes_batch = Boxes.cat(target_box_list)
-        ## Computing the loss attenuation
-        mse = (tracks_boxes_batch.tensor - target_boxes_batch.tensor)**2
-        # print(mse, tracks_var_batch)
-        loss_attenuation_final = (mse/tracks_var_batch + torch.log(tracks_var_batch)).mean()
-
-        return loss_attenuation_final

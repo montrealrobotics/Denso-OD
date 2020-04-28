@@ -66,27 +66,20 @@ class Visualizer(object):
         return ax
 
     def draw_instance_prob(self):
-        
         img = self.image.copy()
-
-        ax = self.output.add_subplot(1,2,1)
+        ax = self.output.add_subplot(self.grid_spec[0,0])
         ax.imshow(img)
 
         for instance in self.instances:
             box_cords = instance.pred_boxes
-            box = patches.Rectangle(box_cords[[0,3]], box_cords[2]-box_cords[0], box_cords[3]-box_cords[1], linewidth=1, fill=False, edgecolor='r')
+            box = patches.Rectangle(box_cords[:2], box_cords[2]-box_cords[0], box_cords[3]-box_cords[1], linewidth=1, fill=False, edgecolor='r')
             ax.add_patch(box)
         
         return ax
 
-
-    def draw_proposals(self):
-        for instance in self.instances:
-            box = instance.proposal_boxes.tensor.cpu().numpy()[0]
-            drawer.rectangle(box, outline ='red' ,width=3)
-
     def draw_projection(self):
-        xy_coords, variance = ground_project(self.instances, "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset/training/calib/"+self.path[-10:-3]+"txt")
+        xy_coords, variance = ground_project(self.instances)
+        # xy_coords, variance = ground_project(self.instances, "/home/dishank/denso-ws/src/denso/datasets/kitti_tracking/training/calib/"+self.path[-8:-3]+"txt")
         ax = self.output.add_subplot(self.grid_spec[0,1])
 
         for xy, xy_var in zip(xy_coords, variance):

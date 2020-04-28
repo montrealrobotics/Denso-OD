@@ -225,8 +225,9 @@ class General_Solver(object):
                         running_loss[key] = 0.0
                     running_loss[key] = 0.9*running_loss[key] + 0.1*loss_dict[key].item()
                 # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Training")
+                print("running RPN loss:", running_loss["loss_rpn_loc"])
                 #------------------------------------------------#
-           
+
             val_loss = self.validation_step()
             
             for key in val_loss.keys():
@@ -286,13 +287,13 @@ class BackpropKF_Solver(General_Solver):
         batch_size = cfg.TRAIN.BATCH_SIZE
 
         print("--- Loading Training Dataset \n ")
-        # tracks = [str(i).zfill(4) for i in range(11)]
-        tracks = ["0001"]
+        tracks = [str(i).zfill(4) for i in range(11)]
+        # tracks = ["0001"]
         train_dataset = dataset(dataset_path, tracks,transform = transform, cfg = cfg) #---- Dataloader
         
         print("--- Loading Validation Dataset \n ")
-        # tracks = [str(i).zfill(4) for i in range(11,14)]
-        tracks = ["0001"]
+        tracks = [str(i).zfill(4) for i in range(11,14)]
+        # tracks = ["0001"]
         val_dataset = dataset(dataset_path, tracks,transform=transform, cfg=cfg)
 
         print("--- Data Loaded---")
@@ -320,9 +321,9 @@ class BackpropKF_Solver(General_Solver):
             # print("Tracks Before update: ", self.model.tracker.tracks)
             in_images = seq['image'].to(self.device)
             target = [x.to(self.device) for x in seq['target']]
-            img_paths = [x.img_path for x in seq['target']]  
+            img_paths = [x.image_path for x in target]  
 
-            print("Target: ", [len(x) for x in target])
+            print("Target: ", [len(x) for x in target], [x.image_path for x in target])
             rpn_proposals, instances, tracks, rpn_losses, detection_losses, track_loss = self.model(in_images, target, self.is_training)
             # print("Tracks : ", [len(x) for x in self.model.tracker.tracks])
             # print(track_loss)
@@ -331,23 +332,24 @@ class BackpropKF_Solver(General_Solver):
         # make_dot(track_loss['track_loss'], dict(self.model.named_parameters())).render("attached", format="png")
 
         loss_dict = {}
-        loss_dict.update(detection_losses)
+        loss_dict.update(rpn_losses)
         loss_dict.update(track_loss)
-        # loss_dict.update(rpn_losses)
         
         loss = 0.0
         for k, v in loss_dict.items():
             loss += v
         loss_dict.update({'tot_loss':loss})
 
+        # Adding after, because we don't want to backward through this. 
+        loss_dict.update(detection_losses)
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        with torch.no_grad():
-            instances = [x.numpy() for x in instances]
-            rpn_proposals = [x.numpy() for x in rpn_proposals]
+        # with torch.no_grad():
+        #     instances = [x.numpy() for x in instances]
+        #     rpn_proposals = [x.numpy() for x in rpn_proposals]
                     
             # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results"), instances, rpn_proposals, img_paths)
         
@@ -361,16 +363,20 @@ class BackpropKF_Solver(General_Solver):
                 for seq in batch_sample:
                     in_images = seq['image'].to(self.device)
                     target = [x.to(self.device) for x in seq['target']]
-                    rpn_proposals, instances, tracks,_, _, track_loss = self.model(in_images, target, self.is_training)
+                    rpn_proposals, instances, tracks, rpn_losses, detection_losses, track_loss = self.model(in_images, target, self.is_training)
 
                 loss_dict = {}
                 loss_dict.update(track_loss)
-                # loss_dict.update(detector_losses)
+                loss_dict.update(rpn_losses)
 
                 loss = 0.0
                 for k, v in loss_dict.items():
                     loss += v
                 loss_dict.update({'tot_loss':loss})
+
+                # Below, so that detector loss doesn't get added with total 
+                # loss, for the consistency with train loss
+                loss_dict.update(detector_losses)
 
                 for key, value in loss_dict.items():
                     if idx==0:
@@ -378,7 +384,8 @@ class BackpropKF_Solver(General_Solver):
                     val_loss[key].append(loss_dict[key].item())
 
                 # utils.tb_logger(in_images, tb_writer, rpn_proposals, instances, "Validation")
-            print(val_loss)
+            # print(val_loss)
+
             for key, value in val_loss.items():
                 val_loss[key] = np.mean(val_loss[key])
 
@@ -388,8 +395,7 @@ class BackpropKF_Solver(General_Solver):
     def test(self):
         self.model.eval()
         self.is_training= False
-        mAP = DetectionMAP(7)
-        var_error = []
+        evaluator = Evaluator(7)
         with torch.no_grad():
             for idx, batch_sample in enumerate(self.val_loader):
                 for seq in batch_sample:
@@ -401,32 +407,19 @@ class BackpropKF_Solver(General_Solver):
                     rpn_proposals, instances, tracks, rpn_losses, detection_losses, track_loss = self.model(in_images, targets, self.is_training)
                     # print(time.time() - start)
                     # print(instances)
-                    tracks = [Instances(image_size=(375,1242), pred_boxes=Boxes(torch.stack([y.mean[:4] for y in x])), 
-                        pred_variance=torch.stack([y.get_diag_var()[:4] for y in x])) for x in tracks]
+                    # tracks = [Instances(image_size=(375,1242), pred_boxes=Boxes(torch.stack([y.mean[:4] for y in x])), 
+                    #     pred_variance=torch.stack([y.get_diag_var()[:4] for y in x])) for x in tracks]
 
-                    instances = [x.numpy() for x in instances]
-                    rpn_proposals = [x.numpy() for x in rpn_proposals]
-                    tracks = [x.numpy() for x in tracks]
+                    # evaluator.evaluate(in_images, instances, targets)
+                    
 
-                    targets = [x.numpy() for x in targets]
+                    # instances = [x.numpy() for x in instances]
+                    # rpn_proposals = [x.numpy() for x in rpn_proposals]
+                    # tracks = [x.numpy() for x in tracks]
 
-                    utils.disk_logger(in_images, os.path.join(self.exp_dir,"results/normal"), instances, rpn_proposals, img_paths)
-                    utils.disk_logger(in_images, os.path.join(self.exp_dir,"results/tracks"), tracks, rpn_proposals, img_paths)
+                    # targets = [x.numpy() for x in targets]
 
-                for instance, target in zip(instances, targets):
-                    pred_bb1 = instance.pred_boxes
-                    pred_cls1 = instance.pred_classes 
-                    pred_conf1 = instance.scores
-                    gt_bb1 = target.gt_boxes
-                    gt_cls1 = target.gt_classes
-                    mAP.evaluate(pred_bb1, pred_cls1, pred_conf1, gt_bb1, gt_cls1)
-
-                    # print(instance.pred_boxes, target.gt_boxes)
-                    # var_error.append(instance.pred_variance**2-(instance.pred_boxes - target.gt_boxes)**2)
-
-        # print("Variance metric: ", np.array(var_error).mean(axis=0))
-        mAP.plot()
-        plt.show()
-
+                    # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results/normal"), instances, rpn_proposals, img_paths)
+                    # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results/tracks"), tracks, rpn_proposals, img_paths)
 
         

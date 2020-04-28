@@ -108,8 +108,8 @@ class Boxes:
     def to(self, device: str) -> "Boxes":
         return Boxes(self.tensor.to(device))
 
-    def toList(self):
-        self.tensor = self.tensor.cpu().numpy()
+    def numpy(self):
+        return self.tensor.cpu().numpy()
 
     def to_XYWH():
         out = self.tensor.copy()

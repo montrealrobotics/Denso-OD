@@ -77,16 +77,18 @@ class Track:
         ndarray
             The bounding box.
         """
-        ret = self.mean[:4].copy()
+        ret = self.mean[:4]
         ret[2] -= ret[0]
         ret[3] -= ret[1]
         return ret
 
-    def to_xyxy(self):
-        return self.mean[:4].detach()
+    @property
+    def box(self):
+        return self.mean[:4]
 
-    def get_diag_var(self):
-        return self.covariance.diagonal()
+    @property    
+    def box_var(self):
+        return self.covariance.diagonal()[:4]
 
     def predict(self, kf):
         """Propagate the state distribution to the current time step using a
