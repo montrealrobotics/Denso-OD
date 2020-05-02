@@ -1,7 +1,16 @@
 import torch
-
+import seaborn as sns
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import matplotlib.patches as patches
+import numpy as np
 from .mAP.detection_map import DetectionMAP
 from ..utils import Matcher, pairwise_iou, utils
+import os
+from scipy.stats.stats import pearsonr   
 
 class Caliberation_Error(object):
     """docstring for Caliberation_Error"""
@@ -30,15 +39,51 @@ class Caliberation_Error(object):
         # print(target.gt_boxes, instance.pred_boxes)
         # utils.single_disk_logger(image, target)
 
-        error = torch.mean((target.gt_boxes.tensor - instance.pred_boxes.tensor)**2, 0)
-        sigma = torch.mean(instance.pred_variance, 0)
+        error = torch.mean(torch.abs(target.gt_boxes.tensor - instance.pred_boxes.tensor), 1)
+        sigma = torch.mean(torch.sqrt(instance.pred_variance), 1)
 
-        self.sigma.append(sigma)
-        self.error.append(error)
+        # print(error)
+        # print(error<20, sigma<20)
+
+        # equivalent to error<20 and sigma<20
+        indx = (error<20) & (sigma<20)
+
+        self.sigma.append(sigma[indx])
+        self.error.append(error[indx])
 
     def print(self):
-        print("Caliberation Error: ", torch.mean(torch.abs(torch.stack(self.sigma)-torch.stack(self.error)), 0).cpu().numpy())
+        print("Caliberation Error: ", torch.mean(torch.abs(torch.cat(self.sigma)-torch.cat(self.error)), 0).cpu().numpy())
+        corr, _ = pearsonr(torch.cat(self.sigma).cpu().numpy(),torch.cat(self.error).cpu().numpy())
+        print("Correlation: ", corr)
+    
+    def plot(self, direc):
+        errors = torch.cat(self.error).cpu().numpy()
+        sigmas = torch.cat(self.sigma).cpu().numpy()
+
+        bins = np.linspace(-5, 15, 20)
+        # Draw the density plots
+        sns.distplot(errors, hist = True, kde = True,
+                     bins = bins,
+                     kde_kws = {'linewidth': 3, 'clip':(bins.min(), bins.max())},
+                     label = 'error')
+        sns.distplot(sigmas, hist = True, kde = True,
+                     bins = bins,
+                     kde_kws = {'linewidth': 3, 'clip':(bins.min(), bins.max())},
+                     label = 'var')
+
+        plt.title("Error-Sigma Distribution")
         
+        plt.savefig(os.path.join(direc, "sigma-error-dis"+".png"))
+        plt.clf()
+
+        sns.jointplot(errors, sigmas, kind="kde", 
+            space=0, color="b").set_axis_labels("error", "sigma")
+        plt.title("Error-Sigma Correlation")
+        
+        plt.savefig(os.path.join(direc, "sigma-error-corr"+".png"))
+        plt.clf()
+        
+
 
 class Evaluator(object):
     """Class for evaluating different metrics"""
@@ -53,12 +98,15 @@ class Evaluator(object):
             self.calib_error.evaluate(image, instance, target)
             instance = instance.numpy()
             target = target.numpy()
-            self.mAP.evaluate(instance.pred_boxes,
-                         instance.pred_classes,
-                         instance.scores, 
-                         target.gt_boxes,
-                         target.gt_classes)
+            # self.mAP.evaluate(instance.pred_boxes,
+            #              instance.pred_classes,
+            #              instance.scores, 
+            #              target.gt_boxes,
+            #              target.gt_classes)
+    
+    def plot(self, direc):
+        self.calib_error.plot(direc)
 
     def print(self):
         self.calib_error.print()
-        self.mAP.plot()
+        # self.mAP.plot()

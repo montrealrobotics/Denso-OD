@@ -77,7 +77,7 @@ class MultiObjTracker(object):
             self._update(boxes, variance, idx)
 
         tracks = self.tracks_to_instance(gt_target)
-        _ = [x.draw("./logs/backpropkf/results", "update") for x in tracks]
+        # _ = [x.draw("./logs/backpropkf/results", "update") for x in tracks]
 
         if is_training:
             loss = self.loss(tracks, gt_target)
@@ -142,7 +142,7 @@ class MultiObjTracker(object):
             tracks_var_list.append(track.pred_variance)
             target_box_list.append(target.gt_boxes)
 
-            track.draw("./logs/backpropkf/results")
+            # track.draw("./logs/backpropkf/results")
 
         tracks_var_batch = torch.cat(tracks_var_list)
         tracks_boxes_batch = Boxes.cat(tracks_box_list)
@@ -157,7 +157,7 @@ class MultiObjTracker(object):
         loss_attenuation_final = (mse/tracks_var_batch + torch.log(tracks_var_batch)).mean()
 
 
-        # weighting scaling by 100.0.
+        # weighting scaling by 50.0.
         return loss_attenuation_final/50.0
     
     def _predict(self, idx):

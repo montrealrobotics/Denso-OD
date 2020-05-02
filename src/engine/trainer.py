@@ -275,7 +275,7 @@ class BackpropKF_Solver(General_Solver):
     """docstring for BackpropKF_Solver"""
     def __init__(self, cfg, mode, args):
         super(BackpropKF_Solver, self).__init__(cfg, mode, args)
-        pass
+        
 
     def get_dataloader(self, cfg, mode):
         dataset = build_dataset(cfg.DATASET.NAME)
@@ -291,8 +291,9 @@ class BackpropKF_Solver(General_Solver):
         train_dataset = dataset(dataset_path, tracks,transform = transform, cfg = cfg) #---- Dataloader
         
         print("--- Loading Validation Dataset \n ")
-        tracks = [str(i).zfill(4) for i in range(11,14)]
-        # tracks = ["0001"]
+        # tracks = [str(i).zfill(4) for i in range(11,14)]
+        # tracks = ["0011"]
+        tracks = ["0001"]
         val_dataset = dataset(dataset_path, tracks,transform=transform, cfg=cfg)
 
         print("--- Data Loaded---")
@@ -322,7 +323,7 @@ class BackpropKF_Solver(General_Solver):
             target = [x.to(self.device) for x in seq['target']]
             img_paths = [x.image_path for x in target]  
 
-            print("Target: ", [len(x) for x in target], [x.image_path for x in target])
+            # print("Target: ", [len(x) for x in target], [x.image_path for x in target])
             rpn_proposals, instances, tracks, rpn_losses, detection_losses, track_loss = self.model(in_images, target, self.is_training)
             # print("Tracks : ", [len(x) for x in self.model.tracker.tracks])
             # print(track_loss)
@@ -331,7 +332,7 @@ class BackpropKF_Solver(General_Solver):
         # make_dot(track_loss['track_loss'], dict(self.model.named_parameters())).render("attached", format="png")
 
         loss_dict = {}
-        loss_dict.update(rpn_losses)
+        # loss_dict.update(rpn_losses)
         loss_dict.update(track_loss)
         
         loss = 0.0
@@ -366,7 +367,7 @@ class BackpropKF_Solver(General_Solver):
 
                 loss_dict = {}
                 loss_dict.update(track_loss)
-                loss_dict.update(rpn_losses)
+                # loss_dict.update(rpn_losses)
 
                 loss = 0.0
                 for k, v in loss_dict.items():
@@ -401,7 +402,7 @@ class BackpropKF_Solver(General_Solver):
                     in_images = seq['image'].to(self.device)
                     targets = [x.to(self.device) for x in seq['target']]
                     img_paths = seq['image_path']
-
+                    # print(img_paths)
                     # start = time.time()
                     rpn_proposals, instances, tracks, rpn_losses, detection_losses, track_loss = self.model(in_images, targets, self.is_training)
                     # print(time.time() - start)
@@ -410,15 +411,18 @@ class BackpropKF_Solver(General_Solver):
                     #     pred_variance=torch.stack([y.get_diag_var()[:4] for y in x])) for x in tracks]
 
                     # evaluator.evaluate(in_images, instances, targets)
-                    
+                    evaluator.evaluate(in_images, tracks, targets)
+
+                    # targets = [x.numpy() for x in targets]
 
                     # instances = [x.numpy() for x in instances]
                     # rpn_proposals = [x.numpy() for x in rpn_proposals]
                     # tracks = [x.numpy() for x in tracks]
-
-                    # targets = [x.numpy() for x in targets]
+                    # # print([x.pred_variance for x in instances])
 
                     # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results/normal"), instances, rpn_proposals, img_paths)
                     # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results/tracks"), tracks, rpn_proposals, img_paths)
 
+            evaluator.plot(self.exp_dir)
+            evaluator.print()
         

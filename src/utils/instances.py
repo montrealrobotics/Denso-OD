@@ -160,6 +160,7 @@ class Instances(object):
         else:
             plt.savefig(os.path.join(direc, name+".png"))                
 
+        plt.close()
 
     # Tensor-like methods
     def to(self, device: str) -> "Instances":
