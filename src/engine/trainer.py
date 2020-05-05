@@ -252,6 +252,7 @@ class General_Solver(object):
         self.model.eval()
         self.is_training= False
         evaluator = Evaluator(7)
+        print("--- Running Inference")
         with torch.no_grad():
             for idx, batch_sample in enumerate(self.val_loader):
                 in_images = batch_sample['image'].to(self.device)
@@ -263,9 +264,13 @@ class General_Solver(object):
                 # print(time.time() - start)
                 # print(instances)
 
-                # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results"), instances, rpn_proposals, img_paths)
-
                 evaluator.evaluate(in_images, instances, targets)
+                # targets = [x.numpy() for x in targets]
+                # instances = [x.numpy() for x in instances]
+                # rpn_proposals = [x.numpy() for x in rpn_proposals]
+
+                # utils.disk_logger(in_images, os.path.join(self.exp_dir,"results", "bayesian"), instances, rpn_proposals, img_paths)
+
                     
         evaluator.print()
         plt.show()
@@ -291,9 +296,9 @@ class BackpropKF_Solver(General_Solver):
         train_dataset = dataset(dataset_path, tracks,transform = transform, cfg = cfg) #---- Dataloader
         
         print("--- Loading Validation Dataset \n ")
-        # tracks = [str(i).zfill(4) for i in range(11,14)]
+        tracks = [str(i).zfill(4) for i in range(11,14)]
         # tracks = ["0011"]
-        tracks = ["0001"]
+        # tracks = ["0001"]
         val_dataset = dataset(dataset_path, tracks,transform=transform, cfg=cfg)
 
         print("--- Data Loaded---")
@@ -332,7 +337,6 @@ class BackpropKF_Solver(General_Solver):
         # make_dot(track_loss['track_loss'], dict(self.model.named_parameters())).render("attached", format="png")
 
         loss_dict = {}
-        # loss_dict.update(rpn_losses)
         loss_dict.update(track_loss)
         
         loss = 0.0
@@ -342,6 +346,7 @@ class BackpropKF_Solver(General_Solver):
 
         # Adding after, because we don't want to backward through this. 
         loss_dict.update(detection_losses)
+        loss_dict.update(rpn_losses)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -367,7 +372,6 @@ class BackpropKF_Solver(General_Solver):
 
                 loss_dict = {}
                 loss_dict.update(track_loss)
-                # loss_dict.update(rpn_losses)
 
                 loss = 0.0
                 for k, v in loss_dict.items():
@@ -377,6 +381,7 @@ class BackpropKF_Solver(General_Solver):
                 # Below, so that detector loss doesn't get added with total 
                 # loss, for the consistency with train loss
                 loss_dict.update(detection_losses)
+                loss_dict.update(rpn_losses)
 
                 for key, value in loss_dict.items():
                     if idx==0:

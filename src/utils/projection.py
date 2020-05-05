@@ -49,7 +49,7 @@ def read_matrix(path):
 
     return np.matmul(p_matrix, r_matrix)
             
-def ground_project(instances, path="/home/dishank/denso-ws/src/denso/datasets/kitti_tracking/training/calib/0001.txt"):
+def ground_project(instances, path="./datasets/kitti_tracking/training/calib/0001.txt"):
     means = instances.pred_boxes
     means = [[(x[0]+x[2])/2,x[3]] for x in means]
     sigmas = instances.pred_variance

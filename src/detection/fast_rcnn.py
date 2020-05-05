@@ -65,7 +65,7 @@ class FastRCNNOutputLayers(nn.Module):
         nn.init.normal_(self.bbox_pred.weight, std=0.001)
         nn.init.constant_(self.sigma_pred.bias, 2)
 
-    def RichardCurve(self, x, low=0.001, high=20, sharp=0.5):
+    def RichardCurve(self, x, low=0.0005, high=10, sharp=0.5):
         r"""Applies the generalized logistic function (aka Richard's curve)
         to the input tensor x.
         Args:
@@ -149,41 +149,79 @@ def fast_rcnn_inference_single_image(
     boxes = boxes.tensor.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
     variance = variance.view(-1, num_bbox_reg_classes, 4)
 
-    # Filter results based on detection scores
-    filter_mask = scores > score_thresh  # R x K
-    
-    # R' x 2. First column contains indices of the R predictions;
-    # Second column contains indices of classes.
-    filter_inds = filter_mask.nonzero()
     if num_bbox_reg_classes == 1:
-        boxes = boxes[filter_inds[:, 0], 0]
-        variance = variance[filter_inds[:,0 ], 0]
+        # We have two approaches do this. 
+        # Approach 1 (commented out)- 
+        # Basically one box is counted multiple times, each for 
+        # class which have score > score_thresh.
+        
+        # # Filter results based on detection scores
+        # filter_mask = scores > score_thresh  # R x K    
+        # # R' x 2. First column contains indices of the R predictions;
+        # # Second column contains indices of classes.
+        # # all the 2D indices for which filter_mask is true.
+        # filter_inds = filter_mask.nonzero()
+        # # R' x 4 - Wehave repeated box corresponding to 
+        # # all classes which have > score_thresh for each box
+        # boxes = boxes[filter_inds[:, 0], 0]
+        # variance = variance[filter_inds[:,0 ], 0]
+        # scores = scores[filter_mask]
+        # class_inds = filter_inds[:,1]
+        # filter_inds = filter_inds[:,0]
+        
+        # Approach 2 -
+        # In this approach we correspond the box only to the class
+        # with max score. 
+        # chossing the class with max score, class_ind for each box
+        # scores: Rx1 - max score for each box
+        # class_inds: Rx1 - index of class with max score
+        scores, class_inds = torch.max(scores, 1)
+        #Filter the boxes with the score_thresh
+        filter_mask = scores > score_thresh
+        filter_inds = filter_mask.nonzero().squeeze(1)
+        # print(filter_inds)
+        assert filter_inds.dim()==1, filter_inds.shape
+        
+        scores = scores[filter_inds]
+        class_inds = class_inds[filter_inds]
+        boxes = boxes[filter_inds,0]
+        variance = variance[filter_inds,0]
+
     else:
+        # Filter results based on detection scores
+        filter_mask = scores > score_thresh  # R x K    
+        # R' x 2. First column contains indices of the R predictions;
+        # Second column contains indices of classes.
+        # all the 2D indices for which filter_mask is true.
+        filter_inds = filter_mask.nonzero()
+        
         boxes = boxes[filter_mask]
         variance = variance[filter_mask]
-    scores = scores[filter_mask]
+        scores = scores[filter_mask]
+        class_inds = filter_inds[:,1]
+        filter_inds = filter_inds[:,0]
 
     # Apply per-class NMS
-    keep = batched_nms(boxes, scores, filter_inds[:, 1], nms_thresh)
+    keep = batched_nms(boxes, scores, class_inds, nms_thresh)
 
-    if topk_per_image >= 0:
-        keep = keep[:topk_per_image]
+    # if topk_per_image >= 0:
+    #     keep = keep[:topk_per_image]
 
-    use_bayesian_clustering = False
+    # use_bayesian_clustering = False
+    use_bayesian_clustering = True
 
-    if use_bayesian_clustering==True:
-        boxes, scores, variance, filter_inds = bayes_od_clustering()
-
+    if use_bayesian_clustering==True & len(boxes)!=0:
+        boxes, variance, scores, class_inds = bayes_od_clustering(keep, boxes, variance, scores, class_inds, nms_thresh)
     else:
-        boxes, scores, variance, filter_inds = boxes[keep], scores[keep], variance[keep], filter_inds[keep]
+        boxes, variance, scores, class_inds, filter_inds = boxes[keep], variance[keep], scores[keep], class_inds[keep], filter_inds[keep]
     
     result = Instances(image_shape)
     result.pred_boxes = Boxes(boxes)
     result.scores = scores
     result.pred_variance = variance
-    result.pred_classes = filter_inds[:, 1]
+    result.pred_classes = class_inds
 
-    return result, filter_inds[:, 0]
+    return result, filter_inds
 
 
 class FastRCNNOutputs(object):

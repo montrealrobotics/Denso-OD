@@ -1,17 +1,43 @@
+import os
 import torch
-import seaborn as sns
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-import matplotlib.patches as patches
+
 import numpy as np
+from scipy.stats.stats import pearsonr   
+# import seaborn as sns
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('agg')
+
 from .mAP.detection_map import DetectionMAP
 from ..utils import Matcher, pairwise_iou, utils
-import os
-from scipy.stats.stats import pearsonr   
 
+class Evaluator(object):
+    """Class for evaluating different metrics"""
+
+    def __init__(self, num_classes):
+        super(Evaluator, self).__init__()
+        self.mAP = DetectionMAP(num_classes)
+        self.calib_error = Caliberation_Error()
+    
+    def evaluate(self, images, instances, targets):
+        for image, instance, target in zip(images, instances, targets):
+            self.calib_error.evaluate(image, instance, target)
+            instance = instance.numpy()
+            target = target.numpy()
+            self.mAP.evaluate(instance.pred_boxes,
+                         instance.pred_classes,
+                         instance.scores, 
+                         target.gt_boxes,
+                         target.gt_classes)
+    
+    def plot(self, direc):
+        self.calib_error.plot(direc)
+
+    def print(self):
+        self.calib_error.print()
+        self.mAP.plot()
+
+        
 class Caliberation_Error(object):
     """docstring for Caliberation_Error"""
     def __init__(self):
@@ -84,29 +110,3 @@ class Caliberation_Error(object):
         plt.clf()
         
 
-
-class Evaluator(object):
-    """Class for evaluating different metrics"""
-
-    def __init__(self, num_classes):
-        super(Evaluator, self).__init__()
-        self.mAP = DetectionMAP(num_classes)
-        self.calib_error = Caliberation_Error()
-    
-    def evaluate(self, images, instances, targets):
-        for image, instance, target in zip(images, instances, targets):
-            self.calib_error.evaluate(image, instance, target)
-            instance = instance.numpy()
-            target = target.numpy()
-            # self.mAP.evaluate(instance.pred_boxes,
-            #              instance.pred_classes,
-            #              instance.scores, 
-            #              target.gt_boxes,
-            #              target.gt_classes)
-    
-    def plot(self, direc):
-        self.calib_error.plot(direc)
-
-    def print(self):
-        self.calib_error.print()
-        # self.mAP.plot()
