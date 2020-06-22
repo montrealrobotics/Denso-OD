@@ -19,11 +19,11 @@ conf_params.LOGS.BASE_PATH = "/network/home/bansaldi/Denso-OD/logs"
 
 conf_params.TRAIN = CN()
 conf_params.TRAIN.SEQUENCE_LENGTH = 3
-conf_params.TRAIN.STEP_BETWEEN_FRAME = 3
+conf_params.TRAIN.STEP_BETWEEN_FRAME = 6
 conf_params.TRAIN.BATCH_SIZE = 10
 conf_params.TRAIN.EPOCHS = 50
 conf_params.TRAIN.LR = 1e-3
-conf_params.TRAIN.LR_DECAY = 0.5
+conf_params.TRAIN.LR_DECAY = 0.2
 conf_params.TRAIN.MOMENTUM = 0.9
 conf_params.TRAIN.MILESTONES = [10,20]
 conf_params.TRAIN.DSET_SHUFFLE = False
@@ -40,7 +40,7 @@ conf_params.INPUT.NUM_CLASSES = 7
 Model
 """
 conf_params.ARCHITECTURE = CN()
-conf_params.ARCHITECTURE.MODEL = "FasterRCNN_KF"
+conf_params.ARCHITECTURE.MODEL = "FasterRCNN"
 
 """
 For Backbone
@@ -134,6 +134,8 @@ conf_params.ROI_HEADS.SMOOTH_L1_BETA = 0.0
 conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 10.0, 10.0)
 # conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
 conf_params.ROI_HEADS.DETECTIONS_PER_IMAGE = 50
+conf_params.ROI_HEADS.MERGING = "bayesian_clustering" #option: "nms", "bayesian_clustering"
+
 
 """
 Tracker

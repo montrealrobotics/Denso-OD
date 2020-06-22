@@ -1,28 +1,27 @@
 # Config file for your experiments, this will overwrite/merge your default.py config file
 
 DATASET:
-  NAME: "KittiDataset" #option: "detections", "tracking"
-  PATH: "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset/training"
-  LENGTH: 7000
-  # TRACKS: 
+  NAME: "KittiDataset" 
+  PATH: "./datasets/kitti_dataset/training"
+  LENGTH: 7500
 
 ARCHITECTURE:
   MODEL: "FasterRCNN"
 
 LOGS:
-  BASE_PATH: "/network/home/bansaldi/Denso-OD/logs"
+  BASE_PATH: "./logs"
 
 SEED: 5
 USE_CUDA: True
 
 TRAIN:
-  BATCH_SIZE: 6
-  EPOCHS: 50
+  BATCH_SIZE: 8
+  EPOCHS: 80
   LR: 1e-3
-  LR_DECAY: 0.5
+  LR_DECAY: 0.2
   MOMENTUM: 0.9
-  MILESTONES: (10,20)
-  DSET_SHUFFLE: False
+  MILESTONES: (20,35,50)
+  DSET_SHUFFLE: True
   SAVE_MODEL_EPOCHS: 5
   DATASET_DIVIDE: 0.9
 
@@ -32,4 +31,8 @@ INPUT:
   NUM_CLASSES: 7
 
 ROI_HEADS:
-  LOSS_TYPE: "deterministic"
+  LOSS_TYPE: "loss_attenuation"
+  SCORE_THRESH_TEST: 0.25
+
+SOLVER:
+  OPTIM: "adam"

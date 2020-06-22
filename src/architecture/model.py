@@ -78,7 +78,7 @@ class FasterRCNN_KF(nn.Module):
 
 		rpn_proposals, rpn_losses = self.rpn(feature_map, gt_target, image_size, is_training) # topK proposals sorted in decreasing order of objectness score and losses: []
 		
-		detections, detection_loss = self.detector(feature_map.detach(), rpn_proposals, gt_target, is_training)
+		detections, detection_loss = self.detector(feature_map, rpn_proposals, gt_target, is_training)
 		# print("detections:" , [len(x) for x in detections])
 
 		# _ = [x.draw("./logs/backpropkf/results", "target") for x in gt_target]

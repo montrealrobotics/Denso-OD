@@ -136,6 +136,7 @@ class ROIHeads(nn.Module):
             #matched_labels: denotes if proposal is positive/negative/ignored - Here every proposal is either marked positive or negative, none is ignored
             matched_idxs, matched_labels = self.proposal_matcher(match_quality_matrix) 
             
+            #len of sampled_idxs = batch_per_image, here sampling is not same as RPN, where we just put -1 in not selected ones, here not selected are simply not there. 
             sampled_idxs, gt_classes = self._sample_proposals(
                 matched_idxs, matched_labels, targets_per_image.gt_classes
             )
@@ -261,6 +262,7 @@ class Detector(ROIHeads):
 
         if is_training:
             # These proposals have attribute gt_classes and gt_boxes added for training
+            # Length = roi_batch_size
             proposals = self.label_and_sample_proposals(proposals, targets)
         
         # del targets
@@ -270,6 +272,8 @@ class Detector(ROIHeads):
         
         # pred_class_logits: Tensor[M, num_classes+1], pred_bbox_deltas: Tensor[M, 4], pred_delta_variance: Tensor[M, 4]
         pred_class_logits, pred_bbox_deltas, pred_delta_variance = self.box_predictor(box_features)
+
+        # del box_features
 
         outputs = FastRCNNOutputs(
             self.box2box_transform,

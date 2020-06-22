@@ -11,6 +11,7 @@ from .track import Track
 
 from ..utils import Boxes, pairwise_iou, Matcher, Instances
 
+
 class MultiObjTracker(object):
     """
     This is the multi-target tracker.
@@ -37,11 +38,10 @@ class MultiObjTracker(object):
     tracks : List[Track]
         The list of active tracks at the current time step.
     """
-
     def __init__(self, cfg):
-        self.max_iou_distance = cfg.TRACKING.IOU_DISTANCE 
-        self.max_age          = cfg.TRACKING.MAX_AGE
-        self.n_init           = cfg.TRACKING.N_INIT
+        self.max_iou_distance = cfg.TRACKING.IOU_DISTANCE
+        self.max_age = cfg.TRACKING.MAX_AGE
+        self.n_init = cfg.TRACKING.N_INIT
 
         self.kf = KalmanFilter()
         self.tracks_matcher = Matcher(
@@ -53,16 +53,16 @@ class MultiObjTracker(object):
         self.batch_size = cfg.TRAIN.BATCH_SIZE
         # Each element of self.tracks is list of all tracked object of that sequence.
         # Each batch index correspond to one sequence.
-        
-        self.tracks = [[] for _ in range(self.batch_size) ]
+
+        self.tracks = [[] for _ in range(self.batch_size)]
         self._next_id = [1 for _ in range(self.batch_size)]
-    
+
     def reinit_state(self):
         # Each element of self.tracks is list of all tracked object of that sequence.
         # Each batch index correspond to one sequence.
         for x in self.tracks:
             x.clear()
-            
+
         self._next_id = [1 for _ in range(self.batch_size)]
 
     # def forward(self, detections, gt_target, is_training):
@@ -82,23 +82,26 @@ class MultiObjTracker(object):
         if is_training:
             loss = self.loss(tracks, gt_target)
             return tracks, {"track_loss": loss}
-        
+
         return tracks, {}
 
     def tracks_to_instance(self, targets):
-        batch_tracks =[]
+        batch_tracks = []
         for tracks, target in zip(self.tracks, targets):
 
             #When there is not tracks.
-            if len(tracks)!=0:
-                track_boxes = Boxes(torch.stack([x.box for x in tracks], dim=0))
+            if len(tracks) != 0:
+                track_boxes = Boxes(torch.stack([x.box for x in tracks],
+                                                dim=0))
                 track_var = torch.stack([x.box_var for x in tracks], dim=0)
             else:
                 track_boxes = Boxes(torch.Tensor())
-                track_var = torch.Tensor()    
+                track_var = torch.Tensor()
 
-            tracks = Instances(image_size=target.image_size, image_path=target.image_path, 
-                            pred_boxes=track_boxes, pred_variance=track_var)
+            tracks = Instances(image_size=target.image_size,
+                               image_path=target.image_path,
+                               pred_boxes=track_boxes,
+                               pred_variance=track_var)
 
             batch_tracks.append(tracks)
 
@@ -119,16 +122,22 @@ class MultiObjTracker(object):
             # When in cases there is not tracks to calculate the loss
             # we can add the target to the tracks, where loss will be
             # zero and no gradient will flow and we wont get any error.
-            if len(track)==0:
-                track = Instances(image_size=target.image_size, image_path=target.image_path,
-                        pred_boxes = target.gt_boxes, pred_variance=torch.ones(len(target), 4, device=torch.device("cuda")))
+            if len(track) == 0:
+                track = Instances(image_size=target.image_size,
+                                  image_path=target.image_path,
+                                  pred_boxes=target.gt_boxes,
+                                  pred_variance=torch.ones(
+                                      len(target),
+                                      4,
+                                      device=torch.device("cuda")))
 
             else:
-                match_quality_matrix = pairwise_iou(
-                                    target.gt_boxes, track.pred_boxes)
+                match_quality_matrix = pairwise_iou(target.gt_boxes,
+                                                    track.pred_boxes)
 
-                matched_idxs, matched_labels = self.tracks_matcher(match_quality_matrix)
-                fg_inds = torch.nonzero(matched_labels==1).squeeze(1)
+                matched_idxs, matched_labels = self.tracks_matcher(
+                    match_quality_matrix)
+                fg_inds = torch.nonzero(matched_labels == 1).squeeze(1)
 
                 target = target[matched_idxs]
 
@@ -154,12 +163,12 @@ class MultiObjTracker(object):
         ## Computing the loss attenuation
         mse = (tracks_boxes_batch.tensor - target_boxes_batch.tensor)**2
         # print(mse, tracks_var_batch)
-        loss_attenuation_final = (mse/tracks_var_batch + torch.log(tracks_var_batch)).mean()
-
+        loss_attenuation_final = (mse / tracks_var_batch +
+                                  torch.log(tracks_var_batch)).mean()
 
         # weighting scaling by 50.0.
-        return loss_attenuation_final/50.0
-    
+        return loss_attenuation_final / 50.0
+
     def _predict(self, idx):
         """Propagate track state distributions one time step forward.
         This function should be called once every time step, before `update`.
@@ -173,7 +182,7 @@ class MultiObjTracker(object):
         ----------
         detections : List[N,4]
             A list of detections at the current time step.
-        measurement_var : 
+        measurement_var :
             A list of measurement noise of each bounding box at current time step.
         """
 
@@ -181,7 +190,7 @@ class MultiObjTracker(object):
         # matches, unmatched_tracks, unmatched_detections = \
         #     self._match(detections)
 
-       
+
         matches, unmatched_tracks, unmatched_detections = \
             self._associate_detections_to_trackers(detections, self.tracks[idx])
 
@@ -189,19 +198,21 @@ class MultiObjTracker(object):
         # print(matches, unmatched_tracks, unmatched_detections)
         # Update track set.
         for track_idx, detection_idx in matches:
-            self.tracks[idx][track_idx].update(
-                self.kf, detections[detection_idx], measurement_var[detection_idx])
+            self.tracks[idx][track_idx].update(self.kf,
+                                               detections[detection_idx],
+                                               measurement_var[detection_idx])
         for track_idx in unmatched_tracks:
             self.tracks[idx][track_idx].mark_missed()
         for detection_idx in unmatched_detections:
-            self._initiate_track(detections[detection_idx], measurement_var[detection_idx], idx)
-        
+            self._initiate_track(detections[detection_idx],
+                                 measurement_var[detection_idx], idx)
+
         self.tracks[idx] = [t for t in self.tracks[idx] if not t.is_deleted()]
 
     def _match(self, detections):
-
         def gated_metric(tracks, dets, track_indices, detection_indices):
-            cost_matrix = iou_matching.iou_cost(tracks, dets, track_indices, detection_indices)
+            cost_matrix = iou_matching.iou_cost(tracks, dets, track_indices,
+                                                detection_indices)
             cost_matrix = linear_assignment.gate_cost_matrix(
                 self.kf, cost_matrix, tracks, dets, track_indices,
                 detection_indices)
@@ -210,9 +221,11 @@ class MultiObjTracker(object):
 
         # Split track set into confirmed and unconfirmed tracks.
         confirmed_tracks_idx = [
-            i for i, t in enumerate(self.tracks) if t.is_confirmed()]
+            i for i, t in enumerate(self.tracks) if t.is_confirmed()
+        ]
         unconfirmed_tracks_idx = [
-            i for i, t in enumerate(self.tracks) if not t.is_confirmed()]
+            i for i, t in enumerate(self.tracks) if not t.is_confirmed()
+        ]
 
         # Associate confirmed tracks using appearance features.
         matches_a, unmatched_tracks_a, unmatched_detections = \
@@ -222,11 +235,13 @@ class MultiObjTracker(object):
 
         # Associate remaining tracks together with unconfirmed tracks using IOU.
         iou_track_candidates = unconfirmed_tracks_idx + [
-            k for k in unmatched_tracks_a if
-            self.tracks[k].time_since_update == 1]
+            k for k in unmatched_tracks_a
+            if self.tracks[k].time_since_update == 1
+        ]
         unmatched_tracks_a = [
-            k for k in unmatched_tracks_a if
-            self.tracks[k].time_since_update != 1]
+            k for k in unmatched_tracks_a
+            if self.tracks[k].time_since_update != 1
+        ]
         matches_b, unmatched_tracks_b, unmatched_detections = \
             linear_assignment.min_cost_matching(
                 iou_matching.iou_cost, self.max_iou_distance, self.tracks,
@@ -235,62 +250,68 @@ class MultiObjTracker(object):
         matches = matches_a + matches_b
         unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
 
-        
         return matches, unmatched_tracks, unmatched_detections
 
-    def _associate_detections_to_trackers(self, detections, trackers,iou_threshold = 0.3):
+    def _associate_detections_to_trackers(self,
+                                          detections,
+                                          trackers,
+                                          iou_threshold=0.3):
         """
         Assigns detections to tracked object (both represented as bounding boxes)
         Returns 3 lists of matches, unmatched_detections and unmatched_trackers
         """
-        
-        if(len(trackers)==0):
-            return np.empty((0,2),dtype=int), np.empty((0,5),dtype=int), np.arange(len(detections))
-    
-        iou_matrix = np.zeros((len(detections),len(trackers)),dtype=np.float32)
 
-        for d,det in enumerate(detections):
-            for t,trk in enumerate(trackers):
-                iou_matrix[d,t] = self._iou(det,trk.box)
-        
+        if (len(trackers) == 0):
+            return np.empty((0, 2), dtype=int), np.empty(
+                (0, 5), dtype=int), np.arange(len(detections))
+
+        iou_matrix = np.zeros((len(detections), len(trackers)),
+                              dtype=np.float32)
+
+        for d, det in enumerate(detections):
+            for t, trk in enumerate(trackers):
+                iou_matrix[d, t] = self._iou(det, trk.box)
+
         matched_indices = assignment(-iou_matrix)
 
         unmatched_detections = []
-        for d,det in enumerate(detections):
-            if(d not in matched_indices[:,0]):
+        for d, det in enumerate(detections):
+            if (d not in matched_indices[:, 0]):
                 unmatched_detections.append(d)
-        
+
         unmatched_trackers = []
-        for t,trk in enumerate(trackers):
-            if(t not in matched_indices[:,1]):
+        for t, trk in enumerate(trackers):
+            if (t not in matched_indices[:, 1]):
                 unmatched_trackers.append(t)
 
         #filter out matched with low IOU
         matches = []
         for m in matched_indices:
-            if(iou_matrix[m[0],m[1]]<iou_threshold):
+            if (iou_matrix[m[0], m[1]] < iou_threshold):
                 unmatched_detections.append(m[0])
                 unmatched_trackers.append(m[1])
             else:
-                matches.append(m.reshape(1,2))
-        if(len(matches)==0):
-            matches = np.empty((0,2),dtype=int)
+                matches.append(m.reshape(1, 2))
+        if (len(matches) == 0):
+            matches = np.empty((0, 2), dtype=int)
         else:
-            matches = np.concatenate(matches,axis=0)
+            matches = np.concatenate(matches, axis=0)
 
-        matches = matches[:,[1,0]] # 0th col is tracking, 1st col is detection
-        
-        return matches, np.array(unmatched_trackers), np.array(unmatched_detections)
+        matches = matches[:, [1,
+                              0]]  # 0th col is tracking, 1st col is detection
 
+        return matches, np.array(unmatched_trackers), np.array(
+            unmatched_detections)
 
-    def _initiate_track(self, detection, detection_noise,idx):
+    def _initiate_track(self, detection, detection_noise, idx):
         mean, covariance = self.kf.initiate(detection, detection_noise)
         # print("initiate tracks", mean, covariance)
-        self.tracks[idx].append(Track(
-            mean, covariance, self._next_id[idx], self.n_init, self.max_age))
+        self.tracks[idx].append(
+            Track(mean, covariance, self._next_id[idx], self.n_init,
+                  self.max_age))
         self._next_id[idx] += 1
 
-    def _iou(self, bb_test,bb_gt):
+    def _iou(self, bb_test, bb_gt):
         """
         Computes IUO between two bboxes in the form [x1,y1,x2,y2]
         """
@@ -304,6 +325,6 @@ class MultiObjTracker(object):
         w = np.maximum(0.0, xx2 - xx1)
         h = np.maximum(0.0, yy2 - yy1)
         wh = w * h
-        o = wh / ((bb_test[2]-bb_test[0])*(bb_test[3]-bb_test[1])
-            + (bb_gt[2]-bb_gt[0])*(bb_gt[3]-bb_gt[1]) - wh)
-        return(o)
+        o = wh / ((bb_test[2] - bb_test[0]) * (bb_test[3] - bb_test[1]) +
+                  (bb_gt[2] - bb_gt[0]) * (bb_gt[3] - bb_gt[1]) - wh)
+        return (o)

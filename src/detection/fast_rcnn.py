@@ -63,9 +63,9 @@ class FastRCNNOutputLayers(nn.Module):
             nn.init.constant_(l.bias, 0)
 
         nn.init.normal_(self.bbox_pred.weight, std=0.001)
-        nn.init.constant_(self.sigma_pred.bias, 2)
+        nn.init.normal_(self.sigma_pred.weight, std=0.001)
 
-    def RichardCurve(self, x, low=0.0005, high=10, sharp=0.5):
+    def _RichardCurve(self, x, low=0, high=5, sharp=1):
         r"""Applies the generalized logistic function (aka Richard's curve)
         to the input tensor x.
         Args:
@@ -87,8 +87,7 @@ class FastRCNNOutputLayers(nn.Module):
 
         scores = self.cls_score(x)
         bbox_deltas = self.bbox_pred(x)
-        variance = self.RichardCurve(self.sigma_pred(x))
-        # variance = F.relu(self.sigma_pred(x))
+        variance = self._RichardCurve(self.sigma_pred(x))
 
         return scores, bbox_deltas, variance
 
@@ -207,8 +206,8 @@ def fast_rcnn_inference_single_image(
     # if topk_per_image >= 0:
     #     keep = keep[:topk_per_image]
 
-    # use_bayesian_clustering = False
-    use_bayesian_clustering = True
+    use_bayesian_clustering = False
+    # use_bayesian_clustering = True
 
     if use_bayesian_clustering==True & len(boxes)!=0:
         boxes, variance, scores, class_inds = bayes_od_clustering(keep, boxes, variance, scores, class_inds, nms_thresh)

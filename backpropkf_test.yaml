@@ -2,7 +2,7 @@
 
 DATASET:
   NAME: "KittiMOTDataset_KF" #option: "detections", "tracking"
-  PATH: "/network/home/bansaldi/Denso-OD/datasets/kitti_tracking/training"
+  PATH: "./datasets/kitti_tracking/training"
   LENGTH: 7000
   # TRACKS: 
 
@@ -11,29 +11,27 @@ ARCHITECTURE:
   # MODEL: "FasterRCNN"
 
 LOGS:
-  BASE_PATH: "/network/home/bansaldi/Denso-OD/logs"
+  BASE_PATH: "./logs"
 
 SEED: 5
 USE_CUDA: True
 
 TRAIN:
-  SEQUENCE_LENGTH: 3
-  BATCH_SIZE: 4
-  STEP_BETWEEN_FRAME: 6
-  EPOCHS: 50
+  SEQUENCE_LENGTH: 1
+  STEP_BETWEEN_FRAME: 1
+  BATCH_SIZE: 1
+  EPOCHS: 30
   LR: 1e-3
   LR_DECAY: 0.5
   MOMENTUM: 0.9
-  MILESTONES: (20,30,40)
-  DSET_SHUFFLE: True
+  MILESTONES: (10,20)
+  DSET_SHUFFLE: False
   SAVE_MODEL_EPOCHS: 5
   DATASET_DIVIDE: 0.9
 
 INPUT:
   IMAGE_SIZE: (375,1242)
   LABELS_TO_TRAIN: ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
+  # LABELS_TO_TRAIN: ['Car', 'Van', 'Pedestrian', 'Cyclist']
+  # LABELS_TO_TRAIN: ['Car', 'Pedestrian']
   NUM_CLASSES: 7
-
-
-ROI_HEADS:
-  LOSS_TYPE: "deterministic"

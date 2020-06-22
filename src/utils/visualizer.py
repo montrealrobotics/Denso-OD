@@ -43,29 +43,7 @@ class Visualizer(object):
 
     def draw_instances(self):
         class_labels = self.cfg.INPUT.LABELS_TO_TRAIN
-
-        img = self.image.copy()
-        drawer = ImageDraw.Draw(img, mode=None)
-
-        for instance in self.instances:
-            box = instance.pred_boxes
-            drawer.rectangle(box, outline ='red',width=3)
-            if instance.has("pred_classes"):
-                drawer.text([box[0], box[1]-10],"{}: {:.2f}%".format(class_labels[instance.pred_classes],
-                instance.scores), outline='green')
-
-            if instance.has("pred_variance"):
-                sigma = np.sqrt(instance.pred_variance)
-                drawer.ellipse([box[0]-2*sigma[0], box[1]-2*sigma[1], box[0]+2*sigma[0], box[1]+2*sigma[1]], outline='blue', width=3)
-                drawer.ellipse([box[2]-2*sigma[2], box[3]-2*sigma[3], box[2]+2*sigma[2], box[3]+2*sigma[3]], outline='blue', width=3)
         
-        ax = self.output.add_subplot(self.grid_spec[0,0])
-        ax.imshow(img)
-
-        # return np.asarray(self.image)
-        return ax
-
-    def draw_instance_prob(self):
         img = self.image.copy()
         ax = self.output.add_subplot(self.grid_spec[0,0])
         ax.imshow(img)
@@ -74,6 +52,16 @@ class Visualizer(object):
             box_cords = instance.pred_boxes
             box = patches.Rectangle(box_cords[:2], box_cords[2]-box_cords[0], box_cords[3]-box_cords[1], linewidth=1, fill=False, edgecolor='r')
             ax.add_patch(box)
+            if instance.has("pred_classes"):
+                ax.text(box_cords[0], box_cords[1]-10,"{}: {:.2f}%".format(class_labels[instance.pred_classes],
+                instance.scores), fontsize=8, color='green')
+
+            if instance.has("pred_variance"):
+                sigma = np.sqrt(instance.pred_variance)
+                ellip_top = patches.Ellipse([box_cords[0], box_cords[1]], width= 2*sigma[0], height= 2*sigma[1], fill = False, linewidth=2, edgecolor='b')
+                ellip_bottom = patches.Ellipse([box_cords[2], box_cords[3]], width= 2*sigma[2], height= 2*sigma[3], fill = False, linewidth=2, edgecolor='b')
+                ax.add_patch(ellip_top)
+                ax.add_patch(ellip_bottom)
         
         return ax
 
@@ -95,6 +83,16 @@ class Visualizer(object):
         ax.set_xlim(-15.0, 15.0)
         ax.set_ylim(0.0, 50.0)
         ax.set_aspect('equal')
+
+        return ax
+
+    def draw_proposals(self):
+        ax = self.output.add_subplot(2,2,3)
+        ax.imshow(self.image.copy())
+        for proposal in self.proposals:
+            box_cords = proposal.proposal_boxes
+            box = patches.Rectangle(box_cords[:2], box_cords[2]-box_cords[0], box_cords[3]-box_cords[1], linewidth=1, fill=False, edgecolor='r')
+            ax.add_patch(box)
 
         return ax
 

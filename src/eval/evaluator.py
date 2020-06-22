@@ -3,7 +3,7 @@ import torch
 
 import numpy as np
 from scipy.stats.stats import pearsonr   
-# import seaborn as sns
+import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.use('agg')

@@ -62,6 +62,7 @@ class RPNProcessing(object):
         self.box2box_transform = box2box_transform
         self.anchor_matcher = matcher
         
+        self.num_images = cfg.TRAIN.BATCH_SIZE
         self.batch_size_per_image = cfg.RPN.BATCH_SIZE_PER_IMAGE
         self.positive_fraction  = cfg.RPN.POSITIVE_FRACTION
         self.boundary_threshold = cfg.RPN.BOUNDARY_THRESH
@@ -173,7 +174,7 @@ class RPNProcessing(object):
             self.smooth_l1_beta,
         )
 
-        normalizer = 1.0 / (self.batch_size_per_image * self.cfg.TRAIN.BATCH_SIZE)
+        normalizer = 1.0 / (self.batch_size_per_image * self.num_images)
         loss_cls = objectness_loss * normalizer  # cls: classification loss
         loss_loc = localization_loss * normalizer  # loc: localization loss
         losses = {"loss_rpn_cls": loss_cls, "loss_rpn_loc": loss_loc}
@@ -214,9 +215,8 @@ class RPNProcessing(object):
         """
         # Reshape: (N, A, Hi, Wi) -> (N, Hi, Wi, A) -> (N, Hi*Wi*A)
         # print(self.pred_objectness_logits.shape)
-        N = self.pred_objectness_logits.shape[0]
 
-        pred_objectness_logits = self.pred_objectness_logits.permute(0, 2, 3, 1).reshape(N, -1)
+        pred_objectness_logits = self.pred_objectness_logits.permute(0, 2, 3, 1).reshape(self.num_images, -1)
 
         return pred_objectness_logits
 

@@ -58,14 +58,14 @@ def find_top_rpn_proposals(
     # sort is faster than topk (https://github.com/pytorch/pytorch/issues/22812)
     # topk_scores_i, topk_idx = pred_objectness_logits.topk(num_proposals, dim=1)
     sorted_objectness_logits, idx = pred_objectness_logits.sort(descending=True, dim=1)
-    topk_scores = sorted_objectness_logits[:, :num_proposals] #N x topk
+    topk_scores = sorted_objectness_logits[batch_idx, :num_proposals] #N x topk
+    topk_idx = idx[batch_idx, :num_proposals] # N x topk index
     
-    topk_idx = idx[:, :num_proposals] # N x topk index
     topk_proposals = proposals[batch_idx[:, None], topk_idx]  # N x topk x 4
     level_ids = torch.full((num_proposals,), 0, dtype=torch.int64, device=device)
 
 
-    # 3. For each image, run a per-level NMS, and choose topk results.
+    # For each image, run a per-level NMS, and choose topk results.
     results = []
     # print(image_sizes)
     for n, image_size in enumerate(image_sizes):

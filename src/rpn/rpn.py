@@ -21,11 +21,11 @@ class RPNHead(nn.Module):
         ## Layer 1
         self.conv1 = nn.Conv2d(in_channels, in_channels, 3, 1, 1)
 
-        ## Regression layer
-        self.bbox_head = nn.Conv2d(in_channels, num_anchors*4, 1, 1, 0)
-
         ## classification layer
         self.classification_head = nn.Conv2d(in_channels, num_anchors, 1, 1, 0)
+        
+        ## Regression layer
+        self.bbox_head = nn.Conv2d(in_channels, num_anchors*4, 1, 1, 0)
 
         ## Uncertainty layer
         self.uncertain_head = nn.Conv2d(in_channels, num_anchors*4, 1, 1, 0)
@@ -33,7 +33,7 @@ class RPNHead(nn.Module):
         # Wight Initialization
         for l in [self.conv1, self.bbox_head, self.classification_head, self.uncertain_head]:
             nn.init.normal_(l.weight, std=0.01)
-            nn.init.constant_(l.bias, 0.001)
+            nn.init.constant_(l.bias, 0)
 
 
     def forward(self, feature_map):
@@ -103,6 +103,8 @@ class RPN(nn.Module):
         #  List[Boxes]: Length N
         gt_boxes = [x.gt_boxes for x in gt_target] if gt_target is not None else None
 
+        pred_objectness_logits, pred_anchor_deltas, _ = self.rpn_head(features)
+        
         feature_shape = features.shape
 
         stride = round(image_sizes[-1]/feature_shape[-1])
@@ -112,7 +114,6 @@ class RPN(nn.Module):
         # box struct: [HxWx9, 4]
         anchors = self.anchors_generator(feature_shape, stride)
 
-        pred_objectness_logits, pred_anchor_deltas, _ = self.rpn_head(features)
 
         RPNProcessor = RPNProcessing(
             self.cfg,
