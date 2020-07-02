@@ -67,7 +67,7 @@ class Visualizer(object):
 
     def draw_projection(self):
         # xy_coords, variance = ground_project(self.instances)
-        xy_coords, variance = ground_project(self.instances, "./datasets/kitti_dataset/training/calib/"+self.path[-10:-3]+"txt")
+        xy_coords, variance = ground_project(self.instances, "./datasets/kitti_object/training/calib/"+self.path[-10:-3]+"txt")
         ax = self.output.add_subplot(self.grid_spec[0,1])
 
         for xy, xy_var in zip(xy_coords, variance):

@@ -31,7 +31,7 @@ conf_params.TRAIN.SAVE_MODEL_EPOCHS = 5
 conf_params.TRAIN.DATASET_DIVIDE = 0.9
 
 conf_params.INPUT = CN()
-conf_params.INPUT.IMAGE_SIZE = (375,1242)
+conf_params.INPUT.IMAGE_SIZE = (375,1242) #h,w
 conf_params.INPUT.LABELS_TO_TRAIN = ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
 conf_params.INPUT.NUM_CLASSES = 7
 
@@ -70,7 +70,7 @@ conf_params.BACKBONE.STD = [0.229, 0.224, 0.225]
 conf_params.BACKBONE.MODEL_NAME = 'resnet50'
 # choices = [1,2,3,4]
 conf_params.BACKBONE.RESNET_STOP_LAYER = 3
-conf_params.BACKBONE.FREEZE = False
+conf_params.BACKBONE.FREEZE_AT = 2
 
 
 
@@ -80,7 +80,6 @@ For Anchor Generator
 conf_params.ANCHORS = CN()
 conf_params.ANCHORS.ASPECT_RATIOS = [0.5,1,2]
 conf_params.ANCHORS.ANCHOR_SCALES = [64, 128, 256]
-conf_params.ANCHORS.N_ANCHORS_PER_LOCATION = 9
 conf_params.ANCHORS.POS_PROPOSAL_THRES = 0.7
 conf_params.ANCHORS.NEG_PROPOSAL_THRES = 0.3
 
@@ -104,7 +103,7 @@ conf_params.RPN.MIN_SIZE_PROPOSAL = 5
 conf_params.RPN.PRE_NMS_TOPK_TRAIN = 4000
 conf_params.RPN.PRE_NMS_TOPK_TEST = 4000
 conf_params.RPN.POST_NMS_TOPK_TRAIN = 2000
-conf_params.RPN.POST_NMS_TOPK_TEST = 300
+conf_params.RPN.POST_NMS_TOPK_TEST = 300 
 conf_params.RPN.BBOX_REG_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
 conf_params.RPN.IOU_THRESHOLDS = [0.3, 0.7]
 conf_params.RPN.IOU_LABELS = [0, -1, 1]
@@ -125,7 +124,8 @@ conf_params.ROI_HEADS.IOU_THRESHOLDS = [0.5]
 conf_params.ROI_HEADS.IOU_LABELS = [0, 1]
 # conf_params.ROI_HEADS.POOLER_TYPE = "ROIPool"
 conf_params.ROI_HEADS.POOLER_TYPE = "ROIAlign"
-conf_params.ROI_HEADS.POOLER_RESOLUTION = 14 # After this there is MaxPool2D, so final resolution is 7x7
+# conf_params.ROI_HEADS.POOLER_RESOLUTION = 14 # After this there is MaxPool2D, so final resolution is 7x7
+conf_params.ROI_HEADS.POOLER_RESOLUTION = 7 # No maxpool after this
 conf_params.ROI_HEADS.POOLER_SAMPLING_RATIO = 0
 conf_params.ROI_HEADS.FC_DIM = 1024
 conf_params.ROI_HEADS.CLS_AGNOSTIC_BBOX_REG = True
@@ -133,7 +133,7 @@ conf_params.ROI_HEADS.LOSS_TYPE = "deterministic" # Options: "deterministic, los
 conf_params.ROI_HEADS.SMOOTH_L1_BETA = 0.0
 conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 10.0, 10.0)
 # conf_params.ROI_HEADS.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
-conf_params.ROI_HEADS.DETECTIONS_PER_IMAGE = 50
+conf_params.ROI_HEADS.DETECTIONS_PER_IMAGE = 100
 conf_params.ROI_HEADS.MERGING = "bayesian_clustering" #option: "nms", "bayesian_clustering"
 
 

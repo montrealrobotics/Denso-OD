@@ -98,7 +98,7 @@ class ROIPooler(nn.Module):
         """
         pooler_fmt_boxes = convert_boxes_to_pooler_format(box_lists)
         output = self.level_poolers(x, pooler_fmt_boxes)
-        output = self.max_pool(output)
+        # output = self.max_pool(output)
 
         return output
 

@@ -45,6 +45,8 @@ class AnchorGenerator(nn.Module):
         sizes         = cfg.ANCHORS.ANCHOR_SCALES
         aspect_ratios = cfg.ANCHORS.ASPECT_RATIOS
 
+        self._num_anchors_per_pixel = len(sizes)*len(aspect_ratios)
+
         base_anchors = self.generate_base_anchors(sizes, aspect_ratios, device)
         self.register_buffer("base_anchors", base_anchors)
 
@@ -135,4 +137,9 @@ class AnchorGenerator(nn.Module):
         # each element is a Box Strucutre which is list of all anchor in image i. 
         # Box = [HxWx9, 4]
         return anchors_batch 
+
+    @property
+    def num_anchors(self):
+        return self._num_anchors_per_pixel
+
 

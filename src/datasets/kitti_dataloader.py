@@ -258,7 +258,7 @@ class KittiDataset(Dataset):
 		i = 0
 		for name in image_names:
 			img_size = Image.open(name).size
-			if  img_size == (1242,375) and i<self.cfg.DATASET.LENGTH:
+			if i<self.cfg.DATASET.LENGTH:
 				# print("Got here")
 				# label_name = root_dir+"/labels/training/"+name[-10:-3]+"txt"
 				label_name = os.path.join(root_dir,"label_02",name[-10:-3]+"txt")

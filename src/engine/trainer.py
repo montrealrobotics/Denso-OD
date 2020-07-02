@@ -39,6 +39,7 @@ class General_Solver(object):
             cfg.dump(stream=file, default_flow_style=False)
 
         self.model = self.get_model(cfg)
+
         self.optimizer, self.lr_scheduler = self.build_optimizer(cfg)
 
         #From where to start the training
@@ -108,12 +109,12 @@ class General_Solver(object):
         if cfg.SOLVER.OPTIM.lower() == 'adam':
             optimizer = optim.Adam(self.model.parameters(),
                                    lr=cfg.TRAIN.LR,
-                                   weight_decay=0.01)
+                                   weight_decay=1e-4)
         elif cfg.SOLVER.OPTIM.lower() == 'sgd':
             optimizer = optim.SGD(self.model.parameters(),
                                   lr=cfg.TRAIN.LR,
                                   momentum=cfg.TRAIN.MOMENTUM,
-                                  weight_decay=0.01)
+                                  weight_decay=1e-4)
         else:
             raise ValueError('Optimizer must be one of \"sgd\" or \"adam\"')
 
@@ -246,6 +247,7 @@ class General_Solver(object):
 
             for idx, batch_sample in enumerate(self.train_loader):
                 # print("Iteration:", idx)
+                self.model.backbone.freeze_bn()
                 loss_dict = self.train_step(batch_sample)
 
                 if idx % 10 == 0:

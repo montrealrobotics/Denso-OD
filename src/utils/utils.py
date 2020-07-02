@@ -22,7 +22,7 @@ def image_transform(cfg):
     ToTensor() Converts a PIL Image or numpy.ndarray (H x W x C) in the range [0, 255] to a torch.FloatTensor  of shape (C x H x W) in the range [0.0, 1.0]
 
     """
-    transform = T.Compose([T.ToTensor(),
+    transform = T.Compose([T.CenterCrop(cfg.INPUT.IMAGE_SIZE), T.ToTensor(),
                             T.Normalize(mean=cfg.BACKBONE.MEAN, std=cfg.BACKBONE.STD)])
 
     return transform

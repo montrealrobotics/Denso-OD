@@ -142,7 +142,7 @@ class KittiMOTDataset_KF(Dataset):
                 class_list = []
                 track_list = []
                 img_size = Image.open(name).size
-                if img_size == (1242,375) and i<self.cfg.DATASET.LENGTH:
+                if i<self.cfg.DATASET.LENGTH:
                     for j,obj in enumerate(object_rows):
                         obj = obj.split()
                         if i==int(obj[0]):
