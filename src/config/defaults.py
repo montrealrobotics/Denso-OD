@@ -11,11 +11,11 @@ conf_params.USE_CUDA = True
 
 conf_params.DATASET = CN()
 conf_params.DATASET.NAME = "detection" #option: "detections", "tracking"
-conf_params.DATASET.PATH = "/network/home/bansaldi/Denso-OD/datasets/kitti_dataset/training"
+conf_params.DATASET.PATH = "./datasets/kitti_object/training"
 conf_params.DATASET.LENGTH = 7000
  
 conf_params.LOGS = CN()
-conf_params.LOGS.BASE_PATH = "/network/home/bansaldi/Denso-OD/logs"
+conf_params.LOGS.BASE_PATH = "./logs"
 
 conf_params.TRAIN = CN()
 conf_params.TRAIN.SEQUENCE_LENGTH = 3

@@ -426,6 +426,51 @@ class FastRCNNOutputs(object):
 
         return loss_cal_final
 
+    def surrogate_loss(self):
+        """
+        Surrogate Loss implementation
+
+        Returns:
+            scalar Tensor
+        """
+        gt_bbox_deltas = self.box2box_transform.get_deltas(
+            self.proposals.tensor, self.gt_boxes.tensor
+        )
+        box_dim = gt_bbox_deltas.size(1)  # 4 or 5
+        cls_agnostic_bbox_reg = self.pred_bbox_deltas.size(1) == box_dim
+        device = self.pred_bbox_deltas.device
+
+        bg_class_ind = self.pred_class_logits.shape[1] - 1
+
+        # Box delta loss is only computed between the prediction for the gt class k
+        # (if 0 <= k < bg_class_ind) and the target; there is no loss defined on predictions
+        # for non-gt classes and background.
+        # Empty fg_inds produces a valid loss of zero as long as the size_average
+        # arg to smooth_l1_loss is False (otherwise it uses torch.mean internally
+        # and would produce a nan loss).
+        fg_inds = torch.nonzero((self.gt_classes >= 0) & (self.gt_classes < bg_class_ind)).squeeze(
+            1
+        )
+        if cls_agnostic_bbox_reg:
+            # pred_bbox_deltas only corresponds to foreground class for agnostic
+            gt_class_cols = torch.arange(box_dim, device=device)
+        else:
+            fg_gt_classes = self.gt_classes[fg_inds]
+            # pred_bbox_deltas for class k are located in columns [b * k : b * k + b],
+            # where b is the dimension of box representation (4 or 5)
+            # Note that compared to Detectron1,
+            # we do not perform bounding box regression for background classes.
+            gt_class_cols = box_dim * fg_gt_classes[:, None] + torch.arange(box_dim, device=device)
+
+        ### 
+
+        ## Computing the loss attenuation
+        error_loss = (self.pred_delta_variance[fg_inds[:, None], gt_class_cols] - (self.pred_bbox_deltas.clone().detach()[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2)**2
+        loss_final = ((self.pred_bbox_deltas[fg_inds[:, None], gt_class_cols] - gt_bbox_deltas[fg_inds])**2 + error_loss).sum()/self.gt_classes.numel() 
+
+        return loss_final
+
+
     def losses(self):
         """
         Compute the default losses for box head in Fast(er) R-CNN,
@@ -437,7 +482,8 @@ class FastRCNNOutputs(object):
 
         regress_loss_dir = {"deterministic": self.smooth_l1_loss, 
                             "loss_attenuation": self.loss_attenuation , 
-                            "loss_attenuation_with_calibration": self.loss_calibration}
+                            "loss_attenuation_with_calibration": self.loss_calibration,
+                            "surrogate": self.surrogate_loss}
         return {
             "loss_cls": self.softmax_cross_entropy_loss(),
             "loss_box_reg": regress_loss_dir[self.loss_type](),

@@ -38,7 +38,7 @@ class KittiMOTDataset(Dataset):
         data= {}
         for track in tracks:
             image_names = glob.glob(os.path.join(root_dir,"training/image_02",track,"/*.png"))
-            image_names.sort(key=lambda f: int(f[-8:-4]))
+            image_names = sorted(image_names)
             label_name = root_dir+"/training/label_02/"+track+".txt"
             object_rows = open(label_name).read().splitlines()
             class_labels = self.cfg.INPUT.LABELS_TO_TRAIN
@@ -48,20 +48,20 @@ class KittiMOTDataset(Dataset):
                 class_list = []
                 track_list = []
                 img_size = Image.open(name).size
-                if img_size == (1242,375) and i<self.cfg.TRAIN.DATASET_LENGTH:
-                    for j,obj in enumerate(object_rows):
-                        obj = obj.split()
-                        if i==int(obj[0]):
-                            if obj[2] in class_labels:
-                                box_list.append([float(i) for i in obj[6:10]])
-                                class_list.append(class_labels.index(obj[2]))
-                                track_list.append(int(obj[1]))
-                        else:
-                            if len(box_list)!=0:
-                                data_point = Instances(img_size[::-1], gt_boxes=Boxes(torch.tensor(box_list)), gt_classes=torch.tensor(class_list), gt_trackid = torch.tensor(track_list))
-                                data[name] = data_point
-                            object_rows = object_rows[j:]
-                            break
+
+                for j,obj in enumerate(object_rows):
+                    obj = obj.split()
+                    if i==int(obj[0]):
+                        if obj[2] in class_labels:
+                            box_list.append([float(i) for i in obj[6:10]])
+                            class_list.append(class_labels.index(obj[2]))
+                            track_list.append(int(obj[1]))
+                    else:
+                        if len(box_list)!=0:
+                            data_point = Instances(img_size[::-1], gt_boxes=Boxes(torch.tensor(box_list)), gt_classes=torch.tensor(class_list), gt_trackid = torch.tensor(track_list))
+                            data[name] = data_point
+                        object_rows = object_rows[j:]
+                        break
         return data
 
     def __len__(self):
@@ -133,7 +133,7 @@ class KittiMOTDataset_KF(Dataset):
         for track in tracks:
             data= []
             image_names = glob.glob(os.path.join(root_dir,"image_02",track,"*.png"))
-            image_names.sort(key=lambda f: int(f[-8:-4]))
+            image_names = sorted(image_names)
             label_name = os.path.join(root_dir, "label_02", track+".txt")
             object_rows = open(label_name).read().splitlines()
             class_labels = self.cfg.INPUT.LABELS_TO_TRAIN
@@ -142,20 +142,20 @@ class KittiMOTDataset_KF(Dataset):
                 class_list = []
                 track_list = []
                 img_size = Image.open(name).size
-                if i<self.cfg.DATASET.LENGTH:
-                    for j,obj in enumerate(object_rows):
-                        obj = obj.split()
-                        if i==int(obj[0]):
-                            if obj[2] in class_labels:
-                                box_list.append([float(k) for k in obj[6:10]])
-                                class_list.append(class_labels.index(obj[2]))
-                                track_list.append(int(obj[1]))
-                        else:
-                            data_point = Instances(img_size[::-1], image_path=name, gt_boxes=Boxes(torch.tensor(box_list)), 
-                                        gt_classes=torch.tensor(class_list), gt_trackid = torch.tensor(track_list))
-                            data.append(data_point)
-                            object_rows = object_rows[j:]
-                            break
+
+                for j,obj in enumerate(object_rows):
+                    obj = obj.split()
+                    if i==int(obj[0]):
+                        if obj[2] in class_labels:
+                            box_list.append([float(k) for k in obj[6:10]])
+                            class_list.append(class_labels.index(obj[2]))
+                            track_list.append(int(obj[1]))
+                    else:
+                        data_point = Instances(img_size[::-1], image_path=name, gt_boxes=Boxes(torch.tensor(box_list)), 
+                                    gt_classes=torch.tensor(class_list), gt_trackid = torch.tensor(track_list))
+                        data.append(data_point)
+                        object_rows = object_rows[j:]
+                        break
             data_list.append(data)
         return data_list
 

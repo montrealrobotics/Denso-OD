@@ -32,6 +32,14 @@ TRAIN:
 INPUT:
   IMAGE_SIZE: (375,1242)
   LABELS_TO_TRAIN: ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
-  # LABELS_TO_TRAIN: ['Car', 'Van', 'Pedestrian', 'Cyclist']
-  # LABELS_TO_TRAIN: ['Car', 'Pedestrian']
   NUM_CLASSES: 7
+
+ANCHORS:
+  ANCHOR_SCALES: [32, 64, 128, 256]
+
+ROI_HEADS:
+  LOSS_TYPE: "loss_attenuation"
+  SCORE_THRESH_TEST: 0.25
+
+SOLVER:
+  OPTIM: "sgd"

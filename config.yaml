@@ -2,12 +2,12 @@
 
 DATASET:
   NAME: "KittiDataset" 
-  PATH: "./datasets/kitti_dataset/training"
+  PATH: "./datasets/kitti_object/training"
   LENGTH: 7500
 
 ARCHITECTURE:
   MODEL: "FasterRCNN"
-
+  
 LOGS:
   BASE_PATH: "./logs"
 
@@ -15,12 +15,12 @@ SEED: 5
 USE_CUDA: True
 
 TRAIN:
-  BATCH_SIZE: 8
-  EPOCHS: 80
+  BATCH_SIZE: 32
+  EPOCHS: 65
   LR: 1e-3
-  LR_DECAY: 0.2
+  LR_DECAY: 0.5
   MOMENTUM: 0.9
-  MILESTONES: (20,35,50)
+  MILESTONES: (20,35,55)
   DSET_SHUFFLE: True
   SAVE_MODEL_EPOCHS: 5
   DATASET_DIVIDE: 0.9
@@ -30,9 +30,12 @@ INPUT:
   LABELS_TO_TRAIN: ['Car', 'Van', 'Truck', 'Tram', 'Pedestrian', 'Person_sitting', 'Cyclist']
   NUM_CLASSES: 7
 
+ANCHORS:
+  ANCHOR_SCALES: [32, 64, 128, 256]
+
 ROI_HEADS:
   LOSS_TYPE: "loss_attenuation"
   SCORE_THRESH_TEST: 0.25
 
 SOLVER:
-  OPTIM: "adam"
+  OPTIM: "sgd"

@@ -1,16 +1,24 @@
+from src.config import Cfg as cfg  # Configuration file
+import numpy as np
+import torch
+import random 
+
+torch.manual_seed(cfg.SEED)
+np.random.seed(cfg.SEED)
+random.seed(cfg.SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 import os
 import sys
 
-import numpy as np
 import matplotlib
 import argparse
 import time
 
-import torch
 import torchvision
 from torch.utils import tensorboard
 
-from src.config import Cfg as cfg  # Configuration file
 from src.engine.trainer import BackpropKF_Solver, General_Solver
 
 matplotlib.use('agg')
@@ -40,8 +48,6 @@ if args.config:
     cfg.merge_from_file(args.config)
 cfg.freeze()
 
-torch.manual_seed(cfg.SEED)
-np.random.seed(cfg.SEED)
 
 mode = args.mode
 
